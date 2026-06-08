@@ -49,6 +49,14 @@ export default function ExpenseModal({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  // Determine available UI options based on Salary Account constraint
+  const visiblePaymentMethods = sourceAccount === 'Salary Account'
+    ? ['UPI']
+    : transactionType === 'borrowed'
+    ? ['Cash', 'UPI']
+    : paymentMethods;
+  const visibleUpiApps = sourceAccount === 'Salary Account' ? ['Cred UPI'] : ['GPay', 'Amazon Pay', 'Cred UPI'];
+
   useEffect(() => {
     if (expenseToEdit) {
       setTitle(expenseToEdit.title);
@@ -111,6 +119,13 @@ export default function ExpenseModal({
       setCreditCardIssuer('ICICI');
     }
   }, [paymentMethod, upiApp, creditCardIssuer]);
+
+  // Sync payment method if it becomes invalid under new constraints
+  useEffect(() => {
+    if (!visiblePaymentMethods.includes(paymentMethod)) {
+      setPaymentMethod(visiblePaymentMethods[0] || 'UPI');
+    }
+  }, [visiblePaymentMethods, paymentMethod]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -198,10 +213,6 @@ export default function ExpenseModal({
     }
   };
 
-  // Determine available UI options based on Salary Account constraint
-  const visiblePaymentMethods = sourceAccount === 'Salary Account' ? ['UPI'] : paymentMethods;
-  const visibleUpiApps = sourceAccount === 'Salary Account' ? ['Cred UPI'] : ['GPay', 'Amazon Pay', 'Cred UPI'];
-
   return (
     <AnimatePresence>
       {isOpen && (
@@ -274,7 +285,7 @@ export default function ExpenseModal({
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-xs font-semibold uppercase tracking-wider text-slate-400 mb-1.5">
-                    Title / Item
+                    {transactionType === 'borrowed' ? 'Title' : 'Title / Item'}
                   </label>
                   <input
                     type="text"
@@ -317,7 +328,7 @@ export default function ExpenseModal({
                 </div>
                 <div>
                   <label className="block text-xs font-semibold uppercase tracking-wider text-slate-400 mb-1.5">
-                    Category
+                    {transactionType === 'borrowed' ? 'Used For' : 'Category'}
                   </label>
                   <select
                     value={category}
@@ -359,7 +370,11 @@ export default function ExpenseModal({
                 <div>
                   <div className="flex items-center justify-between mb-1.5">
                     <label className="block text-xs font-semibold uppercase tracking-wider text-slate-400">
-                      Paid For / With Whom
+                      {transactionType === 'borrowed'
+                        ? 'Taken From (Person)'
+                        : transactionType === 'lent'
+                        ? 'Lent To'
+                        : 'Paid For / With Whom'}
                     </label>
                     <button
                       type="button"
@@ -397,7 +412,7 @@ export default function ExpenseModal({
                 {/* Source Account select */}
                 <div>
                   <label className="block text-xs font-semibold uppercase tracking-wider text-slate-400 mb-1.5">
-                    Source Account
+                    {transactionType === 'borrowed' ? 'Destination Account' : 'Source Account'}
                   </label>
                   <select
                     value={sourceAccount}
@@ -414,10 +429,10 @@ export default function ExpenseModal({
               {sourceAccount !== 'Salary Account' && (
                 <div>
                   <label className="block text-xs font-semibold uppercase tracking-wider text-slate-400 mb-1.5">
-                    Payment Method
+                    {transactionType === 'borrowed' ? 'Received Via' : 'Payment Method'}
                   </label>
                   <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
-                    {paymentMethods.map(method => (
+                    {visiblePaymentMethods.map(method => (
                       <button
                         key={method}
                         type="button"

@@ -292,7 +292,10 @@ export default function ExpenseTable({
                     <td className="py-3.5 px-4">
                       <div>
                         <div className="text-slate-300 font-medium">{personMap.get(exp.personId) || 'Unknown'}</div>
-                        <div className="text-[10px] text-slate-400 font-semibold">{exp.sourceAccount || 'Self Account'}</div>
+                        <div className="text-[10px] text-slate-400 font-semibold">
+                          {exp.transactionType === 'borrowed' ? 'Dest: ' : 'Src: '}
+                          {exp.sourceAccount || 'Self Account'}
+                        </div>
                       </div>
                     </td>
                     <td className="py-3.5 px-4 text-slate-300 font-medium">{renderPaymentMethodDetail(exp)}</td>
@@ -366,8 +369,9 @@ export default function ExpenseTable({
                       {exp.category}
                     </span>
                     <span className="text-slate-400 font-medium">
-                      For: <strong className="text-slate-200">{personMap.get(exp.personId) || 'Unknown'}</strong> 
-                      <span className="text-[10px] text-slate-500"> ({exp.sourceAccount || 'Self'})</span>
+                      {exp.transactionType === 'borrowed' ? 'From: ' : exp.transactionType === 'lent' ? 'To: ' : 'For: '}
+                      <strong className="text-slate-200">{personMap.get(exp.personId) || 'Unknown'}</strong> 
+                      <span className="text-[10px] text-slate-500"> ({exp.transactionType === 'borrowed' ? 'Dest: ' : 'Src: '}{exp.sourceAccount || 'Self'})</span>
                     </span>
                   </div>
                   <span className="text-slate-400 font-medium">
