@@ -56,14 +56,27 @@ export default function PeoplePage() {
 
   const personStats = useCallback((personId: string) => {
     let count = 0;
-    let total = 0;
+    let totalExpenses = 0;
+    let totalLent = 0;
+    let totalBorrowed = 0;
+
     expenses.forEach(exp => {
       if (exp.personId === personId) {
         count++;
-        total += exp.amount;
+        const type = exp.transactionType || 'expense';
+        if (type === 'expense') {
+          totalExpenses += exp.amount;
+        } else if (type === 'lent') {
+          totalLent += exp.amount;
+        } else if (type === 'borrowed') {
+          totalBorrowed += exp.amount;
+        }
       }
     });
-    return { count, total };
+
+    const netLoan = totalLent - totalBorrowed;
+
+    return { count, totalExpenses, netLoan };
   }, [expenses]);
 
   return (
@@ -97,7 +110,7 @@ export default function PeoplePage() {
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           {persons.map(person => {
-            const { count, total } = personStats(person._id);
+            const { count, totalExpenses, netLoan } = personStats(person._id);
             const isTemp = person._id.startsWith('temp_');
             return (
               <div
@@ -125,13 +138,25 @@ export default function PeoplePage() {
                   </div>
                 </div>
 
-                <div className="flex items-end justify-between mt-6 pt-4 border-t border-slate-800/60">
-                  <div>
-                    <span className="text-[10px] uppercase font-semibold text-slate-400 tracking-wider">Total Share</span>
-                    <p className="text-base font-extrabold text-blue-400 mt-0.5">₹{total.toFixed(2)}</p>
+                <div className="mt-6 pt-4 border-t border-slate-800/60 space-y-4">
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <span className="text-[10px] uppercase font-semibold text-slate-400 tracking-wider">Total Share</span>
+                      <p className="text-sm font-extrabold text-blue-400 mt-0.5">₹{totalExpenses.toFixed(2)}</p>
+                    </div>
+                    <div>
+                      <span className="text-[10px] uppercase font-semibold text-slate-400 tracking-wider">Udhaar Bal.</span>
+                      {netLoan > 0 ? (
+                        <p className="text-sm font-extrabold text-emerald-400 mt-0.5">Owes ₹{netLoan.toFixed(2)}</p>
+                      ) : netLoan < 0 ? (
+                        <p className="text-sm font-extrabold text-rose-400 mt-0.5">You owe ₹{Math.abs(netLoan).toFixed(2)}</p>
+                      ) : (
+                        <p className="text-sm font-bold text-slate-500 mt-0.5">Settled</p>
+                      )}
+                    </div>
                   </div>
                   
-                  <div className="flex gap-1">
+                  <div className="flex justify-end gap-1 pt-2 border-t border-slate-800/20">
                     <button
                       onClick={() => handleEdit(person)}
                       className="p-2 hover:bg-slate-800 text-slate-400 hover:text-white rounded-lg transition-all"

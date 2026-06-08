@@ -9,6 +9,7 @@ export interface Expense {
   title: string;
   amount: number;
   category: string;
+  transactionType?: 'expense' | 'lent' | 'borrowed';
   personId: string; // references Person
   paymentMethod: string;
   date: string;
@@ -39,6 +40,8 @@ export interface DashboardStats {
     amount: number;
     date: string;
   } | null;
+  totalReceivable: number;
+  totalPayable: number;
 }
 
 export interface CategoryData {

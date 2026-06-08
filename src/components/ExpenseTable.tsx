@@ -32,6 +32,7 @@ export default function ExpenseTable({
   const [selectedCategory, setSelectedCategory] = useState('');
   const [selectedPerson, setSelectedPerson] = useState('');
   const [selectedMethod, setSelectedMethod] = useState('');
+  const [selectedType, setSelectedType] = useState('');
   const [sortField, setSortField] = useState<SortField>('date');
   const [sortOrder, setSortOrder] = useState<SortOrder>('desc');
   const [currentPage, setCurrentPage] = useState(1);
@@ -66,6 +67,10 @@ export default function ExpenseTable({
 
     if (selectedMethod) {
       result = result.filter(exp => exp.paymentMethod === selectedMethod);
+    }
+
+    if (selectedType) {
+      result = result.filter(exp => (exp.transactionType || 'expense') === selectedType);
     }
 
     result.sort((a, b) => {
@@ -118,7 +123,7 @@ export default function ExpenseTable({
 
   return (
     <div className="space-y-4">
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 gap-3">
         <div className="relative">
           <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
           <input
@@ -173,6 +178,20 @@ export default function ExpenseTable({
           {paymentMethods.map(m => (
             <option key={m} value={m}>{m}</option>
           ))}
+        </select>
+
+        <select
+          value={selectedType}
+          onChange={(e) => {
+            setSelectedType(e.target.value);
+            setCurrentPage(1);
+          }}
+          className="rounded-xl bg-slate-900 border border-slate-700/60 px-4 py-2.5 text-sm focus:border-blue-500 focus:outline-none transition-colors text-white"
+        >
+          <option value="">All Types</option>
+          <option value="expense">Expenses Only</option>
+          <option value="lent">Lent Only (उधार)</option>
+          <option value="borrowed">Borrowed Only (उधार लिया)</option>
         </select>
 
         <div className="flex gap-2 justify-end sm:justify-start">
@@ -250,6 +269,16 @@ export default function ExpenseTable({
                               {exp.vehicle}
                             </span>
                           )}
+                          {exp.transactionType === 'lent' && (
+                            <span className="px-1.5 py-0.5 rounded-md text-[9px] bg-emerald-500/15 text-emerald-400 border border-emerald-500/20 font-bold uppercase tracking-wider">
+                              Lent (उधार)
+                            </span>
+                          )}
+                          {exp.transactionType === 'borrowed' && (
+                            <span className="px-1.5 py-0.5 rounded-md text-[9px] bg-amber-500/15 text-amber-400 border border-amber-500/30 font-bold uppercase tracking-wider">
+                              Borrowed (लिया)
+                            </span>
+                          )}
                         </div>
                         {exp.notes && <div className="text-xs text-slate-400 mt-0.5">{exp.notes}</div>}
                       </div>
@@ -313,6 +342,16 @@ export default function ExpenseTable({
                       {exp.vehicle && (
                         <span className="px-1.5 py-0.5 rounded-md text-[9px] bg-blue-500/15 text-blue-300 border border-blue-500/20 font-bold uppercase tracking-wider">
                           {exp.vehicle}
+                        </span>
+                      )}
+                      {exp.transactionType === 'lent' && (
+                        <span className="px-1.5 py-0.5 rounded-md text-[9px] bg-emerald-500/15 text-emerald-400 border border-emerald-500/20 font-bold uppercase tracking-wider">
+                          Lent (उधार)
+                        </span>
+                      )}
+                      {exp.transactionType === 'borrowed' && (
+                        <span className="px-1.5 py-0.5 rounded-md text-[9px] bg-amber-500/15 text-amber-400 border border-amber-500/30 font-bold uppercase tracking-wider">
+                          Borrowed (लिया)
                         </span>
                       )}
                     </div>

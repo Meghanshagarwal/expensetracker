@@ -32,6 +32,7 @@ export default function ExpenseModal({
   const [amount, setAmount] = useState('');
   const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
   const [category, setCategory] = useState('Food');
+  const [transactionType, setTransactionType] = useState<'expense' | 'lent' | 'borrowed'>('expense');
   const [personId, setPersonId] = useState('');
   const [customPerson, setCustomPerson] = useState('');
   const [isCustomPersonActive, setIsCustomPersonActive] = useState(false);
@@ -54,6 +55,7 @@ export default function ExpenseModal({
       setAmount(expenseToEdit.amount.toString());
       setDate(new Date(expenseToEdit.date).toISOString().split('T')[0]);
       setCategory(expenseToEdit.category);
+      setTransactionType(expenseToEdit.transactionType || 'expense');
       setPersonId(expenseToEdit.personId);
       setPaymentMethod(expenseToEdit.paymentMethod);
       setNotes(expenseToEdit.notes || '');
@@ -70,6 +72,7 @@ export default function ExpenseModal({
       setAmount('');
       setDate(new Date().toISOString().split('T')[0]);
       setCategory('Food');
+      setTransactionType('expense');
       setPersonId(persons[0]?._id || '');
       setPaymentMethod('UPI');
       setNotes('');
@@ -143,6 +146,7 @@ export default function ExpenseModal({
         title: title.trim(),
         amount: parseFloat(amount),
         category,
+        transactionType,
         personId: resolvedPersonId,
         paymentMethod,
         date: new Date(date).toISOString(),
@@ -239,6 +243,33 @@ export default function ExpenseModal({
             )}
 
             <form onSubmit={handleSubmit} className="space-y-4">
+              {/* Transaction Type Selector */}
+              <div>
+                <label className="block text-xs font-semibold uppercase tracking-wider text-slate-400 mb-2">
+                  Transaction Type
+                </label>
+                <div className="grid grid-cols-3 gap-2">
+                  {(['expense', 'lent', 'borrowed'] as const).map((type) => (
+                    <button
+                      key={type}
+                      type="button"
+                      onClick={() => setTransactionType(type)}
+                      className={`py-2 px-3 rounded-xl border text-xs font-bold capitalize transition-all ${
+                        transactionType === type
+                          ? type === 'expense'
+                            ? 'bg-blue-600 border-blue-500 text-white shadow-[0_2px_8px_rgba(59,130,246,0.3)]'
+                            : type === 'lent'
+                            ? 'bg-emerald-600 border-emerald-500 text-white shadow-[0_2px_8px_rgba(16,185,129,0.3)]'
+                            : 'bg-amber-600 border-amber-500 text-white shadow-[0_2px_8px_rgba(245,158,11,0.3)]'
+                          : 'bg-slate-900 border-slate-700/60 text-slate-400 hover:bg-slate-800'
+                      }`}
+                    >
+                      {type === 'expense' ? 'Expense' : type === 'lent' ? 'Lent (उधार दिया)' : 'Borrowed (उधार लिया)'}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
               {/* Title & Amount */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>

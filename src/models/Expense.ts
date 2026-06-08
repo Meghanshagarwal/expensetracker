@@ -28,6 +28,11 @@ const ExpenseSchema = new Schema({
       "Other",
     ],
   },
+  transactionType: {
+    type: String,
+    enum: ["expense", "lent", "borrowed"],
+    default: "expense",
+  },
   personId: {
     type: Schema.Types.ObjectId,
     ref: "Person",
