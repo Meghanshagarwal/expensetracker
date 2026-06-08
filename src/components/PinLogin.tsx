@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Lock, Delete } from 'lucide-react';
+import { Lock, Delete, Fingerprint } from 'lucide-react';
 
 interface PinLoginProps {
   onSuccess: () => void;
@@ -12,6 +12,126 @@ export default function PinLogin({ onSuccess }: PinLoginProps) {
   const [pin, setPin] = useState<string>('');
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [hasBiometrics, setHasBiometrics] = useState(false);
+  const [showSetupPrompt, setShowSetupPrompt] = useState(false);
+
+  const checkBiometricsSupport = async () => {
+    if (typeof window === 'undefined' || !window.PublicKeyCredential) return false;
+    try {
+      const isAvailable = await window.PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable();
+      return !!isAvailable;
+    } catch (e) {
+      return false;
+    }
+  };
+
+  const registerBiometrics = async () => {
+    try {
+      const challenge = new Uint8Array([1, 2, 3, 4, 5, 6, 7, 8, 9, 0]);
+      const userId = new Uint8Array([1, 2, 3, 4]);
+      
+      const creationOptions: PublicKeyCredentialCreationOptions = {
+        challenge,
+        rp: {
+          name: "FinTrack Expense Tracker",
+          id: window.location.hostname,
+        },
+        user: {
+          id: userId,
+          name: "user@fintrack",
+          displayName: "FinTrack User",
+        },
+        pubKeyCredParams: [
+          { type: "public-key", alg: -7 }, // ES256
+          { type: "public-key", alg: -257 }, // RS256
+        ],
+        authenticatorSelection: {
+          authenticatorAttachment: "platform",
+          userVerification: "required",
+        },
+        timeout: 60000,
+      };
+
+      const credential = await navigator.credentials.create({
+        publicKey: creationOptions,
+      }) as PublicKeyCredential;
+
+      if (credential) {
+        const rawId = new Uint8Array(credential.rawId);
+        const base64Id = btoa(String.fromCharCode(...rawId));
+        localStorage.setItem('biometric_credential_id', base64Id);
+        localStorage.removeItem('biometric_setup_declined');
+        return true;
+      }
+      return false;
+    } catch (err: any) {
+      console.error("Biometric registration failed:", err);
+      setError("Biometric registration cancelled or failed.");
+      return false;
+    }
+  };
+
+  const handleBiometricLogin = async () => {
+    const base64Id = localStorage.getItem('biometric_credential_id');
+    if (!base64Id) return;
+
+    setError(null);
+    try {
+      const rawId = Uint8Array.from(atob(base64Id), c => c.charCodeAt(0));
+      const challenge = new Uint8Array([1, 2, 3, 4, 5, 6, 7, 8, 9, 0]);
+
+      const requestOptions: PublicKeyCredentialRequestOptions = {
+        challenge,
+        rpId: window.location.hostname,
+        allowCredentials: [
+          {
+            type: "public-key",
+            id: rawId,
+          },
+        ],
+        userVerification: "required",
+        timeout: 60000,
+      };
+
+      const assertion = await navigator.credentials.get({
+        publicKey: requestOptions,
+      });
+
+      if (assertion) {
+        onSuccess();
+      }
+    } catch (err: any) {
+      console.error("Biometric validation failed:", err);
+      if (err.name !== 'NotAllowedError' && err.name !== 'AbortError') {
+        setError("Biometric login failed. Please use your PIN.");
+      }
+    }
+  };
+
+  const handleFingerprintButtonClick = async () => {
+    const isRegistered = localStorage.getItem('biometric_credential_id');
+    if (isRegistered) {
+      handleBiometricLogin();
+    } else {
+      setShowSetupPrompt(true);
+    }
+  };
+
+  useEffect(() => {
+    const checkBiometrics = async () => {
+      const available = await checkBiometricsSupport();
+      setHasBiometrics(available);
+      
+      const registered = localStorage.getItem('biometric_credential_id');
+      if (available && registered) {
+        const timer = setTimeout(() => {
+          handleBiometricLogin();
+        }, 500);
+        return () => clearTimeout(timer);
+      }
+    };
+    checkBiometrics();
+  }, []);
 
   const handleKeyPress = (num: string) => {
     if (pin.length < 4) {
@@ -38,7 +158,15 @@ export default function PinLogin({ onSuccess }: PinLoginProps) {
       if (cachedPinHash) {
         const enteredHash = btoa(pin); 
         if (enteredHash === cachedPinHash) {
-          onSuccess();
+          const isSupported = await checkBiometricsSupport();
+          const isRegistered = localStorage.getItem('biometric_credential_id');
+          const setupDeclined = localStorage.getItem('biometric_setup_declined');
+          
+          if (isSupported && !isRegistered && !setupDeclined) {
+            setShowSetupPrompt(true);
+          } else {
+            onSuccess();
+          }
           setLoading(false);
           return;
         }
@@ -58,7 +186,16 @@ export default function PinLogin({ onSuccess }: PinLoginProps) {
 
       if (res.ok) {
         localStorage.setItem('app_pin_hash', btoa(pin));
-        onSuccess();
+        
+        const isSupported = await checkBiometricsSupport();
+        const isRegistered = localStorage.getItem('biometric_credential_id');
+        const setupDeclined = localStorage.getItem('biometric_setup_declined');
+        
+        if (isSupported && !isRegistered && !setupDeclined) {
+          setShowSetupPrompt(true);
+        } else {
+          onSuccess();
+        }
       } else {
         setError('Invalid passcode. Please try again.');
         setPin('');
@@ -87,7 +224,7 @@ export default function PinLogin({ onSuccess }: PinLoginProps) {
           initial={{ scale: 0.9, opacity: 0 }}
           animate={{ scale: 1, opacity: 1 }}
           transition={{ duration: 0.3 }}
-          className="mb-8 flex h-16 w-16 items-center justify-center rounded-full bg-blue-500/20 text-blue-400 border border-blue-500/30"
+          className="mb-8 flex h-16 w-16 items-center justify-center rounded-full bg-blue-500/20 text-blue-400 border border-blue-500/30 shadow-[0_0_15px_rgba(59,130,246,0.15)]"
         >
           <Lock className="h-8 w-8 animate-pulse" />
         </motion.div>
@@ -107,6 +244,19 @@ export default function PinLogin({ onSuccess }: PinLoginProps) {
             />
           ))}
         </div>
+
+        {hasBiometrics && (
+          <motion.button
+            initial={{ opacity: 0, scale: 0.9 }}
+            animate={{ opacity: 1, scale: 1 }}
+            whileTap={{ scale: 0.95 }}
+            onClick={handleFingerprintButtonClick}
+            className="mb-8 flex items-center gap-2 px-4 py-2 rounded-full bg-blue-500/10 border border-blue-500/25 text-blue-400 hover:bg-blue-500/20 active:scale-95 transition-all text-xs font-bold shadow-lg shadow-blue-500/5"
+          >
+            <Fingerprint className="h-4 w-4" />
+            <span>Use Fingerprint</span>
+          </motion.button>
+        )}
 
         <div className="h-6 mb-6">
           <AnimatePresence>
@@ -157,6 +307,57 @@ export default function PinLogin({ onSuccess }: PinLoginProps) {
           </motion.button>
         </div>
       </div>
+
+      <AnimatePresence>
+        {showSetupPrompt && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 flex items-center justify-center bg-[#0F172A]/90 backdrop-blur-md px-6 text-white"
+          >
+            <motion.div
+              initial={{ scale: 0.9, y: 20 }}
+              animate={{ scale: 1, y: 0 }}
+              exit={{ scale: 0.9, y: 20 }}
+              className="w-full max-w-sm rounded-2xl bg-slate-800/85 border border-slate-700/60 p-6 text-center shadow-2xl relative"
+            >
+              <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-blue-500/20 text-blue-400 border border-blue-500/30">
+                <Fingerprint className="h-8 w-8 animate-pulse" />
+              </div>
+              <h2 className="text-xl font-bold mb-2">Enable Fingerprint Login?</h2>
+              <p className="text-sm text-slate-400 mb-6 leading-relaxed">
+                Use your device's fingerprint or face scanner to unlock your expense tracker quickly next time.
+              </p>
+              
+              <div className="flex flex-col gap-3">
+                <button
+                  onClick={async () => {
+                    const success = await registerBiometrics();
+                    if (success) {
+                      onSuccess();
+                    } else {
+                      onSuccess();
+                    }
+                  }}
+                  className="w-full py-3 rounded-xl bg-gradient-to-r from-blue-500 to-violet-500 hover:from-blue-600 hover:to-violet-600 font-bold text-sm shadow-lg shadow-blue-500/20 transition-all hover:scale-[1.02] active:scale-[0.98]"
+                >
+                  Enable Fingerprint Unlock
+                </button>
+                <button
+                  onClick={() => {
+                    localStorage.setItem('biometric_setup_declined', 'true');
+                    onSuccess();
+                  }}
+                  className="w-full py-3 rounded-xl bg-slate-700/50 hover:bg-slate-700 border border-slate-600/40 font-bold text-sm text-slate-300 transition-all active:scale-[0.98]"
+                >
+                  Maybe Later
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }
