@@ -264,7 +264,7 @@ export default function ExpenseModal({
                           : 'bg-slate-900 border-slate-700/60 text-slate-400 hover:bg-slate-800'
                       }`}
                     >
-                      {type === 'expense' ? 'Expense' : type === 'lent' ? 'Lent (उधार दिया)' : 'Borrowed (उधार लिया)'}
+                      {type === 'expense' ? 'Expense' : type === 'lent' ? 'Lent' : 'Borrowed'}
                     </button>
                   ))}
                 </div>

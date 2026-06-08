@@ -343,7 +343,7 @@ export default function DashboardPage() {
           <div className="absolute top-0 right-0 h-16 w-16 bg-emerald-500/5 rounded-bl-full flex items-center justify-center text-emerald-500/10 font-bold text-3xl select-none">
             R
           </div>
-          <p className="text-[10px] font-semibold tracking-wider text-slate-400 uppercase">Owed to You (उधार दिया)</p>
+          <p className="text-[10px] font-semibold tracking-wider text-slate-400 uppercase">Owed to You</p>
           <h3 className="text-2xl font-extrabold text-emerald-400 mt-1 font-sans">₹{stats.totalReceivable.toFixed(2)}</h3>
           <div className="text-[10px] text-slate-400 mt-2">
             <span>Money people owe you</span>
@@ -354,7 +354,7 @@ export default function DashboardPage() {
           <div className="absolute top-0 right-0 h-16 w-16 bg-amber-500/5 rounded-bl-full flex items-center justify-center text-amber-500/10 font-bold text-3xl select-none">
             P
           </div>
-          <p className="text-[10px] font-semibold tracking-wider text-slate-400 uppercase">You Owe (उधार लिया)</p>
+          <p className="text-[10px] font-semibold tracking-wider text-slate-400 uppercase">You Owe</p>
           <h3 className="text-2xl font-extrabold text-amber-400 mt-1 font-sans">₹{stats.totalPayable.toFixed(2)}</h3>
           <div className="text-[10px] text-slate-400 mt-2">
             <span>Money you need to pay back</span>

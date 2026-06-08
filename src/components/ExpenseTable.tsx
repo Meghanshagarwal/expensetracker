@@ -190,8 +190,8 @@ export default function ExpenseTable({
         >
           <option value="">All Types</option>
           <option value="expense">Expenses Only</option>
-          <option value="lent">Lent Only (उधार)</option>
-          <option value="borrowed">Borrowed Only (उधार लिया)</option>
+          <option value="lent">Lent Only</option>
+          <option value="borrowed">Borrowed Only</option>
         </select>
 
         <div className="flex gap-2 justify-end sm:justify-start">
@@ -271,12 +271,12 @@ export default function ExpenseTable({
                           )}
                           {exp.transactionType === 'lent' && (
                             <span className="px-1.5 py-0.5 rounded-md text-[9px] bg-emerald-500/15 text-emerald-400 border border-emerald-500/20 font-bold uppercase tracking-wider">
-                              Lent (उधार)
+                              Lent
                             </span>
                           )}
                           {exp.transactionType === 'borrowed' && (
                             <span className="px-1.5 py-0.5 rounded-md text-[9px] bg-amber-500/15 text-amber-400 border border-amber-500/30 font-bold uppercase tracking-wider">
-                              Borrowed (लिया)
+                              Borrowed
                             </span>
                           )}
                         </div>
@@ -346,12 +346,12 @@ export default function ExpenseTable({
                       )}
                       {exp.transactionType === 'lent' && (
                         <span className="px-1.5 py-0.5 rounded-md text-[9px] bg-emerald-500/15 text-emerald-400 border border-emerald-500/20 font-bold uppercase tracking-wider">
-                          Lent (उधार)
+                          Lent
                         </span>
                       )}
                       {exp.transactionType === 'borrowed' && (
                         <span className="px-1.5 py-0.5 rounded-md text-[9px] bg-amber-500/15 text-amber-400 border border-amber-500/30 font-bold uppercase tracking-wider">
-                          Borrowed (लिया)
+                          Borrowed
                         </span>
                       )}
                     </div>
