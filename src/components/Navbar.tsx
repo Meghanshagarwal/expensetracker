@@ -9,7 +9,14 @@ export default function Navbar() {
   const pathname = usePathname();
 
   const handleLogout = async () => {
-    await fetch('/api/auth', { method: 'DELETE' });
+    if (navigator.onLine) {
+      try {
+        await fetch('/api/auth', { method: 'DELETE' });
+      } catch (e) {
+        console.error(e);
+      }
+    }
+    localStorage.removeItem('local_session_active');
     window.location.reload();
   };
 

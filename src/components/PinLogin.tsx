@@ -98,6 +98,7 @@ export default function PinLogin({ onSuccess }: PinLoginProps) {
       });
 
       if (assertion) {
+        localStorage.setItem('local_session_active', 'true');
         onSuccess();
       }
     } catch (err: any) {
@@ -158,6 +159,7 @@ export default function PinLogin({ onSuccess }: PinLoginProps) {
       if (cachedPinHash) {
         const enteredHash = btoa(pin); 
         if (enteredHash === cachedPinHash) {
+          localStorage.setItem('local_session_active', 'true');
           const isSupported = await checkBiometricsSupport();
           const isRegistered = localStorage.getItem('biometric_credential_id');
           const setupDeclined = localStorage.getItem('biometric_setup_declined');
@@ -186,6 +188,7 @@ export default function PinLogin({ onSuccess }: PinLoginProps) {
 
       if (res.ok) {
         localStorage.setItem('app_pin_hash', btoa(pin));
+        localStorage.setItem('local_session_active', 'true');
         
         const isSupported = await checkBiometricsSupport();
         const isRegistered = localStorage.getItem('biometric_credential_id');

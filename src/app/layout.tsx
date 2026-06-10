@@ -51,14 +51,17 @@ export default function RootLayout({
           if (data.authenticated) {
             setIsAuthenticated(true);
             return;
+          } else {
+            setIsAuthenticated(false);
+            return;
           }
         } catch (e) {
           console.error(e);
         }
       }
 
-      const cachedHash = localStorage.getItem('app_pin_hash');
-      if (cachedHash) {
+      const localSession = localStorage.getItem('local_session_active');
+      if (localSession === 'true') {
         setIsAuthenticated(true);
       } else {
         setIsAuthenticated(false);
