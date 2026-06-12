@@ -15,6 +15,7 @@ export default function PeoplePage() {
 
   const {
     addPersonOffline,
+    fetchAndCacheData,
   } = useOfflineSync();
 
   const loadData = useCallback(async () => {
@@ -22,7 +23,19 @@ export default function PeoplePage() {
     const localExp = await getLocalExpenses();
     setPersons(localPer);
     setExpenses(localExp);
-  }, []);
+
+    if (navigator.onLine) {
+      try {
+        await fetchAndCacheData();
+        const updatedPer = await getLocalPersons();
+        const updatedExp = await getLocalExpenses();
+        setPersons(updatedPer);
+        setExpenses(updatedExp);
+      } catch (err) {
+        console.error('Failed to sync and load updated data:', err);
+      }
+    }
+  }, [fetchAndCacheData]);
 
   useEffect(() => {
     loadData();
