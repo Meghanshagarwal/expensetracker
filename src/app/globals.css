@@ -4,20 +4,20 @@
 
 @layer base {
   :root {
-    --background: 260 40% 4.5%; /* Deep black-violet */
+    --background: 260 40% 4.5%;
     --foreground: 210 40% 98%;
 
-    --card: 255 35% 8.5%; /* Sleek dark card background */
+    --card: 255 35% 8.5%;
     --card-foreground: 210 40% 98%;
 
     --popover: 260 40% 4.5%;
     --popover-foreground: 210 40% 98%;
 
-    --primary: 258.1 90% 66%; /* Vibrant Violet accent */
-    --primary-dark: 258.1 90% 58%; /* Darker violet for hover */
+    --primary: 258.1 90% 66%;
+    --primary-dark: 258.1 90% 58%;
     --primary-foreground: 210 40% 98%;
 
-    --secondary: 250 20% 65%; /* Muted lavender-slate */
+    --secondary: 250 20% 65%;
     --secondary-foreground: 210 40% 98%;
 
     --muted: 255 35% 8.5%;
@@ -29,7 +29,7 @@
     --destructive: 0 84.2% 60.2%;
     --destructive-foreground: 210 40% 98%;
 
-    --border: 255 25% 14%; /* Thin dark violet border */
+    --border: 255 25% 14%;
     --input: 255 35% 8.5%;
     --ring: 258.1 90% 66%;
 
