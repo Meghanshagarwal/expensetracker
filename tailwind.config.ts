@@ -24,6 +24,9 @@ const config: Config = {
           DEFAULT: "var(--primary)",
           foreground: "var(--primary-foreground)",
         },
+        "primary-dark": {
+          DEFAULT: "var(--primary-dark)",
+        },
         secondary: {
           DEFAULT: "var(--secondary)",
           foreground: "var(--secondary-foreground)",
@@ -46,6 +49,19 @@ const config: Config = {
         success: {
           DEFAULT: "var(--success)",
           foreground: "var(--success-foreground)",
+        },
+        blue: {
+          50: "#f5f3ff",
+          100: "#ede9fe",
+          200: "#ddd6fe",
+          300: "#c4b5fd",
+          400: "#a78bfa",
+          500: "var(--primary)",
+          600: "var(--primary-dark)",
+          700: "#6d28d9",
+          800: "#5b21b6",
+          900: "#4c1d95",
+          950: "#2c0d5e",
         },
       },
       borderRadius: {

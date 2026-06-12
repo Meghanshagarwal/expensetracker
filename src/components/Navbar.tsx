@@ -29,12 +29,12 @@ export default function Navbar() {
   return (
     <>
       {/* Desktop Navigation (Top Bar) */}
-      <header className="hidden md:flex fixed top-0 left-0 right-0 z-40 items-center justify-between px-8 py-4 bg-[#1E293B]/80 backdrop-blur-md border-b border-slate-700/50 text-white">
+      <header className="hidden md:flex fixed top-0 left-0 right-0 z-40 items-center justify-between px-8 py-4 bg-card/80 backdrop-blur-md border-b border-border text-white">
         <div className="flex items-center gap-3">
-          <div className="h-9 w-9 rounded-xl bg-gradient-to-tr from-blue-600 to-violet-600 flex items-center justify-center font-bold text-lg">
+          <div className="h-9 w-9 rounded-xl bg-gradient-to-tr from-primary-dark to-fuchsia-600 flex items-center justify-center font-bold text-lg">
             ₹
           </div>
-          <span className="text-xl font-bold tracking-wide bg-clip-text text-transparent bg-gradient-to-r from-blue-400 to-violet-400 font-sans">
+          <span className="text-xl font-bold tracking-wide bg-clip-text text-transparent bg-gradient-to-r from-primary/80 to-fuchsia-400 font-sans">
             FinTrack
           </span>
         </div>
@@ -54,7 +54,7 @@ export default function Navbar() {
                 {isActive && (
                   <motion.div
                     layoutId="activeTabDesktop"
-                    className="absolute bottom-0 left-0 right-0 h-0.5 bg-gradient-to-r from-blue-500 to-violet-500"
+                    className="absolute bottom-0 left-0 right-0 h-0.5 bg-gradient-to-r from-primary to-fuchsia-500"
                     transition={{ type: 'spring', stiffness: 380, damping: 30 }}
                   />
                 )}
@@ -72,7 +72,7 @@ export default function Navbar() {
       </header>
 
       {/* Mobile Bottom Navigation */}
-      <nav className="md:hidden fixed bottom-6 left-1/2 -translate-x-1/2 z-40 w-[90%] max-w-md bg-[#1E293B]/80 backdrop-blur-md border border-slate-700/50 rounded-2xl py-3 px-6 shadow-2xl flex items-center justify-between text-white">
+      <nav className="md:hidden fixed bottom-6 left-1/2 -translate-x-1/2 z-40 w-[90%] max-w-md bg-card/80 backdrop-blur-md border border-border rounded-2xl py-3 px-6 shadow-2xl flex items-center justify-between text-white">
         {navItems.map(item => {
           const isActive = pathname === item.path;
           const Icon = item.icon;
@@ -81,7 +81,7 @@ export default function Navbar() {
               key={item.path}
               href={item.path}
               className={`flex flex-col items-center gap-1 transition-all ${
-                isActive ? 'text-blue-400 scale-105' : 'text-slate-400 hover:text-slate-200'
+                isActive ? 'text-primary scale-105' : 'text-slate-400 hover:text-slate-200'
               }`}
             >
               <Icon className="h-6 w-6" />

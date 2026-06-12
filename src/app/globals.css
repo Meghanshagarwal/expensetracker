@@ -4,23 +4,24 @@
 
 @layer base {
   :root {
-    --background: 222.2 47.4% 11.2%;
+    --background: 260 40% 4.5%; /* Deep black-violet */
     --foreground: 210 40% 98%;
 
-    --card: 217.2 32.6% 17.5%;
+    --card: 255 35% 8.5%; /* Sleek dark card background */
     --card-foreground: 210 40% 98%;
 
-    --popover: 222.2 47.4% 11.2%;
+    --popover: 260 40% 4.5%;
     --popover-foreground: 210 40% 98%;
 
-    --primary: 221.2 93.1% 59.8%;
+    --primary: 258.1 90% 66%; /* Vibrant Violet accent */
+    --primary-dark: 258.1 90% 58%; /* Darker violet for hover */
     --primary-foreground: 210 40% 98%;
 
-    --secondary: 258.1 90% 66%;
+    --secondary: 250 20% 65%; /* Muted lavender-slate */
     --secondary-foreground: 210 40% 98%;
 
-    --muted: 217.2 32.6% 17.5%;
-    --muted-foreground: 215 20.2% 65.1%;
+    --muted: 255 35% 8.5%;
+    --muted-foreground: 250 20% 65%;
 
     --accent: 258.1 90% 66%;
     --accent-foreground: 210 40% 98%;
@@ -28,14 +29,14 @@
     --destructive: 0 84.2% 60.2%;
     --destructive-foreground: 210 40% 98%;
 
-    --border: 215.3 19.3% 26.7%;
-    --input: 217.2 32.6% 17.5%;
-    --ring: 221.2 93.1% 59.8%;
+    --border: 255 25% 14%; /* Thin dark violet border */
+    --input: 255 35% 8.5%;
+    --ring: 258.1 90% 66%;
 
     --success: 162.1 77.9% 39.4%;
     --success-foreground: 210 40% 98%;
 
-    --radius: 0.75rem;
+    --radius: 0.85rem;
   }
 }
 
@@ -46,23 +47,23 @@
   body {
     @apply bg-background text-foreground antialiased font-sans;
     background-image: 
-      radial-gradient(at 0% 0%, rgba(59, 130, 246, 0.08) 0px, transparent 50%),
-      radial-gradient(at 100% 100%, rgba(139, 92, 246, 0.08) 0px, transparent 50%);
+      radial-gradient(at 0% 0%, rgba(139, 92, 246, 0.05) 0px, transparent 50%),
+      radial-gradient(at 100% 100%, rgba(124, 58, 237, 0.05) 0px, transparent 50%);
     background-attachment: fixed;
     min-height: 100vh;
   }
   ::selection {
-    background-color: rgba(59, 130, 246, 0.3);
+    background-color: rgba(139, 92, 246, 0.25);
     color: #f8fafc;
   }
 }
 
 /* Glassmorphism utility card */
 .glass-card {
-  background: rgba(30, 41, 59, 0.7);
+  background: rgba(17, 14, 28, 0.65);
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
-  border: 1px solid rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.03);
 }
 
 /* Custom Scrollbar */

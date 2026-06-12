@@ -94,7 +94,7 @@ export default function PersonModal({
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             onClick={onClose}
-            className="fixed inset-0 bg-[#0F172A]/70 backdrop-blur-sm"
+            className="fixed inset-0 bg-background/70 backdrop-blur-sm"
           />
 
           <motion.div
@@ -102,13 +102,13 @@ export default function PersonModal({
             animate={{ y: 0, opacity: 1 }}
             exit={{ y: '100%', opacity: 0.5 }}
             transition={{ type: 'spring', damping: 28, stiffness: 350 }}
-            className="relative w-full md:max-w-md overflow-hidden rounded-t-2xl md:rounded-2xl bg-[#1E293B] border-t md:border border-slate-700/60 p-6 pb-12 md:pb-6 text-white shadow-2xl z-10"
+            className="relative w-full md:max-w-md overflow-hidden rounded-t-2xl md:rounded-2xl bg-card border-t md:border border-border p-6 pb-12 md:pb-6 text-white shadow-2xl z-10"
           >
             {/* Mobile Sheet Handle */}
             <div className="w-12 h-1.5 bg-slate-700/60 rounded-full mx-auto mb-4 md:hidden" />
             <div className="flex items-center justify-between mb-6">
               <h2 className="text-xl font-bold flex items-center gap-2">
-                <UserPlus className="h-5 w-5 text-blue-400" />
+                <UserPlus className="h-5 w-5 text-primary" />
                 {personToEdit ? 'Edit Person' : 'Add Person'}
               </h2>
               <button
@@ -136,16 +136,16 @@ export default function PersonModal({
                   placeholder="e.g. Family, Office Colleague, Rohit"
                   value={name}
                   onChange={(e) => setName(e.target.value)}
-                  className="w-full rounded-xl bg-slate-900 border border-slate-700/60 px-4 py-3 text-base md:text-sm focus:border-blue-500 focus:outline-none transition-colors"
+                  className="w-full rounded-xl bg-slate-900 border border-border px-4 py-3 text-base md:text-sm focus:border-primary focus:outline-none transition-colors"
                   disabled={loading}
                 />
               </div>
 
-              <div className="flex justify-end gap-3 mt-6 pt-4 border-t border-slate-700/40">
+              <div className="flex justify-end gap-3 mt-6 pt-4 border-t border-border/60">
                 <button
                   type="button"
                   onClick={onClose}
-                  className="px-5 py-2.5 rounded-xl text-sm font-semibold bg-slate-800 border border-slate-700/50 hover:bg-slate-700/60 transition-colors"
+                  className="px-5 py-2.5 rounded-xl text-sm font-semibold bg-slate-800 border border-border hover:bg-slate-700/60 transition-colors"
                   disabled={loading}
                 >
                   Cancel
@@ -153,7 +153,7 @@ export default function PersonModal({
                 <button
                   type="submit"
                   disabled={loading}
-                  className="flex items-center justify-center gap-2 px-6 py-2.5 rounded-xl text-sm font-semibold bg-gradient-to-r from-blue-500 to-violet-500 hover:from-blue-600 hover:to-violet-600 shadow-[0_4px_12px_rgba(59,130,246,0.3)] transition-all disabled:opacity-50"
+                  className="flex items-center justify-center gap-2 px-6 py-2.5 rounded-xl text-sm font-semibold bg-gradient-to-r from-primary to-fuchsia-500 hover:from-primary-dark hover:to-fuchsia-600 shadow-[0_4px_12px_rgba(139,92,246,0.3)] transition-all disabled:opacity-50"
                 >
                   {loading && <Loader2 className="h-4 w-4 animate-spin" />}
                   {personToEdit ? 'Save Changes' : 'Add Person'}

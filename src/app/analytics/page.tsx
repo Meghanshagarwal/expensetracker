@@ -129,7 +129,7 @@ export default function AnalyticsPage() {
   if (!mounted) {
     return (
       <div className="flex h-[60vh] items-center justify-center text-white">
-        <div className="h-8 w-8 animate-spin rounded-full border-4 border-blue-500 border-t-transparent" />
+        <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
       </div>
     );
   }
@@ -139,7 +139,7 @@ export default function AnalyticsPage() {
   return (
     <div className="space-y-6 text-white pb-12">
       <div className="flex items-center gap-3">
-        <div className="h-10 w-10 rounded-xl bg-gradient-to-tr from-blue-500 to-violet-500 flex items-center justify-center">
+        <div className="h-10 w-10 rounded-xl bg-gradient-to-tr from-primary to-fuchsia-500 flex items-center justify-center">
           <BarChart3 className="h-5 w-5 text-white" />
         </div>
         <div>
@@ -149,12 +149,12 @@ export default function AnalyticsPage() {
       </div>
 
       {expenses.length === 0 ? (
-        <div className="bg-[#1E293B] border border-slate-700/60 rounded-2xl p-10 text-center text-slate-400">
+        <div className="bg-card border border-border rounded-2xl p-10 text-center text-slate-400">
           No expenses recorded. Add expenses on the dashboard to view chart statistics.
         </div>
       ) : (
         <div className="space-y-6">
-          <div className="bg-[#1E293B] border border-slate-700/60 rounded-2xl p-5 space-y-4">
+          <div className="bg-card border border-border rounded-2xl p-5 space-y-4">
             <h2 className="text-sm font-bold tracking-wide uppercase text-slate-400">Last 12 Months Trend</h2>
             <div className="h-80 w-full">
               <ResponsiveContainer width="100%" height="100%">
@@ -175,7 +175,7 @@ export default function AnalyticsPage() {
           </div>
 
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            <div className="bg-[#1E293B] border border-slate-700/60 rounded-2xl p-5 space-y-4">
+            <div className="bg-card border border-border rounded-2xl p-5 space-y-4">
               <h2 className="text-sm font-bold tracking-wide uppercase text-slate-400 font-sans">Last 30 Days (Daily)</h2>
               <div className="h-72 w-full">
                 <ResponsiveContainer width="100%" height="100%">
@@ -201,7 +201,7 @@ export default function AnalyticsPage() {
               </div>
             </div>
 
-            <div className="bg-[#1E293B] border border-slate-700/60 rounded-2xl p-5 flex flex-col justify-between">
+            <div className="bg-card border border-border rounded-2xl p-5 flex flex-col justify-between">
               <h2 className="text-sm font-bold tracking-wide uppercase text-slate-400 mb-4">Category Wise Distribution</h2>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-center">
                 <div className="h-56 w-full flex justify-center items-center">
@@ -248,7 +248,7 @@ export default function AnalyticsPage() {
           </div>
 
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            <div className="bg-[#1E293B] border border-slate-700/60 rounded-2xl p-5 space-y-4">
+            <div className="bg-card border border-border rounded-2xl p-5 space-y-4">
               <h2 className="text-sm font-bold tracking-wide uppercase text-slate-400 font-sans">Spending By Person</h2>
               <div className="h-72 w-full">
                 <ResponsiveContainer width="100%" height="100%">
@@ -268,7 +268,7 @@ export default function AnalyticsPage() {
               </div>
             </div>
 
-            <div className="bg-[#1E293B] border border-slate-700/60 rounded-2xl p-5 flex flex-col justify-between">
+            <div className="bg-card border border-border rounded-2xl p-5 flex flex-col justify-between">
               <h2 className="text-sm font-bold tracking-wide uppercase text-slate-400 mb-4">Payment Method Distribution</h2>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-center">
                 <div className="h-56 w-full flex justify-center items-center">

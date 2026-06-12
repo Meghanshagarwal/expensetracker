@@ -82,10 +82,10 @@ export default function RootLayout({
         <meta name="apple-mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
       </head>
-      <body className="font-sans antialiased text-white bg-[#0F172A]">
+      <body className="font-sans antialiased text-white bg-background">
         {isAuthenticated === null ? (
-          <div className="fixed inset-0 flex items-center justify-center bg-[#0F172A]">
-            <div className="h-10 w-10 animate-spin rounded-full border-4 border-blue-500 border-t-transparent" />
+          <div className="fixed inset-0 flex items-center justify-center bg-background">
+            <div className="h-10 w-10 animate-spin rounded-full border-4 border-primary border-t-transparent" />
           </div>
         ) : !isAuthenticated ? (
           <PinLogin onSuccess={() => setIsAuthenticated(true)} />

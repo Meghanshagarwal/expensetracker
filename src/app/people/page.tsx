@@ -96,7 +96,7 @@ export default function PeoplePage() {
     <div className="space-y-6 text-white pb-12">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <div className="h-10 w-10 rounded-xl bg-gradient-to-tr from-blue-500 to-violet-500 flex items-center justify-center">
+          <div className="h-10 w-10 rounded-xl bg-gradient-to-tr from-primary to-fuchsia-500 flex items-center justify-center">
             <Users className="h-5 w-5 text-white" />
           </div>
           <div>
@@ -109,7 +109,7 @@ export default function PeoplePage() {
             setEditingPerson(null);
             setIsModalOpen(true);
           }}
-          className="flex items-center justify-center gap-1.5 px-4 py-2 bg-gradient-to-r from-blue-500 to-violet-500 hover:from-blue-600 hover:to-violet-600 rounded-xl text-xs font-bold transition-all shadow-[0_4px_12px_rgba(59,130,246,0.25)]"
+          className="flex items-center justify-center gap-1.5 px-4 py-2 bg-gradient-to-r from-primary to-fuchsia-500 hover:from-primary-dark hover:to-fuchsia-600 rounded-xl text-xs font-bold transition-all shadow-[0_4px_12px_rgba(139,92,246,0.25)]"
         >
           <Plus className="h-4 w-4" />
           <span>Add Person</span>
@@ -117,7 +117,7 @@ export default function PeoplePage() {
       </div>
 
       {persons.length === 0 ? (
-        <div className="bg-[#1E293B] border border-slate-700/60 rounded-2xl p-10 text-center text-slate-400">
+        <div className="bg-card border border-border rounded-2xl p-10 text-center text-slate-400">
           No persons recorded. Create a person to assign expenses to them.
         </div>
       ) : (
@@ -128,15 +128,15 @@ export default function PeoplePage() {
             return (
               <div
                 key={person._id}
-                className="bg-[#1E293B] border border-slate-700/60 p-5 rounded-2xl flex flex-col justify-between hover:border-slate-600 transition-all group"
+                className="bg-card border border-border p-5 rounded-2xl flex flex-col justify-between hover:border-slate-600 transition-all group"
               >
                 <div className="flex items-start justify-between">
                   <div className="flex items-center gap-3">
-                    <div className="h-12 w-12 rounded-xl bg-slate-800 text-slate-300 flex items-center justify-center border border-slate-700/50">
+                    <div className="h-12 w-12 rounded-xl bg-slate-800 text-slate-300 flex items-center justify-center border border-border">
                       <User className="h-6 w-6" />
                     </div>
                     <div>
-                      <h3 className="font-bold text-white group-hover:text-blue-400 transition-colors flex items-center gap-1.5">
+                      <h3 className="font-bold text-white group-hover:text-primary transition-colors flex items-center gap-1.5">
                         {person.name}
                         {isTemp && (
                           <span className="px-1.5 py-0.5 rounded-full text-[9px] bg-amber-500/20 text-amber-400 border border-amber-500/30">
@@ -151,11 +151,11 @@ export default function PeoplePage() {
                   </div>
                 </div>
 
-                <div className="mt-6 pt-4 border-t border-slate-800/60 space-y-4">
+                <div className="mt-6 pt-4 border-t border-border/60 space-y-4">
                   <div className="grid grid-cols-2 gap-4">
                     <div>
                       <span className="text-[10px] uppercase font-semibold text-slate-400 tracking-wider">Total Share</span>
-                      <p className="text-sm font-extrabold text-blue-400 mt-0.5">₹{totalExpenses.toFixed(2)}</p>
+                      <p className="text-sm font-extrabold text-primary mt-0.5">₹{totalExpenses.toFixed(2)}</p>
                     </div>
                     <div>
                       <span className="text-[10px] uppercase font-semibold text-slate-400 tracking-wider">Udhaar Bal.</span>
@@ -169,7 +169,7 @@ export default function PeoplePage() {
                     </div>
                   </div>
                   
-                  <div className="flex justify-end gap-1 pt-2 border-t border-slate-800/20">
+                  <div className="flex justify-end gap-1 pt-2 border-t border-border/20">
                     <button
                       onClick={() => handleEdit(person)}
                       className="p-2 hover:bg-slate-800 text-slate-400 hover:text-white rounded-lg transition-all"

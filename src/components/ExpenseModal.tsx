@@ -222,7 +222,7 @@ export default function ExpenseModal({
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             onClick={onClose}
-            className="fixed inset-0 bg-[#0F172A]/70 backdrop-blur-sm"
+            className="fixed inset-0 bg-background/70 backdrop-blur-sm"
           />
 
           <motion.div
@@ -230,13 +230,13 @@ export default function ExpenseModal({
             animate={{ y: 0, opacity: 1 }}
             exit={{ y: '100%', opacity: 0.5 }}
             transition={{ type: 'spring', damping: 28, stiffness: 350 }}
-            className="relative w-full md:max-w-lg rounded-t-2xl md:rounded-2xl bg-[#1E293B] border-t md:border border-slate-700/60 p-6 pb-12 md:pb-6 text-white shadow-2xl z-10 max-h-[92vh] md:max-h-[90vh] overflow-y-auto"
+            className="relative w-full md:max-w-lg rounded-t-2xl md:rounded-2xl bg-card border-t md:border border-border p-6 pb-12 md:pb-6 text-white shadow-2xl z-10 max-h-[92vh] md:max-h-[90vh] overflow-y-auto"
           >
             {/* Mobile Sheet Handle */}
             <div className="w-12 h-1.5 bg-slate-700/60 rounded-full mx-auto mb-4 md:hidden" />
             <div className="flex items-center justify-between mb-6">
               <h2 className="text-xl font-bold flex items-center gap-2">
-                <CreditCard className="h-5 w-5 text-blue-400" />
+                <CreditCard className="h-5 w-5 text-primary" />
                 {expenseToEdit ? 'Edit Transaction' : 'Quick Add Expense'}
               </h2>
               <button
@@ -268,11 +268,11 @@ export default function ExpenseModal({
                       className={`py-2 px-3 rounded-xl border text-xs font-bold capitalize transition-all ${
                         transactionType === type
                           ? type === 'expense'
-                            ? 'bg-blue-600 border-blue-500 text-white shadow-[0_2px_8px_rgba(59,130,246,0.3)]'
+                            ? 'bg-primary border-primary text-white shadow-[0_2px_8px_rgba(139,92,246,0.3)]'
                             : type === 'lent'
                             ? 'bg-emerald-600 border-emerald-500 text-white shadow-[0_2px_8px_rgba(16,185,129,0.3)]'
                             : 'bg-amber-600 border-amber-500 text-white shadow-[0_2px_8px_rgba(245,158,11,0.3)]'
-                          : 'bg-slate-900 border-slate-700/60 text-slate-400 hover:bg-slate-800'
+                          : 'bg-slate-900 border-border text-slate-400 hover:bg-slate-800'
                       }`}
                     >
                       {type === 'expense' ? 'Expense' : type === 'lent' ? 'Lent' : 'Borrowed'}
@@ -293,7 +293,7 @@ export default function ExpenseModal({
                     placeholder="e.g. Petrol, Groceries, Dinner"
                     value={title}
                     onChange={(e) => setTitle(e.target.value)}
-                    className="w-full rounded-xl bg-slate-900 border border-slate-700/60 px-4 py-2.5 text-base md:text-sm focus:border-blue-500 focus:outline-none transition-colors text-white"
+                    className="w-full rounded-xl bg-slate-900 border border-border px-4 py-2.5 text-base md:text-sm focus:border-primary focus:outline-none transition-colors text-white"
                   />
                 </div>
                 <div>
@@ -307,7 +307,7 @@ export default function ExpenseModal({
                     placeholder="0.00"
                     value={amount}
                     onChange={(e) => setAmount(e.target.value)}
-                    className="w-full rounded-xl bg-slate-900 border border-slate-700/60 px-4 py-2.5 text-base md:text-sm focus:border-blue-500 focus:outline-none transition-colors text-white"
+                    className="w-full rounded-xl bg-slate-900 border border-border px-4 py-2.5 text-base md:text-sm focus:border-primary focus:outline-none transition-colors text-white"
                   />
                 </div>
               </div>
@@ -323,7 +323,7 @@ export default function ExpenseModal({
                     required
                     value={date}
                     onChange={(e) => setDate(e.target.value)}
-                    className="w-full rounded-xl bg-slate-900 border border-slate-700/60 px-4 py-2.5 text-base md:text-sm focus:border-blue-500 focus:outline-none transition-colors text-white"
+                    className="w-full rounded-xl bg-slate-900 border border-border px-4 py-2.5 text-base md:text-sm focus:border-primary focus:outline-none transition-colors text-white"
                   />
                 </div>
                 <div>
@@ -333,7 +333,7 @@ export default function ExpenseModal({
                   <select
                     value={category}
                     onChange={(e) => setCategory(e.target.value)}
-                    className="w-full rounded-xl bg-slate-900 border border-slate-700/60 px-4 py-2.5 text-base md:text-sm focus:border-blue-500 focus:outline-none transition-colors text-white"
+                    className="w-full rounded-xl bg-slate-900 border border-border px-4 py-2.5 text-base md:text-sm focus:border-primary focus:outline-none transition-colors text-white"
                   >
                     {categories.map(cat => (
                       <option key={cat} value={cat}>{cat}</option>
@@ -348,15 +348,15 @@ export default function ExpenseModal({
                   initial={{ opacity: 0, height: 0 }}
                   animate={{ opacity: 1, height: 'auto' }}
                   exit={{ opacity: 0, height: 0 }}
-                  className="bg-slate-800/40 border border-slate-700/40 p-3.5 rounded-xl space-y-2"
+                  className="bg-slate-800/40 border border-border/60 p-3.5 rounded-xl space-y-2"
                 >
-                  <label className="block text-xs font-semibold uppercase tracking-wider text-blue-400">
+                  <label className="block text-xs font-semibold uppercase tracking-wider text-primary">
                     Vehicle Type
                   </label>
                   <select
                     value={vehicle}
                     onChange={(e) => setVehicle(e.target.value)}
-                    className="w-full rounded-xl bg-slate-900 border border-slate-700/60 px-4 py-2 text-base md:text-sm focus:border-blue-500 focus:outline-none transition-colors text-white"
+                    className="w-full rounded-xl bg-slate-900 border border-border px-4 py-2 text-base md:text-sm focus:border-primary focus:outline-none transition-colors text-white"
                   >
                     <option value="Car">Car</option>
                     <option value="Jupiter 125">Jupiter 125</option>
@@ -379,7 +379,7 @@ export default function ExpenseModal({
                     <button
                       type="button"
                       onClick={() => setIsCustomPersonActive(!isCustomPersonActive)}
-                      className="text-[10px] font-bold text-blue-400 hover:text-blue-300 transition-colors"
+                      className="text-[10px] font-bold text-primary hover:text-primary/80 transition-colors"
                     >
                       {isCustomPersonActive ? 'Choose Dropdown' : 'Add Custom'}
                     </button>
@@ -392,14 +392,14 @@ export default function ExpenseModal({
                       placeholder="Enter custom name"
                       value={customPerson}
                       onChange={(e) => setCustomPerson(e.target.value)}
-                      className="w-full rounded-xl bg-slate-900 border border-slate-700/60 px-4 py-2.5 text-base md:text-sm focus:border-blue-500 focus:outline-none transition-colors text-white"
+                      className="w-full rounded-xl bg-slate-900 border border-border px-4 py-2.5 text-base md:text-sm focus:border-primary focus:outline-none transition-colors text-white"
                     />
                   ) : (
                     <select
                       required
                       value={personId}
                       onChange={(e) => setPersonId(e.target.value)}
-                      className="w-full rounded-xl bg-slate-900 border border-slate-700/60 px-4 py-2.5 text-base md:text-sm focus:border-blue-500 focus:outline-none transition-colors text-white"
+                      className="w-full rounded-xl bg-slate-900 border border-border px-4 py-2.5 text-base md:text-sm focus:border-primary focus:outline-none transition-colors text-white"
                     >
                       <option value="" disabled>Select Person</option>
                       {persons.map(p => (
@@ -417,7 +417,7 @@ export default function ExpenseModal({
                   <select
                     value={sourceAccount}
                     onChange={(e) => setSourceAccount(e.target.value)}
-                    className="w-full rounded-xl bg-slate-900 border border-slate-700/60 px-4 py-2.5 text-base md:text-sm focus:border-blue-500 focus:outline-none transition-colors text-white"
+                    className="w-full rounded-xl bg-slate-900 border border-border px-4 py-2.5 text-base md:text-sm focus:border-primary focus:outline-none transition-colors text-white"
                   >
                     <option value="Self Account">Self Account</option>
                     <option value="Salary Account">Salary Account</option>
@@ -439,8 +439,8 @@ export default function ExpenseModal({
                         onClick={() => setPaymentMethod(method)}
                         className={`py-2 px-3 rounded-xl border text-xs font-semibold transition-all ${
                           paymentMethod === method
-                            ? 'bg-blue-600 border-blue-500 text-white'
-                            : 'bg-slate-900 border-slate-700/60 text-slate-400 hover:bg-slate-800'
+                            ? 'bg-primary border-primary text-white'
+                            : 'bg-slate-900 border-border text-slate-400 hover:bg-slate-800'
                         }`}
                       >
                         {method}
@@ -456,17 +456,17 @@ export default function ExpenseModal({
                   initial={{ opacity: 0, height: 0 }}
                   animate={{ opacity: 1, height: 'auto' }}
                   exit={{ opacity: 0, height: 0 }}
-                  className="bg-slate-800/40 border border-slate-700/40 p-4 rounded-xl space-y-3"
+                  className="bg-slate-800/40 border border-border/60 p-4 rounded-xl space-y-3"
                 >
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                     <div>
-                      <label className="block text-xs font-semibold uppercase tracking-wider text-blue-400 mb-1">
+                      <label className="block text-xs font-semibold uppercase tracking-wider text-primary mb-1">
                         UPI App
                       </label>
                       <select
                         value={upiApp}
                         onChange={(e) => setUpiApp(e.target.value)}
-                        className="w-full rounded-xl bg-slate-900 border border-slate-700/60 px-4 py-2 text-base md:text-sm focus:border-blue-500 focus:outline-none transition-colors text-white"
+                        className="w-full rounded-xl bg-slate-900 border border-border px-4 py-2 text-base md:text-sm focus:border-primary focus:outline-none transition-colors text-white"
                       >
                         <option value="GPay">GPay</option>
                         <option value="Amazon Pay">Amazon Pay</option>
@@ -474,13 +474,13 @@ export default function ExpenseModal({
                       </select>
                     </div>
                     <div>
-                      <label className="block text-xs font-semibold uppercase tracking-wider text-blue-400 mb-1">
+                      <label className="block text-xs font-semibold uppercase tracking-wider text-primary mb-1">
                         Linked Account
                       </label>
                       <select
                         value={upiLinkedAccount}
                         onChange={(e) => setUpiLinkedAccount(e.target.value)}
-                        className="w-full rounded-xl bg-slate-900 border border-slate-700/60 px-4 py-2 text-base md:text-sm focus:border-blue-500 focus:outline-none transition-colors text-white"
+                        className="w-full rounded-xl bg-slate-900 border border-border px-4 py-2 text-base md:text-sm focus:border-primary focus:outline-none transition-colors text-white"
                       >
                         <option value="Yes Bank">Yes Bank</option>
                         <option value="ICICI Credit Card">ICICI Credit Card</option>
@@ -496,15 +496,15 @@ export default function ExpenseModal({
                   initial={{ opacity: 0, height: 0 }}
                   animate={{ opacity: 1, height: 'auto' }}
                   exit={{ opacity: 0, height: 0 }}
-                  className="bg-slate-800/40 border border-slate-700/40 p-4 rounded-xl space-y-2"
+                  className="bg-slate-800/40 border border-border/60 p-4 rounded-xl space-y-2"
                 >
-                  <label className="block text-xs font-semibold uppercase tracking-wider text-blue-400">
+                  <label className="block text-xs font-semibold uppercase tracking-wider text-primary">
                     Credit Card Issuer
                   </label>
                   <select
                     value={creditCardIssuer}
                     onChange={(e) => setCreditCardIssuer(e.target.value)}
-                    className="w-full rounded-xl bg-slate-900 border border-slate-700/60 px-4 py-2 text-base md:text-sm focus:border-blue-500 focus:outline-none transition-colors text-white"
+                    className="w-full rounded-xl bg-slate-900 border border-border px-4 py-2 text-base md:text-sm focus:border-primary focus:outline-none transition-colors text-white"
                   >
                     <option value="ICICI">ICICI</option>
                     <option value="Yes Bank">Yes Bank</option>
@@ -523,16 +523,16 @@ export default function ExpenseModal({
                   value={notes}
                   onChange={(e) => setNotes(e.target.value)}
                   rows={2}
-                  className="w-full rounded-xl bg-slate-900 border border-slate-700/60 px-4 py-2.5 text-base md:text-sm focus:border-blue-500 focus:outline-none transition-colors text-white resize-none"
+                  className="w-full rounded-xl bg-slate-900 border border-border px-4 py-2.5 text-base md:text-sm focus:border-primary focus:outline-none transition-colors text-white resize-none"
                 />
               </div>
 
               {/* Footer */}
-              <div className="flex justify-end gap-3 mt-6 pt-4 border-t border-slate-700/40">
+              <div className="flex justify-end gap-3 mt-6 pt-4 border-t border-border/60">
                 <button
                   type="button"
                   onClick={onClose}
-                  className="px-5 py-2.5 rounded-xl text-sm font-semibold bg-slate-800 border border-slate-700/50 hover:bg-slate-700/60 transition-colors"
+                  className="px-5 py-2.5 rounded-xl text-sm font-semibold bg-slate-800 border border-border hover:bg-slate-700/60 transition-colors"
                   disabled={loading}
                 >
                   Cancel
@@ -540,7 +540,7 @@ export default function ExpenseModal({
                 <button
                   type="submit"
                   disabled={loading}
-                  className="flex items-center justify-center gap-2 px-6 py-2.5 rounded-xl text-sm font-semibold bg-gradient-to-r from-blue-500 to-violet-500 hover:from-blue-600 hover:to-violet-600 shadow-[0_4px_12px_rgba(59,130,246,0.3)] transition-all disabled:opacity-50"
+                  className="flex items-center justify-center gap-2 px-6 py-2.5 rounded-xl text-sm font-semibold bg-gradient-to-r from-primary to-fuchsia-500 hover:from-primary-dark hover:to-fuchsia-600 shadow-[0_4px_12px_rgba(139,92,246,0.3)] transition-all disabled:opacity-50"
                 >
                   {loading && <Loader2 className="h-4 w-4 animate-spin" />}
                   {expenseToEdit ? 'Save Changes' : 'Create Expense'}

@@ -241,7 +241,7 @@ export default function DashboardPage() {
 
   return (
     <div className="space-y-6 text-white pb-12">
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 bg-[#1E293B]/40 border border-slate-700/50 rounded-2xl p-4 glass-card">
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 bg-card/40 border border-border rounded-2xl p-4 glass-card">
         <div className="flex items-center gap-3">
           {isOnline ? (
             <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 animate-pulse">
@@ -271,7 +271,7 @@ export default function DashboardPage() {
             <button
               onClick={triggerSync}
               disabled={isSyncing}
-              className="flex-1 sm:flex-none flex items-center justify-center gap-1.5 px-4 py-2 bg-blue-500/10 text-blue-400 border border-blue-500/20 hover:bg-blue-500/20 rounded-xl text-xs font-bold transition-all disabled:opacity-50"
+              className="flex-1 sm:flex-none flex items-center justify-center gap-1.5 px-4 py-2 bg-primary/10 text-primary border border-primary/20 hover:bg-primary/20 rounded-xl text-xs font-bold transition-all disabled:opacity-50"
             >
               <RefreshCw className={`h-4 w-4 ${isSyncing ? 'animate-spin' : ''}`} />
               <span>Sync Now</span>
@@ -282,7 +282,7 @@ export default function DashboardPage() {
               setEditingExpense(null);
               setIsModalOpen(true);
             }}
-            className="flex-1 sm:flex-none flex items-center justify-center gap-1.5 px-5 py-2 bg-gradient-to-r from-blue-500 to-violet-500 hover:from-blue-600 hover:to-violet-600 rounded-xl text-xs font-bold transition-all shadow-[0_4px_12px_rgba(59,130,246,0.25)]"
+            className="flex-1 sm:flex-none flex items-center justify-center gap-1.5 px-5 py-2 bg-gradient-to-r from-primary to-fuchsia-500 hover:from-primary-dark hover:to-fuchsia-600 rounded-xl text-xs font-bold transition-all shadow-[0_4px_12px_rgba(139,92,246,0.25)]"
           >
             <Plus className="h-4 w-4" />
             <span>Add Expense</span>
@@ -291,19 +291,19 @@ export default function DashboardPage() {
       </div>
 
       <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
-        <div className="bg-[#1E293B] border border-slate-700/60 p-4 rounded-2xl relative overflow-hidden">
-          <div className="absolute top-0 right-0 h-16 w-16 bg-blue-500/5 rounded-bl-full flex items-center justify-center text-blue-500/10 font-bold text-3xl select-none">
+        <div className="bg-card border border-border p-4 rounded-2xl relative overflow-hidden">
+          <div className="absolute top-0 right-0 h-16 w-16 bg-blue-500/5 rounded-bl-full flex items-center justify-center text-primary/10 font-bold text-3xl select-none">
             M
           </div>
           <p className="text-[10px] font-semibold tracking-wider text-slate-400 uppercase">This Month</p>
-          <h3 className="text-2xl font-extrabold text-blue-400 mt-1 font-sans">₹{stats.totalMonth.toFixed(2)}</h3>
+          <h3 className="text-2xl font-extrabold text-primary mt-1 font-sans">₹{stats.totalMonth.toFixed(2)}</h3>
           <div className="text-[10px] text-slate-400 mt-2 flex items-center gap-1">
-            <TrendingUp className="h-3.5 w-3.5 text-blue-400" />
+            <TrendingUp className="h-3.5 w-3.5 text-primary" />
             <span>Avg ₹{stats.avgDaily.toFixed(2)} / Day</span>
           </div>
         </div>
 
-        <div className="bg-[#1E293B] border border-slate-700/60 p-4 rounded-2xl relative overflow-hidden">
+        <div className="bg-card border border-border p-4 rounded-2xl relative overflow-hidden">
           <div className="absolute top-0 right-0 h-16 w-16 bg-violet-500/5 rounded-bl-full flex items-center justify-center text-violet-500/10 font-bold text-3xl select-none">
             Y
           </div>
@@ -315,7 +315,7 @@ export default function DashboardPage() {
           </div>
         </div>
 
-        <div className="bg-[#1E293B] border border-slate-700/60 p-4 rounded-2xl relative overflow-hidden">
+        <div className="bg-card border border-border p-4 rounded-2xl relative overflow-hidden">
           <div className="absolute top-0 right-0 h-16 w-16 bg-emerald-500/5 rounded-bl-full flex items-center justify-center text-emerald-500/10 font-bold text-3xl select-none">
             T
           </div>
@@ -326,7 +326,7 @@ export default function DashboardPage() {
           </div>
         </div>
 
-        <div className="bg-[#1E293B] border border-slate-700/60 p-4 rounded-2xl relative overflow-hidden">
+        <div className="bg-card border border-border p-4 rounded-2xl relative overflow-hidden">
           <div className="absolute top-0 right-0 h-16 w-16 bg-red-500/5 rounded-bl-full flex items-center justify-center text-red-500/10 font-bold text-3xl select-none">
             H
           </div>
@@ -339,7 +339,7 @@ export default function DashboardPage() {
           </p>
         </div>
 
-        <div className="bg-[#1E293B] border border-slate-700/60 p-4 rounded-2xl relative overflow-hidden">
+        <div className="bg-card border border-border p-4 rounded-2xl relative overflow-hidden">
           <div className="absolute top-0 right-0 h-16 w-16 bg-emerald-500/5 rounded-bl-full flex items-center justify-center text-emerald-500/10 font-bold text-3xl select-none">
             R
           </div>
@@ -350,7 +350,7 @@ export default function DashboardPage() {
           </div>
         </div>
 
-        <div className="bg-[#1E293B] border border-slate-700/60 p-4 rounded-2xl relative overflow-hidden">
+        <div className="bg-card border border-border p-4 rounded-2xl relative overflow-hidden">
           <div className="absolute top-0 right-0 h-16 w-16 bg-amber-500/5 rounded-bl-full flex items-center justify-center text-amber-500/10 font-bold text-3xl select-none">
             P
           </div>
@@ -363,8 +363,8 @@ export default function DashboardPage() {
       </div>
 
       <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
-        <div className="bg-[#1E293B]/50 border border-slate-800 p-3 rounded-xl flex items-center gap-3">
-          <div className="h-10 w-10 rounded-lg bg-blue-500/10 text-blue-400 flex items-center justify-center">
+        <div className="bg-card/50 border border-border p-3 rounded-xl flex items-center gap-3">
+          <div className="h-10 w-10 rounded-lg bg-primary/10 text-primary flex items-center justify-center">
             <Fuel className="h-5 w-5" />
           </div>
           <div>
@@ -373,7 +373,7 @@ export default function DashboardPage() {
           </div>
         </div>
 
-        <div className="bg-[#1E293B]/50 border border-slate-800 p-3 rounded-xl flex items-center gap-3">
+        <div className="bg-card/50 border border-border p-3 rounded-xl flex items-center gap-3">
           <div className="h-10 w-10 rounded-lg bg-amber-500/10 text-amber-400 flex items-center justify-center">
             <Utensils className="h-5 w-5" />
           </div>
@@ -383,7 +383,7 @@ export default function DashboardPage() {
           </div>
         </div>
 
-        <div className="bg-[#1E293B]/50 border border-slate-800 p-3 rounded-xl flex items-center gap-3">
+        <div className="bg-card/50 border border-border p-3 rounded-xl flex items-center gap-3">
           <div className="h-10 w-10 rounded-lg bg-violet-500/10 text-violet-400 flex items-center justify-center">
             <Plane className="h-5 w-5" />
           </div>
@@ -393,7 +393,7 @@ export default function DashboardPage() {
           </div>
         </div>
 
-        <div className="bg-[#1E293B]/50 border border-slate-800 p-3 rounded-xl flex items-center gap-3">
+        <div className="bg-card/50 border border-border p-3 rounded-xl flex items-center gap-3">
           <div className="h-10 w-10 rounded-lg bg-emerald-500/10 text-emerald-400 flex items-center justify-center">
             <TrendingUp className="h-5 w-5" />
           </div>
@@ -406,7 +406,7 @@ export default function DashboardPage() {
           </div>
         </div>
 
-        <div className="col-span-2 md:col-span-1 bg-[#1E293B]/50 border border-slate-800 p-3 rounded-xl flex items-center gap-3">
+        <div className="col-span-2 md:col-span-1 bg-card/50 border border-border p-3 rounded-xl flex items-center gap-3">
           <div className="h-10 w-10 rounded-lg bg-slate-700/10 text-slate-400 flex items-center justify-center">
             <Calendar className="h-5 w-5" />
           </div>
@@ -432,27 +432,27 @@ export default function DashboardPage() {
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <div className="bg-[#1E293B]/40 border border-slate-700/50 rounded-2xl p-5 space-y-3">
+        <div className="bg-card/40 border border-border rounded-2xl p-5 space-y-3">
           <h3 className="text-sm font-bold tracking-wide">Data Backups</h3>
           <p className="text-xs text-slate-400">
             Download your entire transactions and people database schema locally as a JSON backup file.
           </p>
           <button
             onClick={handleExportBackup}
-            className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-slate-800 border border-slate-700/60 hover:bg-slate-700 text-xs font-bold transition-all text-white"
+            className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-slate-800 border border-border hover:bg-slate-700 text-xs font-bold transition-all text-white"
           >
-            <Download className="h-4 w-4 text-blue-400" />
+            <Download className="h-4 w-4 text-primary" />
             <span>Download Backup (JSON)</span>
           </button>
         </div>
 
-        <div className="bg-[#1E293B]/40 border border-slate-700/50 rounded-2xl p-5 space-y-3">
+        <div className="bg-card/40 border border-border rounded-2xl p-5 space-y-3">
           <h3 className="text-sm font-bold tracking-wide">Restore Database</h3>
           <p className="text-xs text-slate-400">
             Restore database records by uploading a valid JSON backup file. This will overwrite current records.
           </p>
           <div className="flex items-center gap-3">
-            <label className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-slate-800 border border-slate-700/60 hover:bg-slate-700 text-xs font-bold transition-all cursor-pointer text-white">
+            <label className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-slate-800 border border-border hover:bg-slate-700 text-xs font-bold transition-all cursor-pointer text-white">
               <Upload className="h-4 w-4 text-violet-400" />
               <span>Select Backup File</span>
               <input
@@ -486,7 +486,7 @@ export default function DashboardPage() {
           setEditingExpense(null);
           setIsModalOpen(true);
         }}
-        className="fixed bottom-24 md:bottom-8 right-6 z-30 flex h-14 w-14 items-center justify-center rounded-full bg-gradient-to-tr from-blue-500 to-violet-500 hover:from-blue-600 hover:to-violet-600 text-white shadow-2xl hover:scale-105 active:scale-95 transition-all"
+        className="fixed bottom-24 md:bottom-8 right-6 z-30 flex h-14 w-14 items-center justify-center rounded-full bg-gradient-to-tr from-primary to-fuchsia-500 hover:from-primary-dark hover:to-fuchsia-600 text-white shadow-2xl hover:scale-105 active:scale-95 transition-all"
         title="Add Expense"
       >
         <Plus className="h-7 w-7" />
