@@ -94,9 +94,13 @@ export default function PeoplePage() {
       } else if (type === 'lent') {
         current.totalLent += exp.amount;
         current.netLoan += exp.amount;
+      } else if (type === 'received') {
+        current.netLoan -= exp.amount;
       } else if (type === 'borrowed') {
         current.totalBorrowed += exp.amount;
         current.netLoan -= exp.amount;
+      } else if (type === 'repaid') {
+        current.netLoan += exp.amount;
       }
 
       if (!current.lastActive || new Date(exp.date) > new Date(current.lastActive)) {

@@ -123,8 +123,8 @@ export default function ExpenseTable({
   };
 
   const getAmountColor = (exp: Expense) => {
-    if (exp.transactionType === 'lent') return 'text-[#4ADE80]';
-    if (exp.transactionType === 'borrowed') return 'text-[#FF5A5F]';
+    if (exp.transactionType === 'lent' || exp.transactionType === 'received') return 'text-[#4ADE80]';
+    if (exp.transactionType === 'borrowed' || exp.transactionType === 'repaid') return 'text-[#FF5A5F]';
     return 'text-white';
   };
 
@@ -204,7 +204,9 @@ export default function ExpenseTable({
           <option value="">All Types</option>
           <option value="expense">Expenses Only</option>
           <option value="lent">Lent Only</option>
+          <option value="received">Received (Udhaar Back)</option>
           <option value="borrowed">Borrowed Only</option>
+          <option value="repaid">Repaid (Paid Back)</option>
         </select>
 
         {/* Export Buttons */}
@@ -290,9 +292,19 @@ export default function ExpenseTable({
                               Lent
                             </span>
                           )}
+                          {exp.transactionType === 'received' && (
+                            <span className="px-1.5 py-0.5 rounded-md text-[9px] bg-gold-400/10 text-gold-400 border border-gold-400/20 font-bold uppercase tracking-wider">
+                              Received
+                            </span>
+                          )}
                           {exp.transactionType === 'borrowed' && (
                             <span className="px-1.5 py-0.5 rounded-md text-[9px] bg-[#FF5A5F]/10 text-[#FF5A5F] border border-[#FF5A5F]/20 font-bold uppercase tracking-wider">
                               Borrowed
+                            </span>
+                          )}
+                          {exp.transactionType === 'repaid' && (
+                            <span className="px-1.5 py-0.5 rounded-md text-[9px] bg-white/10 text-white border border-white/20 font-bold uppercase tracking-wider">
+                              Repaid
                             </span>
                           )}
                         </div>
@@ -368,9 +380,19 @@ export default function ExpenseTable({
                           Lent
                         </span>
                       )}
+                      {exp.transactionType === 'received' && (
+                        <span className="px-1.5 py-0.5 rounded-md text-[9px] bg-gold-400/10 text-gold-400 border border-gold-400/20 font-bold uppercase tracking-wider">
+                          Received
+                        </span>
+                      )}
                       {exp.transactionType === 'borrowed' && (
                         <span className="px-1.5 py-0.5 rounded-md text-[9px] bg-[#FF5A5F]/10 text-[#FF5A5F] border border-[#FF5A5F]/20 font-bold uppercase tracking-wider">
                           Borrowed
+                        </span>
+                      )}
+                      {exp.transactionType === 'repaid' && (
+                        <span className="px-1.5 py-0.5 rounded-md text-[9px] bg-white/10 text-white border border-white/20 font-bold uppercase tracking-wider">
+                          Repaid
                         </span>
                       )}
                     </div>
