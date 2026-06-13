@@ -191,7 +191,7 @@ export default function ExpenseModal({
         vehicle: category === 'Petrol' ? vehicle : undefined,
         sourceAccount,
         upiApp: paymentMethod === 'UPI' ? upiApp : undefined,
-        upiLinkedAccount: (paymentMethod === 'UPI' && upiApp) ? upiLinkedAccount : undefined,
+        upiLinkedAccount: (paymentMethod === 'UPI' && upiApp && transactionType !== 'borrowed') ? upiLinkedAccount : undefined,
         creditCardIssuer: paymentMethod === 'Credit Card' ? creditCardIssuer : undefined,
       };
 
@@ -487,7 +487,7 @@ export default function ExpenseModal({
                   exit={{ opacity: 0, height: 0 }}
                   className="bg-white/[0.03] border border-white/[0.06] p-4 rounded-xl space-y-3"
                 >
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  <div className={`grid grid-cols-1 ${transactionType !== 'borrowed' ? 'md:grid-cols-2' : ''} gap-3`}>
                     <div>
                       <label className="block text-xs font-normal uppercase tracking-wider text-gold-400 mb-1">
                         UPI App
@@ -502,19 +502,21 @@ export default function ExpenseModal({
                         <option value="Cred UPI">Cred UPI</option>
                       </select>
                     </div>
-                    <div>
-                      <label className="block text-xs font-normal uppercase tracking-wider text-gold-400 mb-1">
-                        Linked Account
-                      </label>
-                      <select
-                        value={upiLinkedAccount}
-                        onChange={(e) => setUpiLinkedAccount(e.target.value)}
-                        className={inputClass}
-                      >
-                        <option value="Yes Bank">Yes Bank</option>
-                        <option value="ICICI Credit Card">ICICI Credit Card</option>
-                      </select>
-                    </div>
+                    {transactionType !== 'borrowed' && (
+                      <div>
+                        <label className="block text-xs font-normal uppercase tracking-wider text-gold-400 mb-1">
+                          Linked Account
+                        </label>
+                        <select
+                          value={upiLinkedAccount}
+                          onChange={(e) => setUpiLinkedAccount(e.target.value)}
+                          className={inputClass}
+                        >
+                          <option value="Yes Bank">Yes Bank</option>
+                          <option value="ICICI Credit Card">ICICI Credit Card</option>
+                        </select>
+                      </div>
+                    )}
                   </div>
                 </motion.div>
               )}
