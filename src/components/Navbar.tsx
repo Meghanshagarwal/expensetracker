@@ -17,6 +17,9 @@ export default function Navbar() {
       }
     }
     localStorage.removeItem('local_session_active');
+    localStorage.removeItem('app_pin_hash');
+    localStorage.removeItem('biometric_credential_id');
+    localStorage.removeItem('biometric_setup_declined');
     window.location.reload();
   };
 
@@ -28,42 +31,43 @@ export default function Navbar() {
 
   return (
     <>
-      {/* Desktop Navigation (Top Bar) */}
-      <header className="hidden md:flex fixed top-0 left-0 right-0 z-40 items-center justify-between px-8 py-4 bg-card/80 backdrop-blur-md border-b border-border text-white">
+      {/* Desktop Navigation — Luxury Top Bar */}
+      <header className="hidden md:flex fixed top-0 left-0 right-0 z-40 items-center justify-between px-8 py-4 bg-black/80 backdrop-blur-xl border-b border-white/[0.06] text-white">
         <div className="flex items-center gap-3">
-          <div className="h-9 w-9 rounded-xl bg-gradient-to-tr from-primary-dark to-fuchsia-600 flex items-center justify-center font-bold text-lg">
+          <div className="h-9 w-9 rounded-xl bg-gold-400/10 border border-gold-400/20 flex items-center justify-center font-semibold text-lg text-gold-400">
             ₹
           </div>
-          <span className="text-xl font-bold tracking-wide bg-clip-text text-transparent bg-gradient-to-r from-primary/80 to-fuchsia-400 font-sans">
+          <span className="text-xl font-medium tracking-wide text-white">
             FinTrack
           </span>
         </div>
 
-        <nav className="flex items-center gap-6">
+        <nav className="flex items-center gap-1">
           {navItems.map(item => {
             const isActive = pathname === item.path;
             return (
               <Link
                 key={item.path}
                 href={item.path}
-                className={`relative px-4 py-2 text-sm font-medium transition-colors hover:text-white ${
-                  isActive ? 'text-white' : 'text-slate-400'
+                className={`relative px-5 py-2.5 text-sm font-normal transition-colors rounded-lg ${
+                  isActive ? 'text-white' : 'text-[#8A8A8A] hover:text-white'
                 }`}
               >
                 {item.name}
                 {isActive && (
                   <motion.div
                     layoutId="activeTabDesktop"
-                    className="absolute bottom-0 left-0 right-0 h-0.5 bg-gradient-to-r from-primary to-fuchsia-500"
+                    className="absolute bottom-0 left-2 right-2 h-[2px] bg-gold-400 rounded-full"
                     transition={{ type: 'spring', stiffness: 380, damping: 30 }}
                   />
                 )}
               </Link>
             );
           })}
+          <div className="w-px h-6 bg-white/[0.08] mx-3" />
           <button
             onClick={handleLogout}
-            className="flex items-center gap-2 px-4 py-2 rounded-lg bg-red-500/10 text-red-400 border border-red-500/20 hover:bg-red-500/20 transition-all text-sm font-medium"
+            className="flex items-center gap-2 px-4 py-2 rounded-lg text-[#8A8A8A] hover:text-white hover:bg-white/[0.04] transition-all text-sm font-normal"
           >
             <LogOut className="h-4 w-4" />
             Logout
@@ -71,8 +75,8 @@ export default function Navbar() {
         </nav>
       </header>
 
-      {/* Mobile Bottom Navigation */}
-      <nav className="md:hidden fixed bottom-6 left-1/2 -translate-x-1/2 z-40 w-[90%] max-w-md bg-card/80 backdrop-blur-md border border-border rounded-2xl py-3 px-6 shadow-2xl flex items-center justify-between text-white">
+      {/* Mobile Bottom Navigation — Frosted Dark Glass */}
+      <nav className="md:hidden fixed bottom-5 left-1/2 -translate-x-1/2 z-40 w-[88%] max-w-sm bg-[#111111]/90 backdrop-blur-2xl border border-white/[0.06] rounded-2xl py-3 px-4 shadow-luxury flex items-center justify-around text-white">
         {navItems.map(item => {
           const isActive = pathname === item.path;
           const Icon = item.icon;
@@ -80,24 +84,31 @@ export default function Navbar() {
             <Link
               key={item.path}
               href={item.path}
-              className={`flex flex-col items-center gap-1 transition-all ${
-                isActive ? 'text-primary scale-105' : 'text-slate-400 hover:text-slate-200'
+              className={`relative flex flex-col items-center gap-1 py-1 px-3 transition-all ${
+                isActive ? 'text-gold-400' : 'text-[#555555] hover:text-[#8A8A8A]'
               }`}
             >
-              <Icon className="h-6 w-6" />
-              <span className="text-[10px] font-semibold tracking-wider uppercase font-sans">
+              <Icon className="h-5 w-5" strokeWidth={isActive ? 2 : 1.5} />
+              <span className="text-[9px] font-medium tracking-luxury-wide uppercase">
                 {item.name}
               </span>
+              {isActive && (
+                <motion.div
+                  layoutId="activeTabMobile"
+                  className="absolute -bottom-1.5 left-1/2 -translate-x-1/2 h-[3px] w-[3px] rounded-full bg-gold-400"
+                  transition={{ type: 'spring', stiffness: 380, damping: 30 }}
+                />
+              )}
             </Link>
           );
         })}
         <button
           onClick={handleLogout}
-          className="flex flex-col items-center gap-1 text-slate-400 hover:text-red-400 transition-all"
+          className="flex flex-col items-center gap-1 py-1 px-3 text-[#555555] hover:text-[#8A8A8A] transition-all"
         >
-          <LogOut className="h-6 w-6" />
-          <span className="text-[10px] font-semibold tracking-wider uppercase font-sans">
-            Logout
+          <LogOut className="h-5 w-5" strokeWidth={1.5} />
+          <span className="text-[9px] font-medium tracking-luxury-wide uppercase">
+            Exit
           </span>
         </button>
       </nav>

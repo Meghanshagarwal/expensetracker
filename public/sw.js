@@ -1,6 +1,8 @@
 const CACHE_NAME = 'expense-tracker-v3';
 const ASSETS_TO_CACHE = [
   '/',
+  '/analytics',
+  '/people',
   '/manifest.webmanifest',
 ];
 
@@ -46,7 +48,8 @@ self.addEventListener('fetch', (event) => {
         // Fetch new version in background to update cache (Stale-While-Revalidate)
         fetch(request).then((networkResponse) => {
           if (networkResponse.status === 200) {
-            caches.open(CACHE_NAME).then((cache) => cache.put(request, networkResponse));
+            const responseToCache = networkResponse.clone();
+            caches.open(CACHE_NAME).then((cache) => cache.put(request, responseToCache));
           }
         }).catch(() => {/* Ignore network errors offline */});
         

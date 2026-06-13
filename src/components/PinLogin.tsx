@@ -8,6 +8,14 @@ interface PinLoginProps {
   onSuccess: () => void;
 }
 
+async function hashPin(pin: string): Promise<string> {
+  const encoder = new TextEncoder();
+  const data = encoder.encode(pin);
+  const hashBuffer = await crypto.subtle.digest('SHA-256', data);
+  const hashArray = Array.from(new Uint8Array(hashBuffer));
+  return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+}
+
 export default function PinLogin({ onSuccess }: PinLoginProps) {
   const [pin, setPin] = useState<string>('');
   const [error, setError] = useState<string | null>(null);
@@ -99,6 +107,21 @@ export default function PinLogin({ onSuccess }: PinLoginProps) {
       });
 
       if (assertion) {
+        // Set server session cookie via the auth endpoint using the cached pin hash
+        try {
+          if (navigator.onLine) {
+            const cachedPinHash = localStorage.getItem('app_pin_hash');
+            if (cachedPinHash) {
+              await fetch('/api/auth', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ pinHash: cachedPinHash }),
+              });
+            }
+          }
+        } catch (e) {
+          console.error("Failed to establish server session after biometric login:", e);
+        }
         localStorage.setItem('local_session_active', 'true');
         onSuccess();
       }
@@ -164,7 +187,7 @@ export default function PinLogin({ onSuccess }: PinLoginProps) {
     if (!navigator.onLine) {
       const cachedPinHash = localStorage.getItem('app_pin_hash');
       if (cachedPinHash) {
-        const enteredHash = btoa(pin); 
+        const enteredHash = await hashPin(pin);
         if (enteredHash === cachedPinHash) {
           localStorage.setItem('local_session_active', 'true');
           const isSupported = await checkBiometricsSupport();
@@ -194,7 +217,7 @@ export default function PinLogin({ onSuccess }: PinLoginProps) {
       });
 
       if (res.ok) {
-        localStorage.setItem('app_pin_hash', btoa(pin));
+        localStorage.setItem('app_pin_hash', await hashPin(pin));
         localStorage.setItem('local_session_active', 'true');
         
         const isSupported = await checkBiometricsSupport();
@@ -225,39 +248,36 @@ export default function PinLogin({ onSuccess }: PinLoginProps) {
   }, [pin]);
 
   return (
-    <div className="fixed inset-0 z-50 flex flex-col items-center justify-center bg-background px-6 text-white select-none">
-      {/* Dynamic Background Gradients */}
-      <div className="absolute top-1/4 left-1/4 h-96 w-96 -translate-x-1/2 -translate-y-1/2 rounded-full bg-primary/10 blur-3xl" />
-      <div className="absolute bottom-1/4 right-1/4 h-96 w-96 translate-x-1/2 translate-y-1/2 rounded-full bg-violet-500/10 blur-3xl" />
+    <div className="fixed inset-0 z-50 flex flex-col items-center justify-center bg-black px-6 text-white select-none">
 
       <div className="relative z-10 flex flex-col items-center w-full max-w-sm">
         <AnimatePresence mode="wait">
           {!showPinPad ? (
             <motion.div
               key="biometric-screen"
-              initial={{ opacity: 0, scale: 0.95 }}
+              initial={{ opacity: 0, scale: 0.97 }}
               animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, scale: 0.95 }}
-              transition={{ duration: 0.2 }}
+              exit={{ opacity: 0, scale: 0.97 }}
+              transition={{ duration: 0.25, ease: 'easeOut' }}
               className="flex flex-col items-center w-full text-center"
             >
               {/* Pulsing Fingerprint Icon */}
               <motion.div
-                whileHover={{ scale: 1.05 }}
-                whileTap={{ scale: 0.95 }}
+                whileHover={{ scale: 1.04 }}
+                whileTap={{ scale: 0.96 }}
                 onClick={handleBiometricLogin}
-                className="mb-8 cursor-pointer flex h-24 w-24 items-center justify-center rounded-full bg-primary/10 text-primary border border-primary/20 shadow-[0_0_40px_rgba(139,92,246,0.15)] hover:bg-primary/20 hover:border-blue-400/40 hover:shadow-[0_0_50px_rgba(139,92,246,0.25)] transition-all"
+                className="mb-10 cursor-pointer flex h-24 w-24 items-center justify-center rounded-full bg-[#111111] text-gold-400 border border-gold-400/30 hover:border-gold-400/50 transition-all duration-300"
               >
                 <Fingerprint className="h-12 w-12 animate-pulse" />
               </motion.div>
 
-              <h1 className="mb-2 text-2xl font-bold font-sans tracking-wide">FinTrack is Locked</h1>
-              <p className="mb-10 text-sm text-slate-400">Touch the fingerprint sensor to unlock</p>
+              <h1 className="mb-2 text-2xl font-light tracking-wide text-white">FinTrack is Locked</h1>
+              <p className="mb-10 text-sm text-[#8A8A8A] uppercase tracking-wider font-light">Touch the fingerprint sensor to unlock</p>
 
               <motion.button
-                whileTap={{ scale: 0.95 }}
+                whileTap={{ scale: 0.96 }}
                 onClick={() => setShowPinPad(true)}
-                className="px-6 py-2.5 rounded-xl bg-slate-800/80 border border-border text-sm font-semibold hover:bg-slate-700 hover:text-white transition-all text-slate-300 shadow-md"
+                className="px-6 py-2.5 rounded-full bg-[#111111] border border-white/[0.08] text-sm font-medium hover:border-white/[0.16] transition-all duration-200 text-[#8A8A8A] hover:text-white"
               >
                 Use PIN Instead
               </motion.button>
@@ -265,34 +285,34 @@ export default function PinLogin({ onSuccess }: PinLoginProps) {
           ) : (
             <motion.div
               key="pin-screen"
-              initial={{ opacity: 0, scale: 0.95 }}
+              initial={{ opacity: 0, scale: 0.97 }}
               animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, scale: 0.95 }}
-              transition={{ duration: 0.2 }}
+              exit={{ opacity: 0, scale: 0.97 }}
+              transition={{ duration: 0.25, ease: 'easeOut' }}
               className="flex flex-col items-center w-full"
             >
-              {/* Lock Icon */}
-              <motion.div
-                initial={{ scale: 0.9, opacity: 0 }}
-                animate={{ scale: 1, opacity: 1 }}
-                transition={{ duration: 0.3 }}
-                className="mb-6 flex h-16 w-16 items-center justify-center rounded-full bg-primary/20 text-primary border border-primary/30 shadow-[0_0_15px_rgba(139,92,246,0.15)]"
+              {/* Logo */}
+              <motion.h1
+                initial={{ opacity: 0, y: -8 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.4, ease: 'easeOut' }}
+                className="mb-1 text-3xl font-light tracking-wide text-white"
               >
-                <Lock className="h-8 w-8" />
-              </motion.div>
-
-              <h1 className="mb-2 text-2xl font-bold font-sans tracking-wide">Enter PIN to Unlock</h1>
-              <p className="mb-8 text-sm text-slate-400">Please enter your 4-digit passcode</p>
+                FinTrack
+              </motion.h1>
+              <p className="mb-10 text-xs text-[#8A8A8A] uppercase tracking-wider font-light">Enter your passcode</p>
 
               {/* Passcode dots */}
               <div className="mb-8 flex gap-5">
                 {[0, 1, 2, 3].map(index => (
-                  <div
+                  <motion.div
                     key={index}
-                    className={`h-4 w-4 rounded-full border transition-all duration-200 ${
+                    animate={index < pin.length ? { scale: [1, 1.15, 1] } : { scale: 1 }}
+                    transition={{ duration: 0.15 }}
+                    className={`h-3.5 w-3.5 rounded-full border-[1.5px] transition-all duration-200 ${
                       index < pin.length
-                        ? 'bg-blue-500 border-primary scale-110 shadow-[0_0_8px_rgba(139,92,246,0.5)]'
-                        : 'border-slate-600 bg-transparent'
+                        ? 'bg-gold-400 border-gold-400'
+                        : 'border-gold-400/40 bg-transparent'
                     }`}
                   />
                 ))}
@@ -301,11 +321,11 @@ export default function PinLogin({ onSuccess }: PinLoginProps) {
               {/* Smaller biometric button for quick access on PIN pad */}
               {hasBiometrics && (
                 <motion.button
-                  initial={{ opacity: 0, scale: 0.9 }}
+                  initial={{ opacity: 0, scale: 0.95 }}
                   animate={{ opacity: 1, scale: 1 }}
-                  whileTap={{ scale: 0.95 }}
+                  whileTap={{ scale: 0.96 }}
                   onClick={handleFingerprintButtonClick}
-                  className="mb-8 flex items-center gap-2 px-4 py-2 rounded-full bg-primary/10 border border-primary/25 text-primary hover:bg-primary/20 active:scale-95 transition-all text-xs font-bold shadow-lg shadow-blue-500/5"
+                  className="mb-8 flex items-center gap-2 px-4 py-2 rounded-full bg-[#111111] border border-white/[0.08] text-gold-400 hover:border-gold-400/30 active:scale-95 transition-all duration-200 text-xs font-medium"
                 >
                   <Fingerprint className="h-4 w-4" />
                   <span>Use Fingerprint</span>
@@ -317,10 +337,10 @@ export default function PinLogin({ onSuccess }: PinLoginProps) {
                 <AnimatePresence>
                   {error && (
                     <motion.p
-                      initial={{ opacity: 0, y: -5 }}
+                      initial={{ opacity: 0, y: -4 }}
                       animate={{ opacity: 1, y: 0 }}
                       exit={{ opacity: 0 }}
-                      className="text-sm font-semibold text-red-500"
+                      className="text-sm font-medium text-[#FF5A5F]"
                     >
                       {error}
                     </motion.p>
@@ -329,37 +349,37 @@ export default function PinLogin({ onSuccess }: PinLoginProps) {
               </div>
 
               {/* Keypad */}
-              <div className="grid grid-cols-3 gap-6 w-full px-4 justify-items-center">
+              <div className="grid grid-cols-3 gap-5 w-full px-4 justify-items-center">
                 {['1', '2', '3', '4', '5', '6', '7', '8', '9'].map(num => (
                   <motion.button
-                    whileTap={{ scale: 0.95 }}
+                    whileTap={{ scale: 0.92, backgroundColor: '#F5C451' }}
                     key={num}
                     onClick={() => handleKeyPress(num)}
-                    className="flex h-16 w-16 items-center justify-center rounded-full bg-slate-800/80 text-xl font-semibold border border-border hover:bg-slate-700/60 transition-colors"
+                    className="flex h-16 w-16 items-center justify-center rounded-full bg-[#111111] text-xl font-medium text-white border border-white/[0.06] hover:border-white/[0.12] active:text-black transition-all duration-150"
                   >
                     {num}
                   </motion.button>
                 ))}
                 <motion.button
-                  whileTap={{ scale: 0.95 }}
+                  whileTap={{ scale: 0.92 }}
                   onClick={handleClear}
-                  className="flex h-16 w-16 items-center justify-center text-sm font-semibold text-slate-400 hover:text-white"
+                  className="flex h-16 w-16 items-center justify-center text-xs font-medium text-[#555555] hover:text-white uppercase tracking-wider transition-colors duration-150"
                 >
                   Clear
                 </motion.button>
                 <motion.button
-                  whileTap={{ scale: 0.95 }}
+                  whileTap={{ scale: 0.92, backgroundColor: '#F5C451' }}
                   onClick={() => handleKeyPress('0')}
-                  className="flex h-16 w-16 items-center justify-center rounded-full bg-slate-800/80 text-xl font-semibold border border-border hover:bg-slate-700/60 transition-colors"
+                  className="flex h-16 w-16 items-center justify-center rounded-full bg-[#111111] text-xl font-medium text-white border border-white/[0.06] hover:border-white/[0.12] active:text-black transition-all duration-150"
                 >
                   0
                 </motion.button>
                 <motion.button
-                  whileTap={{ scale: 0.95 }}
+                  whileTap={{ scale: 0.92 }}
                   onClick={handleDelete}
-                  className="flex h-16 w-16 items-center justify-center text-slate-400 hover:text-white"
+                  className="flex h-16 w-16 items-center justify-center rounded-full bg-[#111111] border border-white/[0.06] text-white hover:border-white/[0.12] transition-all duration-150"
                 >
-                  <Delete className="h-6 w-6" />
+                  <Delete className="h-5 w-5" />
                 </motion.button>
               </div>
             </motion.div>
@@ -374,19 +394,20 @@ export default function PinLogin({ onSuccess }: PinLoginProps) {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 z-50 flex items-center justify-center bg-background/90 backdrop-blur-md px-6 text-white"
+            className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-md px-6 text-white"
           >
             <motion.div
-              initial={{ scale: 0.9, y: 20 }}
+              initial={{ scale: 0.95, y: 16 }}
               animate={{ scale: 1, y: 0 }}
-              exit={{ scale: 0.9, y: 20 }}
-              className="w-full max-w-sm rounded-2xl bg-slate-800/85 border border-border p-6 text-center shadow-2xl relative"
+              exit={{ scale: 0.95, y: 16 }}
+              transition={{ duration: 0.25, ease: 'easeOut' }}
+              className="w-full max-w-sm rounded-2xl bg-[#111111] border border-white/[0.06] p-8 text-center relative"
             >
-              <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-primary/20 text-primary border border-primary/30">
+              <div className="mx-auto mb-5 flex h-16 w-16 items-center justify-center rounded-full bg-gold-400/10 text-gold-400 border border-gold-400/20">
                 <Fingerprint className="h-8 w-8 animate-pulse" />
               </div>
-              <h2 className="text-xl font-bold mb-2">Enable Fingerprint Login?</h2>
-              <p className="text-sm text-slate-400 mb-6 leading-relaxed">
+              <h2 className="text-xl font-medium text-white mb-2">Enable Fingerprint Login?</h2>
+              <p className="text-sm text-[#8A8A8A] mb-8 leading-relaxed font-light">
                 Use your device's fingerprint or face scanner to unlock your expense tracker quickly next time.
               </p>
               
@@ -395,12 +416,15 @@ export default function PinLogin({ onSuccess }: PinLoginProps) {
                   onClick={async () => {
                     const success = await registerBiometrics();
                     if (success) {
+                      setShowSetupPrompt(false);
                       onSuccess();
                     } else {
+                      // Registration failed or was cancelled, still let user proceed
+                      setShowSetupPrompt(false);
                       onSuccess();
                     }
                   }}
-                  className="w-full py-3 rounded-xl bg-gradient-to-r from-primary to-fuchsia-500 hover:from-primary-dark hover:to-fuchsia-600 font-bold text-sm shadow-lg shadow-blue-500/20 transition-all hover:scale-[1.02] active:scale-[0.98]"
+                  className="w-full py-3 rounded-xl bg-gold-400 hover:bg-gold-500 text-black font-medium text-sm transition-all duration-200 hover:scale-[1.01] active:scale-[0.98]"
                 >
                   Enable Fingerprint Unlock
                 </button>
@@ -409,7 +433,7 @@ export default function PinLogin({ onSuccess }: PinLoginProps) {
                     localStorage.setItem('biometric_setup_declined', 'true');
                     onSuccess();
                   }}
-                  className="w-full py-3 rounded-xl bg-slate-700/50 hover:bg-slate-700 border border-slate-600/40 font-bold text-sm text-slate-300 transition-all active:scale-[0.98]"
+                  className="w-full py-3 rounded-xl text-sm text-[#8A8A8A] hover:text-white font-medium transition-all duration-200 active:scale-[0.98]"
                 >
                   Maybe Later
                 </button>

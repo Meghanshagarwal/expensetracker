@@ -3,7 +3,7 @@
 import { useEffect, useState, useCallback, useMemo } from 'react';
 import { 
   Plus, Wifi, WifiOff, RefreshCw, Upload, Download, 
-  Fuel, Utensils, Plane, TrendingUp, Calendar 
+  Fuel, Utensils, Plane, TrendingUp, Calendar, ArrowUpRight, ArrowDownRight 
 } from 'lucide-react';
 import { useOfflineSync } from '@/hooks/useOfflineSync';
 import { getLocalExpenses, getLocalPersons } from '@/lib/offlineDb';
@@ -16,6 +16,13 @@ const CATEGORIES = [
   'Bills', 'Entertainment', 'Education', 'Medical', 'Family', 'Other'
 ];
 const PAYMENT_METHODS = ['Cash', 'UPI', 'Debit Card', 'Credit Card'];
+
+function getGreeting(): string {
+  const hour = new Date().getHours();
+  if (hour < 12) return 'Good Morning';
+  if (hour < 17) return 'Good Afternoon';
+  return 'Good Evening';
+}
 
 export default function DashboardPage() {
   const [expenses, setExpenses] = useState<Expense[]>([]);
@@ -131,6 +138,14 @@ export default function DashboardPage() {
           if (exp.category === 'Petrol') petrolExpenses += exp.amount;
           if (exp.category === 'Food') foodExpenses += exp.amount;
           if (exp.category === 'Travel') travelExpenses += exp.amount;
+
+          if (!highestExpense || exp.amount > highestExpense.amount) {
+            highestExpense = {
+              title: exp.title,
+              amount: exp.amount,
+              date: exp.date,
+            };
+          }
         }
 
         const lastMonth = currentMonth === 0 ? 11 : currentMonth - 1;
@@ -145,14 +160,6 @@ export default function DashboardPage() {
 
         if (expDayStr === todayStr) {
           today += exp.amount;
-        }
-
-        if (!highestExpense || exp.amount > highestExpense.amount) {
-          highestExpense = {
-            title: exp.title,
-            amount: exp.amount,
-            date: exp.date,
-          };
         }
       }
     });
@@ -239,188 +246,170 @@ export default function DashboardPage() {
     reader.readAsText(file);
   };
 
-  return (
-    <div className="space-y-6 text-white pb-12">
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 bg-card/40 border border-border rounded-2xl p-4 glass-card">
-        <div className="flex items-center gap-3">
-          {isOnline ? (
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 animate-pulse">
-              <Wifi className="h-5 w-5" />
-            </div>
-          ) : (
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-amber-500/10 text-amber-400 border border-amber-500/20">
-              <WifiOff className="h-5 w-5 animate-pulse" />
-            </div>
-          )}
-          <div>
-            <h2 className="text-sm font-bold tracking-wide">
-              {isOnline ? 'System Online' : 'System Offline (Viewing Cached)'}
-            </h2>
-            <p className="text-xs text-slate-400">
-              {isSyncing 
-                ? 'Syncing offline records...' 
-                : syncError 
-                ? `Sync error: ${syncError}` 
-                : 'All records synchronized.'}
-            </p>
-          </div>
-        </div>
+  const monthDiff = stats.thisMonthExpenses - stats.lastMonthExpenses;
+  const monthDiffPositive = monthDiff >= 0;
 
-        <div className="flex gap-2 w-full sm:w-auto">
+  return (
+    <div className="space-y-8 text-white pb-12">
+      {/* Greeting */}
+      <div className="space-y-1">
+        <h1 className="text-2xl sm:text-3xl font-light text-white tracking-tight">
+          {getGreeting()}
+        </h1>
+        <p className="text-sm text-[#8A8A8A] font-light">
+          {new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}
+        </p>
+      </div>
+
+      {/* Connection Status — Minimal */}
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2.5">
+          <div className={`h-2 w-2 rounded-full ${isOnline ? 'bg-[#4ADE80]' : 'bg-gold-400 animate-pulse'}`} />
+          <span className="text-xs text-[#8A8A8A] font-normal">
+            {isOnline 
+              ? isSyncing ? 'Syncing...' : syncError ? `Error: ${syncError}` : 'Synced'
+              : 'Offline · Cached data'}
+          </span>
+        </div>
+        <div className="flex items-center gap-2">
           {isOnline && (
             <button
               onClick={triggerSync}
               disabled={isSyncing}
-              className="flex-1 sm:flex-none flex items-center justify-center gap-1.5 px-4 py-2 bg-primary/10 text-primary border border-primary/20 hover:bg-primary/20 rounded-xl text-xs font-bold transition-all disabled:opacity-50"
+              className="flex items-center gap-1.5 px-3 py-1.5 text-[11px] text-[#8A8A8A] hover:text-white border border-white/[0.06] rounded-lg hover:border-white/[0.12] transition-all disabled:opacity-40"
             >
-              <RefreshCw className={`h-4 w-4 ${isSyncing ? 'animate-spin' : ''}`} />
-              <span>Sync Now</span>
+              <RefreshCw className={`h-3 w-3 ${isSyncing ? 'animate-spin' : ''}`} />
+              Sync
             </button>
           )}
+        </div>
+      </div>
+
+      {/* Premium Balance Card */}
+      <div className="relative bg-[#111111] rounded-3xl p-6 sm:p-8 border border-white/[0.06] shadow-luxury overflow-hidden">
+        {/* Subtle gold accent line at top */}
+        <div className="absolute top-0 left-8 right-8 h-px bg-gradient-to-r from-transparent via-gold-400/30 to-transparent" />
+        
+        <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-6">
+          <div className="space-y-1">
+            <p className="text-[11px] text-[#8A8A8A] uppercase tracking-luxury-wide font-normal">This Month</p>
+            <h2 className="text-4xl sm:text-5xl font-bold text-white tracking-tight font-sans">
+              ₹{stats.totalMonth.toLocaleString('en-IN', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
+            </h2>
+            <div className="flex items-center gap-3 mt-2">
+              <span className="text-xs text-[#8A8A8A] font-light">
+                Avg ₹{stats.avgDaily.toFixed(0)}/day
+              </span>
+              <span className="text-[#555555]">·</span>
+              <div className={`flex items-center gap-0.5 text-xs ${monthDiffPositive ? 'text-[#FF5A5F]' : 'text-[#4ADE80]'}`}>
+                {monthDiffPositive ? <ArrowUpRight className="h-3 w-3" /> : <ArrowDownRight className="h-3 w-3" />}
+                <span>₹{Math.abs(monthDiff).toLocaleString('en-IN', { maximumFractionDigits: 0 })} vs last</span>
+              </div>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-6">
+            <div className="text-right">
+              <p className="text-[10px] text-[#555555] uppercase tracking-luxury-wide">Year</p>
+              <p className="text-lg font-medium text-white mt-0.5">₹{stats.totalYear.toLocaleString('en-IN', { maximumFractionDigits: 0 })}</p>
+            </div>
+            <div className="w-px h-10 bg-white/[0.06]" />
+            <div className="text-right">
+              <p className="text-[10px] text-[#555555] uppercase tracking-luxury-wide">Today</p>
+              <p className="text-lg font-medium text-white mt-0.5">₹{stats.today.toLocaleString('en-IN', { maximumFractionDigits: 0 })}</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Financial Overview Row */}
+      <div className="grid grid-cols-3 gap-3 sm:gap-4">
+        {/* Receivable */}
+        <div className="bg-[#111111] rounded-2xl p-4 border border-white/[0.06]">
+          <p className="text-[10px] text-[#555555] uppercase tracking-luxury-wide font-normal">Owed to You</p>
+          <p className="text-xl font-semibold text-[#4ADE80] mt-1.5">
+            ₹{stats.totalReceivable.toLocaleString('en-IN', { maximumFractionDigits: 0 })}
+          </p>
+        </div>
+
+        {/* Payable */}
+        <div className="bg-[#111111] rounded-2xl p-4 border border-white/[0.06]">
+          <p className="text-[10px] text-[#555555] uppercase tracking-luxury-wide font-normal">You Owe</p>
+          <p className="text-xl font-semibold text-[#FF5A5F] mt-1.5">
+            ₹{stats.totalPayable.toLocaleString('en-IN', { maximumFractionDigits: 0 })}
+          </p>
+        </div>
+
+        {/* Highest */}
+        <div className="bg-[#111111] rounded-2xl p-4 border border-white/[0.06]">
+          <p className="text-[10px] text-[#555555] uppercase tracking-luxury-wide font-normal">Highest</p>
+          <p className="text-xl font-semibold text-white mt-1.5 truncate">
+            ₹{stats.highestExpense ? stats.highestExpense.amount.toLocaleString('en-IN', { maximumFractionDigits: 0 }) : '0'}
+          </p>
+          <p className="text-[10px] text-[#555555] truncate mt-0.5">
+            {stats.highestExpense ? stats.highestExpense.title : 'No records'}
+          </p>
+        </div>
+      </div>
+
+      {/* Category Spending — Minimal Row */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+        <div className="flex items-center gap-3 bg-[#111111] rounded-xl p-3.5 border border-white/[0.06]">
+          <div className="h-9 w-9 rounded-lg bg-gold-400/8 flex items-center justify-center">
+            <Fuel className="h-4 w-4 text-gold-400" strokeWidth={1.5} />
+          </div>
+          <div>
+            <p className="text-[9px] text-[#555555] uppercase tracking-luxury-wide">Petrol</p>
+            <p className="text-sm font-medium text-white">₹{stats.petrolExpenses.toLocaleString('en-IN', { maximumFractionDigits: 0 })}</p>
+          </div>
+        </div>
+
+        <div className="flex items-center gap-3 bg-[#111111] rounded-xl p-3.5 border border-white/[0.06]">
+          <div className="h-9 w-9 rounded-lg bg-white/[0.04] flex items-center justify-center">
+            <Utensils className="h-4 w-4 text-[#8A8A8A]" strokeWidth={1.5} />
+          </div>
+          <div>
+            <p className="text-[9px] text-[#555555] uppercase tracking-luxury-wide">Food</p>
+            <p className="text-sm font-medium text-white">₹{stats.foodExpenses.toLocaleString('en-IN', { maximumFractionDigits: 0 })}</p>
+          </div>
+        </div>
+
+        <div className="flex items-center gap-3 bg-[#111111] rounded-xl p-3.5 border border-white/[0.06]">
+          <div className="h-9 w-9 rounded-lg bg-white/[0.04] flex items-center justify-center">
+            <Plane className="h-4 w-4 text-[#8A8A8A]" strokeWidth={1.5} />
+          </div>
+          <div>
+            <p className="text-[9px] text-[#555555] uppercase tracking-luxury-wide">Travel</p>
+            <p className="text-sm font-medium text-white">₹{stats.travelExpenses.toLocaleString('en-IN', { maximumFractionDigits: 0 })}</p>
+          </div>
+        </div>
+
+        <div className="flex items-center gap-3 bg-[#111111] rounded-xl p-3.5 border border-white/[0.06]">
+          <div className="h-9 w-9 rounded-lg bg-white/[0.04] flex items-center justify-center">
+            <Calendar className="h-4 w-4 text-[#8A8A8A]" strokeWidth={1.5} />
+          </div>
+          <div>
+            <p className="text-[9px] text-[#555555] uppercase tracking-luxury-wide">Last Month</p>
+            <p className="text-sm font-medium text-white">₹{stats.lastMonthExpenses.toLocaleString('en-IN', { maximumFractionDigits: 0 })}</p>
+          </div>
+        </div>
+      </div>
+
+      {/* Transactions Section */}
+      <div className="space-y-4">
+        <div className="flex items-center justify-between">
+          <h2 className="text-lg font-medium text-white tracking-tight">Transactions</h2>
           <button
             onClick={() => {
               setEditingExpense(null);
               setIsModalOpen(true);
             }}
-            className="flex-1 sm:flex-none flex items-center justify-center gap-1.5 px-5 py-2 bg-gradient-to-r from-primary to-fuchsia-500 hover:from-primary-dark hover:to-fuchsia-600 rounded-xl text-xs font-bold transition-all shadow-[0_4px_12px_rgba(139,92,246,0.25)]"
+            className="flex items-center gap-1.5 px-4 py-2 bg-gold-400 hover:bg-gold-500 text-black rounded-xl text-xs font-medium transition-all"
           >
-            <Plus className="h-4 w-4" />
-            <span>Add Expense</span>
+            <Plus className="h-3.5 w-3.5" />
+            <span>Add</span>
           </button>
         </div>
-      </div>
-
-      <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
-        <div className="bg-card border border-border p-4 rounded-2xl relative overflow-hidden">
-          <div className="absolute top-0 right-0 h-16 w-16 bg-blue-500/5 rounded-bl-full flex items-center justify-center text-primary/10 font-bold text-3xl select-none">
-            M
-          </div>
-          <p className="text-[10px] font-semibold tracking-wider text-slate-400 uppercase">This Month</p>
-          <h3 className="text-2xl font-extrabold text-primary mt-1 font-sans">₹{stats.totalMonth.toFixed(2)}</h3>
-          <div className="text-[10px] text-slate-400 mt-2 flex items-center gap-1">
-            <TrendingUp className="h-3.5 w-3.5 text-primary" />
-            <span>Avg ₹{stats.avgDaily.toFixed(2)} / Day</span>
-          </div>
-        </div>
-
-        <div className="bg-card border border-border p-4 rounded-2xl relative overflow-hidden">
-          <div className="absolute top-0 right-0 h-16 w-16 bg-violet-500/5 rounded-bl-full flex items-center justify-center text-violet-500/10 font-bold text-3xl select-none">
-            Y
-          </div>
-          <p className="text-[10px] font-semibold tracking-wider text-slate-400 uppercase">This Year</p>
-          <h3 className="text-2xl font-extrabold text-violet-400 mt-1 font-sans">₹{stats.totalYear.toFixed(2)}</h3>
-          <div className="text-[10px] text-slate-400 mt-2 flex items-center gap-1">
-            <Calendar className="h-3.5 w-3.5 text-violet-400" />
-            <span>Total Annual Spending</span>
-          </div>
-        </div>
-
-        <div className="bg-card border border-border p-4 rounded-2xl relative overflow-hidden">
-          <div className="absolute top-0 right-0 h-16 w-16 bg-emerald-500/5 rounded-bl-full flex items-center justify-center text-emerald-500/10 font-bold text-3xl select-none">
-            T
-          </div>
-          <p className="text-[10px] font-semibold tracking-wider text-slate-400 uppercase">Today</p>
-          <h3 className="text-2xl font-extrabold text-emerald-400 mt-1 font-sans">₹{stats.today.toFixed(2)}</h3>
-          <div className="text-[10px] text-slate-400 mt-2">
-            <span>Expenses logged today</span>
-          </div>
-        </div>
-
-        <div className="bg-card border border-border p-4 rounded-2xl relative overflow-hidden">
-          <div className="absolute top-0 right-0 h-16 w-16 bg-red-500/5 rounded-bl-full flex items-center justify-center text-red-500/10 font-bold text-3xl select-none">
-            H
-          </div>
-          <p className="text-[10px] font-semibold tracking-wider text-slate-400 uppercase">Highest Expense</p>
-          <h3 className="text-xl font-extrabold text-red-400 mt-1 font-sans truncate pr-8">
-            {stats.highestExpense ? `₹${stats.highestExpense.amount.toFixed(2)}` : '₹0.00'}
-          </h3>
-          <p className="text-[10px] text-slate-400 truncate mt-2">
-            {stats.highestExpense ? stats.highestExpense.title : 'No records yet'}
-          </p>
-        </div>
-
-        <div className="bg-card border border-border p-4 rounded-2xl relative overflow-hidden">
-          <div className="absolute top-0 right-0 h-16 w-16 bg-emerald-500/5 rounded-bl-full flex items-center justify-center text-emerald-500/10 font-bold text-3xl select-none">
-            R
-          </div>
-          <p className="text-[10px] font-semibold tracking-wider text-slate-400 uppercase">Owed to You</p>
-          <h3 className="text-2xl font-extrabold text-emerald-400 mt-1 font-sans">₹{stats.totalReceivable.toFixed(2)}</h3>
-          <div className="text-[10px] text-slate-400 mt-2">
-            <span>Money people owe you</span>
-          </div>
-        </div>
-
-        <div className="bg-card border border-border p-4 rounded-2xl relative overflow-hidden">
-          <div className="absolute top-0 right-0 h-16 w-16 bg-amber-500/5 rounded-bl-full flex items-center justify-center text-amber-500/10 font-bold text-3xl select-none">
-            P
-          </div>
-          <p className="text-[10px] font-semibold tracking-wider text-slate-400 uppercase">You Owe</p>
-          <h3 className="text-2xl font-extrabold text-amber-400 mt-1 font-sans">₹{stats.totalPayable.toFixed(2)}</h3>
-          <div className="text-[10px] text-slate-400 mt-2">
-            <span>Money you need to pay back</span>
-          </div>
-        </div>
-      </div>
-
-      <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
-        <div className="bg-card/50 border border-border p-3 rounded-xl flex items-center gap-3">
-          <div className="h-10 w-10 rounded-lg bg-primary/10 text-primary flex items-center justify-center">
-            <Fuel className="h-5 w-5" />
-          </div>
-          <div>
-            <p className="text-[9px] font-semibold tracking-wider text-slate-400 uppercase">Petrol (Month)</p>
-            <h4 className="text-sm font-bold text-white">₹{stats.petrolExpenses.toFixed(2)}</h4>
-          </div>
-        </div>
-
-        <div className="bg-card/50 border border-border p-3 rounded-xl flex items-center gap-3">
-          <div className="h-10 w-10 rounded-lg bg-amber-500/10 text-amber-400 flex items-center justify-center">
-            <Utensils className="h-5 w-5" />
-          </div>
-          <div>
-            <p className="text-[9px] font-semibold tracking-wider text-slate-400 uppercase">Food (Month)</p>
-            <h4 className="text-sm font-bold text-white">₹{stats.foodExpenses.toFixed(2)}</h4>
-          </div>
-        </div>
-
-        <div className="bg-card/50 border border-border p-3 rounded-xl flex items-center gap-3">
-          <div className="h-10 w-10 rounded-lg bg-violet-500/10 text-violet-400 flex items-center justify-center">
-            <Plane className="h-5 w-5" />
-          </div>
-          <div>
-            <p className="text-[9px] font-semibold tracking-wider text-slate-400 uppercase">Travel (Month)</p>
-            <h4 className="text-sm font-bold text-white">₹{stats.travelExpenses.toFixed(2)}</h4>
-          </div>
-        </div>
-
-        <div className="bg-card/50 border border-border p-3 rounded-xl flex items-center gap-3">
-          <div className="h-10 w-10 rounded-lg bg-emerald-500/10 text-emerald-400 flex items-center justify-center">
-            <TrendingUp className="h-5 w-5" />
-          </div>
-          <div>
-            <p className="text-[9px] font-semibold tracking-wider text-slate-400 uppercase font-sans">Month vs Last</p>
-            <h4 className="text-xs font-bold text-white truncate">
-              {stats.thisMonthExpenses >= stats.lastMonthExpenses ? '+' : '-'}
-              ₹{Math.abs(stats.thisMonthExpenses - stats.lastMonthExpenses).toFixed(0)}
-            </h4>
-          </div>
-        </div>
-
-        <div className="col-span-2 md:col-span-1 bg-card/50 border border-border p-3 rounded-xl flex items-center gap-3">
-          <div className="h-10 w-10 rounded-lg bg-slate-700/10 text-slate-400 flex items-center justify-center">
-            <Calendar className="h-5 w-5" />
-          </div>
-          <div>
-            <p className="text-[9px] font-semibold tracking-wider text-slate-400 uppercase">Last Month</p>
-            <h4 className="text-sm font-bold text-slate-300">₹{stats.lastMonthExpenses.toFixed(2)}</h4>
-          </div>
-        </div>
-      </div>
-
-      <div className="space-y-3">
-        <h2 className="text-lg font-bold tracking-wide flex items-center gap-2">
-          <span>Transactions History</span>
-        </h2>
         <ExpenseTable
           expenses={expenses}
           persons={persons}
@@ -431,38 +420,37 @@ export default function DashboardPage() {
         />
       </div>
 
+      {/* Backup Section */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <div className="bg-card/40 border border-border rounded-2xl p-5 space-y-3">
-          <h3 className="text-sm font-bold tracking-wide">Data Backups</h3>
-          <p className="text-xs text-slate-400">
-            Download your entire transactions and people database schema locally as a JSON backup file.
+        <div className="bg-[#111111] border border-white/[0.06] rounded-2xl p-5 space-y-3">
+          <h3 className="text-sm font-medium text-white">Data Backup</h3>
+          <p className="text-xs text-[#555555] font-light leading-relaxed">
+            Download your entire database as a JSON file.
           </p>
           <button
             onClick={handleExportBackup}
-            className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-slate-800 border border-border hover:bg-slate-700 text-xs font-bold transition-all text-white"
+            className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-black border border-white/[0.08] hover:border-gold-400/20 text-xs font-normal text-white transition-all"
           >
-            <Download className="h-4 w-4 text-primary" />
-            <span>Download Backup (JSON)</span>
+            <Download className="h-4 w-4 text-gold-400" strokeWidth={1.5} />
+            <span>Download Backup</span>
           </button>
         </div>
 
-        <div className="bg-card/40 border border-border rounded-2xl p-5 space-y-3">
-          <h3 className="text-sm font-bold tracking-wide">Restore Database</h3>
-          <p className="text-xs text-slate-400">
-            Restore database records by uploading a valid JSON backup file. This will overwrite current records.
+        <div className="bg-[#111111] border border-white/[0.06] rounded-2xl p-5 space-y-3">
+          <h3 className="text-sm font-medium text-white">Restore</h3>
+          <p className="text-xs text-[#555555] font-light leading-relaxed">
+            Upload a JSON backup to restore your data. This overwrites all records.
           </p>
-          <div className="flex items-center gap-3">
-            <label className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-slate-800 border border-border hover:bg-slate-700 text-xs font-bold transition-all cursor-pointer text-white">
-              <Upload className="h-4 w-4 text-violet-400" />
-              <span>Select Backup File</span>
-              <input
-                type="file"
-                accept=".json"
-                onChange={handleImportBackup}
-                className="hidden"
-              />
-            </label>
-          </div>
+          <label className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-black border border-white/[0.08] hover:border-gold-400/20 text-xs font-normal cursor-pointer text-white transition-all">
+            <Upload className="h-4 w-4 text-gold-400" strokeWidth={1.5} />
+            <span>Select File</span>
+            <input
+              type="file"
+              accept=".json"
+              onChange={handleImportBackup}
+              className="hidden"
+            />
+          </label>
         </div>
       </div>
 
@@ -481,15 +469,16 @@ export default function DashboardPage() {
         addPersonOffline={addPersonOffline}
       />
 
+      {/* Floating Action Button — Gold */}
       <button
         onClick={() => {
           setEditingExpense(null);
           setIsModalOpen(true);
         }}
-        className="fixed bottom-24 md:bottom-8 right-6 z-30 flex h-14 w-14 items-center justify-center rounded-full bg-gradient-to-tr from-primary to-fuchsia-500 hover:from-primary-dark hover:to-fuchsia-600 text-white shadow-2xl hover:scale-105 active:scale-95 transition-all"
+        className="fixed bottom-24 md:bottom-8 right-6 z-30 flex h-14 w-14 items-center justify-center rounded-full bg-gold-400 hover:bg-gold-500 text-black shadow-gold-glow hover:shadow-gold-glow-lg hover:scale-105 active:scale-95 transition-all"
         title="Add Expense"
       >
-        <Plus className="h-7 w-7" />
+        <Plus className="h-6 w-6" strokeWidth={2} />
       </button>
     </div>
   );

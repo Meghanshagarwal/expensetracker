@@ -2,13 +2,13 @@ import { MetadataRoute } from 'next';
 
 export default function manifest(): MetadataRoute.Manifest {
   return {
-    name: 'Expense Tracker',
-    short_name: 'Expenses',
-    description: 'A premium dark-themed expense tracker optimized for mobile and desktop.',
+    name: 'FinTrack - Expense Manager',
+    short_name: 'FinTrack',
+    description: 'A premium dark-themed personal expense tracker with offline support.',
     start_url: '/',
     display: 'standalone',
-    background_color: '#0F172A',
-    theme_color: '#3B82F6',
+    background_color: '#000000',
+    theme_color: '#000000',
     orientation: 'portrait-primary',
     icons: [
       {

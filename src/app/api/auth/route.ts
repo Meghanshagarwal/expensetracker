@@ -1,12 +1,24 @@
 import { NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
+import { createHash } from 'crypto';
 
 export async function POST(request: Request) {
   try {
-    const { pin } = await request.json();
+    const { pin, pinHash } = await request.json();
     const configPin = process.env.APP_PIN || '1234';
 
+    let isValid = false;
+
     if (pin === configPin) {
+      isValid = true;
+    } else if (pinHash) {
+      const serverPinHash = createHash('sha256').update(configPin).digest('hex');
+      if (pinHash === serverPinHash) {
+        isValid = true;
+      }
+    }
+
+    if (isValid) {
       const cookieStore = await cookies();
       cookieStore.set('session_auth', 'true', {
         httpOnly: true,

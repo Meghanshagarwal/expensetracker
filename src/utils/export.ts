@@ -20,15 +20,19 @@ const formatCurrency = (amount: number) => {
 
 export const exportToCSV = (expenses: Expense[], persons: Person[]) => {
   const personMap = new Map(persons.map(p => [p._id, p.name]));
-  const headers = ['Date', 'Title', 'Category', 'Amount (Rs)', 'Person', 'Payment Method', 'Notes'];
+  const headers = ['Date', 'Title', 'Type', 'Category', 'Amount (Rs)', 'Person', 'Payment Method', 'Source Account', 'Vehicle', 'UPI App', 'Notes'];
   
   const rows = expenses.map(exp => [
     formatDate(exp.date),
     exp.title,
+    (exp.transactionType || 'expense').charAt(0).toUpperCase() + (exp.transactionType || 'expense').slice(1),
     exp.category,
     exp.amount,
     personMap.get(exp.personId) || 'Unknown',
     exp.paymentMethod,
+    exp.sourceAccount || '',
+    exp.vehicle || '',
+    exp.upiApp || '',
     exp.notes || '',
   ]);
 
@@ -52,10 +56,14 @@ export const exportToExcel = (expenses: Expense[], persons: Person[]) => {
   const data = expenses.map(exp => ({
     Date: formatDate(exp.date),
     Title: exp.title,
+    Type: (exp.transactionType || 'expense').charAt(0).toUpperCase() + (exp.transactionType || 'expense').slice(1),
     Category: exp.category,
     'Amount (Rs)': exp.amount,
     Person: personMap.get(exp.personId) || 'Unknown',
     'Payment Method': exp.paymentMethod,
+    'Source Account': exp.sourceAccount || '',
+    Vehicle: exp.vehicle || '',
+    'UPI App': exp.upiApp || '',
     Notes: exp.notes || '',
   }));
 
@@ -82,16 +90,17 @@ export const exportToPDF = (expenses: Expense[], persons: Person[]) => {
   doc.text(`Total Records: ${expenses.length}`, 150, 27);
 
   // Total summary card below header
-  const totalAmount = expenses.reduce((sum, e) => sum + e.amount, 0);
+  const totalAmount = expenses.filter(e => (e.transactionType || 'expense') === 'expense').reduce((sum, e) => sum + e.amount, 0);
   doc.setTextColor(15, 23, 42);
   doc.setFontSize(11);
   doc.text(`Summary Total Spend: ${formatCurrency(totalAmount)}`, 14, 45);
 
   // Table header & data
-  const tableColumn = ['Date', 'Title', 'Category', 'Amount', 'Person', 'Method'];
+  const tableColumn = ['Date', 'Title', 'Type', 'Category', 'Amount', 'Person', 'Method'];
   const tableRows = expenses.map(exp => [
     formatDate(exp.date),
     exp.title,
+    (exp.transactionType || 'expense').charAt(0).toUpperCase() + (exp.transactionType || 'expense').slice(1),
     exp.category,
     formatCurrency(exp.amount),
     personMap.get(exp.personId) || 'Unknown',

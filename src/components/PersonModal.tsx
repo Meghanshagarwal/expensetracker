@@ -102,50 +102,51 @@ export default function PersonModal({
             animate={{ y: 0, opacity: 1 }}
             exit={{ y: '100%', opacity: 0.5 }}
             transition={{ type: 'spring', damping: 28, stiffness: 350 }}
-            className="relative w-full md:max-w-md overflow-hidden rounded-t-2xl md:rounded-2xl bg-card border-t md:border border-border p-6 pb-12 md:pb-6 text-white shadow-2xl z-10"
+            className="relative w-full md:max-w-md overflow-hidden rounded-t-3xl md:rounded-3xl bg-[#111111] border-t md:border border-white/[0.08] p-6 pb-12 md:pb-6 text-white shadow-luxury-lg z-10"
           >
             {/* Mobile Sheet Handle */}
-            <div className="w-12 h-1.5 bg-slate-700/60 rounded-full mx-auto mb-4 md:hidden" />
+            <div className="w-12 h-1 bg-white/[0.1] rounded-full mx-auto mb-5 md:hidden" />
+            
             <div className="flex items-center justify-between mb-6">
-              <h2 className="text-xl font-bold flex items-center gap-2">
-                <UserPlus className="h-5 w-5 text-primary" />
-                {personToEdit ? 'Edit Person' : 'Add Person'}
+              <h2 className="text-lg font-light tracking-tight flex items-center gap-2 text-white">
+                <UserPlus className="h-4.5 w-4.5 text-gold-400" />
+                {personToEdit ? 'Edit Person' : 'New Contact'}
               </h2>
               <button
                 onClick={onClose}
-                className="rounded-lg p-1.5 hover:bg-slate-800 text-slate-400 hover:text-white transition-colors"
+                className="rounded-lg p-1.5 hover:bg-white/[0.04] text-[#8A8A8A] hover:text-white transition-colors"
               >
-                <X className="h-5 w-5" />
+                <X className="h-4 w-4" />
               </button>
             </div>
 
             {error && (
-              <div className="mb-4 rounded-lg bg-red-500/10 border border-red-500/20 p-3 text-sm text-red-400">
+              <div className="mb-5 rounded-xl bg-[#FF5A5F]/10 border border-[#FF5A5F]/20 p-3 text-xs text-[#FF5A5F] font-normal">
                 {error}
               </div>
             )}
 
-            <form onSubmit={handleSubmit} className="space-y-4">
+            <form onSubmit={handleSubmit} className="space-y-5">
               <div>
-                <label className="block text-xs font-semibold uppercase tracking-wider text-slate-400 mb-2">
+                <label className="block text-[10px] font-normal uppercase tracking-luxury-wide text-[#8A8A8A] mb-2">
                   Full Name / Group Name
                 </label>
                 <input
                   type="text"
                   required
-                  placeholder="e.g. Family, Office Colleague, Rohit"
+                  placeholder="e.g. Family, Office, Rohit"
                   value={name}
                   onChange={(e) => setName(e.target.value)}
-                  className="w-full rounded-xl bg-slate-900 border border-border px-4 py-3 text-base md:text-sm focus:border-primary focus:outline-none transition-colors"
+                  className="w-full rounded-xl bg-black border border-white/[0.08] px-4 py-3 text-base md:text-sm focus:border-gold-400/40 text-white placeholder-[#555555] transition-colors"
                   disabled={loading}
                 />
               </div>
 
-              <div className="flex justify-end gap-3 mt-6 pt-4 border-t border-border/60">
+              <div className="flex justify-end gap-3 mt-8 pt-4 border-t border-white/[0.06]">
                 <button
                   type="button"
                   onClick={onClose}
-                  className="px-5 py-2.5 rounded-xl text-sm font-semibold bg-slate-800 border border-border hover:bg-slate-700/60 transition-colors"
+                  className="px-5 py-2.5 rounded-xl text-xs font-normal bg-[#171717] border border-white/[0.06] hover:bg-[#1c1c1c] text-[#8A8A8A] hover:text-white transition-colors"
                   disabled={loading}
                 >
                   Cancel
@@ -153,10 +154,10 @@ export default function PersonModal({
                 <button
                   type="submit"
                   disabled={loading}
-                  className="flex items-center justify-center gap-2 px-6 py-2.5 rounded-xl text-sm font-semibold bg-gradient-to-r from-primary to-fuchsia-500 hover:from-primary-dark hover:to-fuchsia-600 shadow-[0_4px_12px_rgba(139,92,246,0.3)] transition-all disabled:opacity-50"
+                  className="flex items-center justify-center gap-2 px-6 py-2.5 rounded-xl text-xs font-medium bg-gold-400 hover:bg-gold-500 text-black transition-all disabled:opacity-50"
                 >
-                  {loading && <Loader2 className="h-4 w-4 animate-spin" />}
-                  {personToEdit ? 'Save Changes' : 'Add Person'}
+                  {loading && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
+                  {personToEdit ? 'Save Changes' : 'Create'}
                 </button>
               </div>
             </form>

@@ -35,6 +35,25 @@ export async function POST(request: Request) {
 
     await dbConnect();
 
+    // Validate data can be inserted before deleting anything
+    // Create documents in memory to trigger Mongoose validation
+    try {
+      for (const p of persons) {
+        const doc = new Person(p);
+        await doc.validate();
+      }
+      for (const e of expenses) {
+        const doc = new Expense(e);
+        await doc.validate();
+      }
+    } catch (validationError: any) {
+      return NextResponse.json(
+        { error: `Backup validation failed: ${validationError.message}. No data was modified.` },
+        { status: 400 }
+      );
+    }
+
+    // Data is valid — now safe to delete and insert
     await Promise.all([
       Expense.deleteMany({}),
       Person.deleteMany({}),

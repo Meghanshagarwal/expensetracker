@@ -9,7 +9,7 @@ import { getLocalExpenses, getLocalPersons } from '@/lib/offlineDb';
 import { Expense, Person } from '@/types';
 import { BarChart3 } from 'lucide-react';
 
-const COLORS = ['#3B82F6', '#8B5CF6', '#10B981', '#EF4444', '#F59E0B', '#EC4899', '#06B6D4', '#14B8A6', '#6366F1', '#84CC16', '#64748B'];
+const LUX_COLORS = ['#F5C451', '#FFFFFF', '#8A8A8A', '#555555', '#2A2A2A', '#1F1F1F', '#4ADE80', '#FF5A5F'];
 
 export default function AnalyticsPage() {
   const [expenses, setExpenses] = useState<Expense[]>([]);
@@ -40,6 +40,7 @@ export default function AnalyticsPage() {
     last30Days.forEach(day => spendMap.set(day, 0));
 
     expenses.forEach(exp => {
+      if ((exp.transactionType || 'expense') !== 'expense') return;
       const day = exp.date.split('T')[0];
       if (spendMap.has(day)) {
         spendMap.set(day, spendMap.get(day)! + exp.amount);
@@ -58,6 +59,7 @@ export default function AnalyticsPage() {
   const categoryData = useMemo(() => {
     const catMap = new Map<string, number>();
     expenses.forEach(exp => {
+      if ((exp.transactionType || 'expense') !== 'expense') return;
       catMap.set(exp.category, (catMap.get(exp.category) || 0) + exp.amount);
     });
 
@@ -70,6 +72,7 @@ export default function AnalyticsPage() {
   const personData = useMemo(() => {
     const spendMap = new Map<string, number>();
     expenses.forEach(exp => {
+      if ((exp.transactionType || 'expense') !== 'expense') return;
       const name = personMap.get(exp.personId) || 'Unknown';
       spendMap.set(name, (spendMap.get(name) || 0) + exp.amount);
     });
@@ -83,6 +86,7 @@ export default function AnalyticsPage() {
   const paymentData = useMemo(() => {
     const methodMap = new Map<string, number>();
     expenses.forEach(exp => {
+      if ((exp.transactionType || 'expense') !== 'expense') return;
       methodMap.set(exp.paymentMethod, (methodMap.get(exp.paymentMethod) || 0) + exp.amount);
     });
 
@@ -108,6 +112,7 @@ export default function AnalyticsPage() {
     }
 
     expenses.forEach(exp => {
+      if ((exp.transactionType || 'expense') !== 'expense') return;
       const expDate = new Date(exp.date);
       const expYear = expDate.getFullYear();
       const expMonth = expDate.getMonth();
@@ -129,80 +134,80 @@ export default function AnalyticsPage() {
   if (!mounted) {
     return (
       <div className="flex h-[60vh] items-center justify-center text-white">
-        <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
+        <div className="h-6 w-6 animate-spin rounded-full border-2 border-gold-400 border-t-transparent" />
       </div>
     );
   }
 
-  const totalSpend = expenses.reduce((sum, e) => sum + e.amount, 0);
+  const totalSpend = expenses.filter(e => (e.transactionType || 'expense') === 'expense').reduce((sum, e) => sum + e.amount, 0);
 
   return (
-    <div className="space-y-6 text-white pb-12">
+    <div className="space-y-8 text-white pb-12">
       <div className="flex items-center gap-3">
-        <div className="h-10 w-10 rounded-xl bg-gradient-to-tr from-primary to-fuchsia-500 flex items-center justify-center">
-          <BarChart3 className="h-5 w-5 text-white" />
+        <div className="h-10 w-10 rounded-xl bg-gold-400/10 border border-gold-400/20 flex items-center justify-center">
+          <BarChart3 className="h-5 w-5 text-gold-400" />
         </div>
         <div>
-          <h1 className="text-xl font-bold tracking-wide">Financial Analytics</h1>
-          <p className="text-xs text-slate-400">Visual breakdown of your personal spending habits</p>
+          <h1 className="text-xl font-light tracking-tight">Financial Analytics</h1>
+          <p className="text-xs text-[#8A8A8A] font-light">Visual breakdown of your personal spending habits</p>
         </div>
       </div>
 
       {expenses.length === 0 ? (
-        <div className="bg-card border border-border rounded-2xl p-10 text-center text-slate-400">
+        <div className="bg-[#111111] border border-white/[0.06] rounded-2xl p-10 text-center text-[#555555] text-sm font-light">
           No expenses recorded. Add expenses on the dashboard to view chart statistics.
         </div>
       ) : (
         <div className="space-y-6">
-          <div className="bg-card border border-border rounded-2xl p-5 space-y-4">
-            <h2 className="text-sm font-bold tracking-wide uppercase text-slate-400">Last 12 Months Trend</h2>
+          <div className="bg-[#111111] border border-white/[0.06] rounded-2xl p-5 space-y-4 shadow-luxury">
+            <h2 className="text-[10px] font-normal tracking-luxury-wide uppercase text-[#8A8A8A]">Last 12 Months Trend</h2>
             <div className="h-80 w-full">
               <ResponsiveContainer width="100%" height="100%">
                 <LineChart data={last12MonthsData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#334155" vertical={false} opacity={0.2} />
-                  <XAxis dataKey="name" stroke="#94a3b8" fontSize={11} tickLine={false} />
-                  <YAxis stroke="#94a3b8" fontSize={11} tickLine={false} />
+                  <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.04)" vertical={false} />
+                  <XAxis dataKey="name" stroke="#555555" fontSize={11} tickLine={false} />
+                  <YAxis stroke="#555555" fontSize={11} tickLine={false} />
                   <Tooltip 
-                    contentStyle={{ backgroundColor: '#1e293b', borderColor: '#475569', borderRadius: '12px' }}
-                    itemStyle={{ color: '#60a5fa' }}
-                    labelStyle={{ color: '#fff', fontWeight: 'bold' }}
+                    contentStyle={{ backgroundColor: '#111111', borderColor: 'rgba(255,255,255,0.08)', borderRadius: '16px' }}
+                    itemStyle={{ color: '#F5C451' }}
+                    labelStyle={{ color: '#fff', fontWeight: 'normal' }}
                     formatter={(value) => [`₹${Number(value).toFixed(2)}`, 'Spend']}
                   />
-                  <Line type="monotone" dataKey="Amount" stroke="#8b5cf6" strokeWidth={3} dot={{ r: 4, stroke: '#8b5cf6', strokeWidth: 2, fill: '#1e293b' }} activeDot={{ r: 6 }} />
+                  <Line type="monotone" dataKey="Amount" stroke="#F5C451" strokeWidth={2.5} dot={{ r: 3, stroke: '#F5C451', strokeWidth: 1.5, fill: '#111111' }} activeDot={{ r: 5 }} />
                 </LineChart>
               </ResponsiveContainer>
             </div>
           </div>
 
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            <div className="bg-card border border-border rounded-2xl p-5 space-y-4">
-              <h2 className="text-sm font-bold tracking-wide uppercase text-slate-400 font-sans">Last 30 Days (Daily)</h2>
+            <div className="bg-[#111111] border border-white/[0.06] rounded-2xl p-5 space-y-4 shadow-luxury">
+              <h2 className="text-[10px] font-normal tracking-luxury-wide uppercase text-[#8A8A8A]">Last 30 Days (Daily)</h2>
               <div className="h-72 w-full">
                 <ResponsiveContainer width="100%" height="100%">
                   <AreaChart data={dailyTrendData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
                     <defs>
                       <linearGradient id="colorAmount" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.3}/>
-                        <stop offset="95%" stopColor="#3b82f6" stopOpacity={0}/>
+                        <stop offset="5%" stopColor="#F5C451" stopOpacity={0.2}/>
+                        <stop offset="95%" stopColor="#F5C451" stopOpacity={0}/>
                       </linearGradient>
                     </defs>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#334155" vertical={false} opacity={0.2} />
-                    <XAxis dataKey="name" stroke="#94a3b8" fontSize={10} tickLine={false} />
-                    <YAxis stroke="#94a3b8" fontSize={10} tickLine={false} />
+                    <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.04)" vertical={false} />
+                    <XAxis dataKey="name" stroke="#555555" fontSize={10} tickLine={false} />
+                    <YAxis stroke="#555555" fontSize={10} tickLine={false} />
                     <Tooltip 
-                      contentStyle={{ backgroundColor: '#1e293b', borderColor: '#475569', borderRadius: '12px' }}
-                      itemStyle={{ color: '#3b82f6' }}
-                      labelStyle={{ color: '#fff', fontWeight: 'bold' }}
+                      contentStyle={{ backgroundColor: '#111111', borderColor: 'rgba(255,255,255,0.08)', borderRadius: '16px' }}
+                      itemStyle={{ color: '#F5C451' }}
+                      labelStyle={{ color: '#fff', fontWeight: 'normal' }}
                       formatter={(value) => [`₹${Number(value).toFixed(2)}`, 'Spend']}
                     />
-                    <Area type="monotone" dataKey="Amount" stroke="#3b82f6" strokeWidth={2} fillOpacity={1} fill="url(#colorAmount)" />
+                    <Area type="monotone" dataKey="Amount" stroke="#F5C451" strokeWidth={2} fillOpacity={1} fill="url(#colorAmount)" />
                   </AreaChart>
                 </ResponsiveContainer>
               </div>
             </div>
 
-            <div className="bg-card border border-border rounded-2xl p-5 flex flex-col justify-between">
-              <h2 className="text-sm font-bold tracking-wide uppercase text-slate-400 mb-4">Category Wise Distribution</h2>
+            <div className="bg-[#111111] border border-white/[0.06] rounded-2xl p-5 flex flex-col justify-between shadow-luxury">
+              <h2 className="text-[10px] font-normal tracking-luxury-wide uppercase text-[#8A8A8A] mb-4">Category Distribution</h2>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-center">
                 <div className="h-56 w-full flex justify-center items-center">
                   <ResponsiveContainer width="100%" height="100%">
@@ -217,11 +222,11 @@ export default function AnalyticsPage() {
                         dataKey="value"
                       >
                         {categoryData.map((entry, index) => (
-                          <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                          <Cell key={`cell-${index}`} fill={LUX_COLORS[index % LUX_COLORS.length]} />
                         ))}
                       </Pie>
                       <Tooltip 
-                        contentStyle={{ backgroundColor: '#1e293b', borderColor: '#475569', borderRadius: '12px' }}
+                        contentStyle={{ backgroundColor: '#111111', borderColor: 'rgba(255,255,255,0.08)', borderRadius: '16px' }}
                         formatter={(value) => [`₹${Number(value).toFixed(2)}`, 'Spend']}
                       />
                     </PieChart>
@@ -229,15 +234,15 @@ export default function AnalyticsPage() {
                 </div>
                 <div className="space-y-2 max-h-56 overflow-y-auto pr-2">
                   {categoryData.map((entry, index) => {
-                    const percentage = ((entry.value / totalSpend) * 100).toFixed(1);
+                    const percentage = totalSpend > 0 ? ((entry.value / totalSpend) * 100).toFixed(1) : '0.0';
                     return (
                       <div key={entry.name} className="flex items-center justify-between text-xs">
                         <div className="flex items-center gap-2">
-                          <div className="h-3 w-3 rounded-full" style={{ backgroundColor: COLORS[index % COLORS.length] }} />
-                          <span className="font-semibold text-slate-300">{entry.name}</span>
+                          <div className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: LUX_COLORS[index % LUX_COLORS.length] }} />
+                          <span className="font-light text-[#8A8A8A]">{entry.name}</span>
                         </div>
-                        <div className="font-bold text-slate-400">
-                          ₹{entry.value.toFixed(0)} <span className="text-[10px] text-slate-500 font-medium">({percentage}%)</span>
+                        <div className="font-medium text-white text-[11px]">
+                          ₹{entry.value.toLocaleString('en-IN', { maximumFractionDigits: 0 })} <span className="text-[9px] text-[#555555] font-light">({percentage}%)</span>
                         </div>
                       </div>
                     );
@@ -248,28 +253,28 @@ export default function AnalyticsPage() {
           </div>
 
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            <div className="bg-card border border-border rounded-2xl p-5 space-y-4">
-              <h2 className="text-sm font-bold tracking-wide uppercase text-slate-400 font-sans">Spending By Person</h2>
+            <div className="bg-[#111111] border border-white/[0.06] rounded-2xl p-5 space-y-4 shadow-luxury">
+              <h2 className="text-[10px] font-normal tracking-luxury-wide uppercase text-[#8A8A8A]">Spending By Person</h2>
               <div className="h-72 w-full">
                 <ResponsiveContainer width="100%" height="100%">
                   <BarChart data={personData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#334155" vertical={false} opacity={0.2} />
-                    <XAxis dataKey="name" stroke="#94a3b8" fontSize={11} tickLine={false} />
-                    <YAxis stroke="#94a3b8" fontSize={11} tickLine={false} />
+                    <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.04)" vertical={false} />
+                    <XAxis dataKey="name" stroke="#555555" fontSize={11} tickLine={false} />
+                    <YAxis stroke="#555555" fontSize={11} tickLine={false} />
                     <Tooltip 
-                      contentStyle={{ backgroundColor: '#1e293b', borderColor: '#475569', borderRadius: '12px' }}
-                      itemStyle={{ color: '#10b981' }}
-                      labelStyle={{ color: '#fff', fontWeight: 'bold' }}
+                      contentStyle={{ backgroundColor: '#111111', borderColor: 'rgba(255,255,255,0.08)', borderRadius: '16px' }}
+                      itemStyle={{ color: '#F5C451' }}
+                      labelStyle={{ color: '#fff', fontWeight: 'normal' }}
                       formatter={(value) => [`₹${Number(value).toFixed(2)}`, 'Spend']}
                     />
-                    <Bar dataKey="amount" fill="#10b981" radius={[8, 8, 0, 0]} maxBarSize={40} />
+                    <Bar dataKey="amount" fill="#F5C451" radius={[6, 6, 0, 0]} maxBarSize={30} />
                   </BarChart>
                 </ResponsiveContainer>
               </div>
             </div>
 
-            <div className="bg-card border border-border rounded-2xl p-5 flex flex-col justify-between">
-              <h2 className="text-sm font-bold tracking-wide uppercase text-slate-400 mb-4">Payment Method Distribution</h2>
+            <div className="bg-[#111111] border border-white/[0.06] rounded-2xl p-5 flex flex-col justify-between shadow-luxury">
+              <h2 className="text-[10px] font-normal tracking-luxury-wide uppercase text-[#8A8A8A] mb-4">Payment Method Distribution</h2>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-center">
                 <div className="h-56 w-full flex justify-center items-center">
                   <ResponsiveContainer width="100%" height="100%">
@@ -284,11 +289,11 @@ export default function AnalyticsPage() {
                         dataKey="value"
                       >
                         {paymentData.map((entry, index) => (
-                          <Cell key={`cell-${index}`} fill={COLORS[(index + 3) % COLORS.length]} />
+                          <Cell key={`cell-${index}`} fill={LUX_COLORS[(index + 1) % LUX_COLORS.length]} />
                         ))}
                       </Pie>
                       <Tooltip 
-                        contentStyle={{ backgroundColor: '#1e293b', borderColor: '#475569', borderRadius: '12px' }}
+                        contentStyle={{ backgroundColor: '#111111', borderColor: 'rgba(255,255,255,0.08)', borderRadius: '16px' }}
                         formatter={(value) => [`₹${Number(value).toFixed(2)}`, 'Spend']}
                       />
                     </PieChart>
@@ -296,15 +301,15 @@ export default function AnalyticsPage() {
                 </div>
                 <div className="space-y-2.5">
                   {paymentData.map((entry, index) => {
-                    const percentage = ((entry.value / totalSpend) * 100).toFixed(1);
+                    const percentage = totalSpend > 0 ? ((entry.value / totalSpend) * 100).toFixed(1) : '0.0';
                     return (
                       <div key={entry.name} className="flex items-center justify-between text-xs">
                         <div className="flex items-center gap-2">
-                          <div className="h-3 w-3 rounded-full" style={{ backgroundColor: COLORS[(index + 3) % COLORS.length] }} />
-                          <span className="font-semibold text-slate-300">{entry.name}</span>
+                          <div className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: LUX_COLORS[(index + 1) % LUX_COLORS.length] }} />
+                          <span className="font-light text-[#8A8A8A]">{entry.name}</span>
                         </div>
-                        <div className="font-bold text-slate-400">
-                          ₹{entry.value.toFixed(0)} <span className="text-[10px] text-slate-500 font-medium">({percentage}%)</span>
+                        <div className="font-medium text-white text-[11px]">
+                          ₹{entry.value.toLocaleString('en-IN', { maximumFractionDigits: 0 })} <span className="text-[9px] text-[#555555] font-light">({percentage}%)</span>
                         </div>
                       </div>
                     );

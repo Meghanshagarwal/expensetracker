@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
 import {
   getLocalExpenses,
   getLocalPersons,
@@ -14,6 +14,8 @@ export function useOfflineSync() {
   const [isOnline, setIsOnline] = useState(typeof navigator !== 'undefined' ? navigator.onLine : true);
   const [isSyncing, setIsSyncing] = useState(false);
   const [syncError, setSyncError] = useState<string | null>(null);
+  
+  const syncInProgressRef = useRef(false);
 
   // Fetch and cache data from server
   const fetchAndCacheData = useCallback(async () => {
@@ -39,10 +41,11 @@ export function useOfflineSync() {
 
   // Sync function
   const triggerSync = useCallback(async () => {
-    if (!navigator.onLine || isSyncing) return;
+    if (!navigator.onLine || syncInProgressRef.current) return;
     const queue = await getSyncQueue();
     if (queue.length === 0) return;
 
+    syncInProgressRef.current = true;
     setIsSyncing(true);
     setSyncError(null);
 
@@ -67,9 +70,10 @@ export function useOfflineSync() {
     } catch (err: any) {
       setSyncError(err.message || 'Sync failed');
     } finally {
+      syncInProgressRef.current = false;
       setIsSyncing(false);
     }
-  }, [isSyncing, fetchAndCacheData]);
+  }, [fetchAndCacheData]);
 
   // Monitor network status
   useEffect(() => {
