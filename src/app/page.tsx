@@ -59,6 +59,52 @@ export default function DashboardPage() {
     loadData();
   }, [loadData]);
 
+  const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
+  const [isStandalone, setIsStandalone] = useState(false);
+  const [isIOS, setIsIOS] = useState(false);
+  const [showInstallBanner, setShowInstallBanner] = useState(true);
+
+  useEffect(() => {
+    const checkStandalone = () => {
+      const isStandaloneMode = 
+        window.matchMedia('(display-mode: standalone)').matches || 
+        (window.navigator as any).standalone || 
+        document.referrer.includes('android-app://');
+      setIsStandalone(isStandaloneMode);
+    };
+
+    checkStandalone();
+    setIsIOS(/iPad|iPhone|iPod/.test(navigator.userAgent) && !(window as any).MSStream);
+
+    // Watch for standalone changes
+    const mediaQuery = window.matchMedia('(display-mode: standalone)');
+    const handleChange = () => checkStandalone();
+    mediaQuery.addEventListener('change', handleChange);
+    return () => mediaQuery.removeEventListener('change', handleChange);
+  }, []);
+
+  useEffect(() => {
+    const handleBeforeInstallPrompt = (e: Event) => {
+      e.preventDefault();
+      setDeferredPrompt(e);
+    };
+
+    window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+
+    return () => {
+      window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+    };
+  }, []);
+
+  const handleInstallClick = async () => {
+    if (!deferredPrompt) return;
+    deferredPrompt.prompt();
+    const { outcome } = await deferredPrompt.userChoice;
+    if (outcome === 'accepted') {
+      setDeferredPrompt(null);
+    }
+  };
+
   const handleEdit = (expense: Expense) => {
     setEditingExpense(expense);
     setIsModalOpen(true);
@@ -284,6 +330,41 @@ export default function DashboardPage() {
           )}
         </div>
       </div>
+
+      {/* PWA Install Banner */}
+      {!isStandalone && showInstallBanner && (
+        <div className="relative bg-[#111111] border border-white/[0.06] rounded-2xl p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4 shadow-luxury overflow-hidden">
+          <div className="absolute top-0 left-4 right-4 h-px bg-gradient-to-r from-transparent via-gold-400/20 to-transparent" />
+          
+          <div className="space-y-1 z-10">
+            <h4 className="text-xs font-semibold text-gold-400 uppercase tracking-luxury-wide">Install FinTrack</h4>
+            <p className="text-xs text-[#8A8A8A] font-light leading-relaxed max-w-xl">
+              {isIOS 
+                ? "Tap the Share icon (box with up arrow) in Safari and select 'Add to Home Screen' for a premium full-screen experience."
+                : deferredPrompt 
+                  ? "Install FinTrack on your home screen for offline access and a full-screen app experience."
+                  : "Tap your browser's menu button (three dots) and select 'Install app' or 'Add to Home screen' to install FinTrack."}
+            </p>
+          </div>
+
+          <div className="flex items-center gap-3 shrink-0 z-10">
+            {deferredPrompt && (
+              <button
+                onClick={handleInstallClick}
+                className="px-4 py-2 bg-gold-400 hover:bg-gold-500 text-black rounded-xl text-xs font-semibold transition-all shadow-md"
+              >
+                Install
+              </button>
+            )}
+            <button
+              onClick={() => setShowInstallBanner(false)}
+              className="px-3 py-2 text-xs text-[#555555] hover:text-[#8A8A8A] transition-colors"
+            >
+              Dismiss
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Premium Balance Card */}
       <div className="relative bg-[#111111] rounded-3xl p-6 sm:p-8 border border-white/[0.06] shadow-luxury overflow-hidden">
