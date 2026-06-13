@@ -68,7 +68,7 @@ export default function ExpenseModal({
       setAmount(expenseToEdit.amount.toString());
       setDate(new Date(expenseToEdit.date).toISOString().split('T')[0]);
       setCategory(expenseToEdit.category);
-      setTransactionType(expenseToEdit.transactionType || 'expense');
+      setTransactionType((expenseToEdit.transactionType as 'expense' | 'lent' | 'borrowed') || 'expense');
       setPersonId(expenseToEdit.personId);
       setPaymentMethod(expenseToEdit.paymentMethod);
       setNotes(expenseToEdit.notes || '');

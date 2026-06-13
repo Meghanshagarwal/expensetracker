@@ -1,7 +1,11 @@
 'use client';
 
 import { useEffect, useState, useCallback, useMemo } from 'react';
-import { Users, Plus, Edit2, Trash2, User } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { 
+  Users, Plus, Edit2, Trash2, User, X, CreditCard, 
+  Calendar, Loader2, ArrowUpRight, ArrowDownRight 
+} from 'lucide-react';
 import { getLocalPersons, getLocalExpenses } from '@/lib/offlineDb';
 import { useOfflineSync } from '@/hooks/useOfflineSync';
 import { Person, Expense } from '@/types';
@@ -13,8 +17,24 @@ export default function PeoplePage() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingPerson, setEditingPerson] = useState<Person | null>(null);
 
+  // Ledger States
+  const [selectedPersonForLedger, setSelectedPersonForLedger] = useState<Person | null>(null);
+  const [isAddingTransaction, setIsAddingTransaction] = useState(false);
+  
+  // Ledger Form State
+  const [ledgerType, setLedgerType] = useState<'lent' | 'received' | 'borrowed' | 'repaid'>('lent');
+  const [ledgerTitle, setLedgerTitle] = useState('');
+  const [ledgerAmount, setLedgerAmount] = useState('');
+  const [ledgerDate, setLedgerDate] = useState(new Date().toISOString().split('T')[0]);
+  const [ledgerPaymentMethod, setLedgerPaymentMethod] = useState<'Cash' | 'UPI'>('UPI');
+  const [ledgerUpiApp, setLedgerUpiApp] = useState<'GPay' | 'Amazon Pay' | 'Cred UPI'>('GPay');
+  const [ledgerNotes, setLedgerNotes] = useState('');
+  const [formLoading, setFormLoading] = useState(false);
+  const [formError, setFormError] = useState<string | null>(null);
+
   const {
     addPersonOffline,
+    addExpenseOffline,
     fetchAndCacheData,
   } = useOfflineSync();
 
@@ -41,6 +61,27 @@ export default function PeoplePage() {
     loadData();
   }, [loadData]);
 
+  // Keep selected person updated with new data if loaded
+  const currentPersonForLedger = useMemo(() => {
+    if (!selectedPersonForLedger) return null;
+    return persons.find(p => p._id === selectedPersonForLedger._id) || selectedPersonForLedger;
+  }, [selectedPersonForLedger, persons]);
+
+  // Prevent background scroll when ledger is open
+  useEffect(() => {
+    if (selectedPersonForLedger) {
+      document.documentElement.style.overflow = 'hidden';
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.documentElement.style.overflow = '';
+      document.body.style.overflow = '';
+    }
+    return () => {
+      document.documentElement.style.overflow = '';
+      document.body.style.overflow = '';
+    };
+  }, [selectedPersonForLedger]);
+
   const handleEdit = (person: Person) => {
     setEditingPerson(person);
     setIsModalOpen(true);
@@ -65,6 +106,94 @@ export default function PeoplePage() {
     } catch (e) {
       alert('Error connecting to server');
     }
+  };
+
+  const handleDeleteLedgerItem = async (id: string) => {
+    if (!window.confirm('Are you sure you want to delete this transaction?')) return;
+
+    if (!navigator.onLine) {
+      alert('Deleting transactions is currently disabled offline.');
+      return;
+    }
+
+    try {
+      const res = await fetch(`/api/expenses?id=${id}`, { method: 'DELETE' });
+      if (res.ok) {
+        loadData();
+      } else {
+        alert('Failed to delete transaction');
+      }
+    } catch (e) {
+      alert('Error connecting to server');
+    }
+  };
+
+  const handleAddLedgerSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!ledgerAmount || parseFloat(ledgerAmount) <= 0 || !currentPersonForLedger) return;
+
+    setFormLoading(true);
+    setFormError(null);
+
+    // Auto-generate a title if empty
+    const resolvedTitle = ledgerTitle.trim() || (
+      ledgerType === 'lent' ? 'Udhaar Diya' :
+      ledgerType === 'borrowed' ? 'Udhaar Liya' :
+      ledgerType === 'received' ? 'Wapas Mila' : 'Wapas Diya'
+    );
+
+    const payload = {
+      title: resolvedTitle,
+      amount: parseFloat(ledgerAmount),
+      category: 'Other',
+      transactionType: ledgerType,
+      personId: currentPersonForLedger._id,
+      paymentMethod: ledgerPaymentMethod,
+      date: new Date(ledgerDate).toISOString(),
+      notes: ledgerNotes.trim(),
+      sourceAccount: 'Self Account',
+      upiApp: ledgerPaymentMethod === 'UPI' ? ledgerUpiApp : undefined,
+    };
+
+    try {
+      if (!navigator.onLine) {
+        await addExpenseOffline(payload);
+        loadData();
+        setIsAddingTransaction(false);
+        resetLedgerForm();
+        return;
+      }
+
+      const res = await fetch('/api/expenses', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+
+      if (res.ok) {
+        loadData();
+        setIsAddingTransaction(false);
+        resetLedgerForm();
+      } else {
+        const data = await res.json();
+        setFormError(data.error || 'Failed to save transaction');
+      }
+    } catch (err: any) {
+      setFormError(err.message || 'Something went wrong. Please try again.');
+    } finally {
+      setFormLoading(false);
+    }
+  };
+
+  const resetLedgerForm = () => {
+    setLedgerType('lent');
+    setLedgerTitle('');
+    setLedgerAmount('');
+    setLedgerDate(new Date().toISOString().split('T')[0]);
+    setLedgerPaymentMethod('UPI');
+    setLedgerUpiApp('GPay');
+    setLedgerNotes('');
+    setFormError(null);
   };
 
   const allPersonStats = useMemo(() => {
@@ -94,9 +223,13 @@ export default function PeoplePage() {
       } else if (type === 'lent') {
         current.totalLent += exp.amount;
         current.netLoan += exp.amount;
+      } else if (type === 'received') {
+        current.netLoan -= exp.amount;
       } else if (type === 'borrowed') {
         current.totalBorrowed += exp.amount;
         current.netLoan -= exp.amount;
+      } else if (type === 'repaid') {
+        current.netLoan += exp.amount;
       }
 
       if (!current.lastActive || new Date(exp.date) > new Date(current.lastActive)) {
@@ -108,6 +241,20 @@ export default function PeoplePage() {
 
     return statsMap;
   }, [expenses]);
+
+  // Filter and sort ledger list for selected person
+  const personLedgerExpenses = useMemo(() => {
+    if (!currentPersonForLedger) return [];
+    return expenses
+      .filter(exp => exp.personId === currentPersonForLedger._id && exp.transactionType !== 'expense')
+      .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+  }, [currentPersonForLedger, expenses]);
+
+  // Input styles
+  const inputClass =
+    'w-full rounded-xl bg-black border border-white/[0.08] px-4 py-2.5 text-base md:text-sm text-white placeholder:text-[#555555] focus:border-gold-400/40 focus:ring-1 focus:ring-gold-400/10 focus:outline-none transition-all';
+  const labelClass =
+    'block text-xs font-normal uppercase tracking-wider text-[#8A8A8A] mb-1.5';
 
   return (
     <div className="space-y-8 text-white pb-12">
@@ -145,7 +292,8 @@ export default function PeoplePage() {
             return (
               <div
                 key={person._id}
-                className="bg-[#111111] border border-white/[0.06] p-5 rounded-2xl flex flex-col justify-between hover:border-gold-400/20 transition-all duration-300 shadow-luxury hover:-translate-y-1"
+                onClick={() => setSelectedPersonForLedger(person)}
+                className="bg-[#111111] cursor-pointer border border-white/[0.06] p-5 rounded-2xl flex flex-col justify-between hover:border-gold-400/20 transition-all duration-300 shadow-luxury hover:-translate-y-1"
               >
                 <div className="flex items-start justify-between">
                   <div className="flex items-center gap-3">
@@ -202,14 +350,20 @@ export default function PeoplePage() {
                   
                   <div className="flex justify-end gap-1 pt-2 border-t border-white/[0.06]">
                     <button
-                      onClick={() => handleEdit(person)}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleEdit(person);
+                      }}
                       className="p-2 hover:bg-white/[0.04] text-[#555555] hover:text-white rounded-lg transition-all"
                       disabled={isTemp}
                     >
                       <Edit2 className="h-4 w-4" />
                     </button>
                     <button
-                      onClick={() => handleDelete(person._id)}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleDelete(person._id);
+                      }}
                       className="p-2 hover:bg-[#FF5A5F]/5 text-[#555555] hover:text-[#FF5A5F] rounded-lg transition-all"
                       disabled={isTemp}
                     >
@@ -222,6 +376,306 @@ export default function PeoplePage() {
           })}
         </div>
       )}
+
+      {/* Person Ledger Drawer/Modal */}
+      <AnimatePresence>
+        {currentPersonForLedger && (
+          <div className="fixed inset-0 z-50 flex items-end md:items-center justify-center p-0 md:p-4 overflow-y-auto">
+            {/* Backdrop */}
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => {
+                setSelectedPersonForLedger(null);
+                setIsAddingTransaction(false);
+                resetLedgerForm();
+              }}
+              className="fixed inset-0 bg-black/80 backdrop-blur-md"
+            />
+
+            {/* Modal Box */}
+            <motion.div
+              initial={{ y: '100%', opacity: 0.5 }}
+              animate={{ y: 0, opacity: 1 }}
+              exit={{ y: '100%', opacity: 0.5 }}
+              transition={{ type: 'spring', damping: 28, stiffness: 350 }}
+              className="relative w-full md:max-w-2xl rounded-t-2xl md:rounded-2xl bg-[#111111] border-t md:border border-white/[0.06] p-6 pb-12 md:pb-6 text-white shadow-luxury z-10 max-h-[92vh] md:max-h-[90vh] flex flex-col overflow-hidden"
+            >
+              {/* Handle */}
+              <div className="w-12 h-1.5 bg-white/[0.12] rounded-full mx-auto mb-4 md:hidden" />
+
+              {/* Header */}
+              <div className="flex items-center justify-between pb-4 border-b border-white/[0.06] shrink-0">
+                <div>
+                  <h2 className="text-xl font-bold flex items-center gap-2.5 text-white">
+                    <User className="h-5 w-5 text-gold-400" />
+                    <span>{currentPersonForLedger.name}&apos;s Ledger</span>
+                  </h2>
+                  <div className="mt-1">
+                    {(() => {
+                      const stats = allPersonStats.get(currentPersonForLedger._id) || { netLoan: 0 };
+                      if (stats.netLoan > 0) {
+                        return <span className="text-xs font-semibold text-[#4ADE80]">Owes you ₹{stats.netLoan.toLocaleString('en-IN')}</span>;
+                      } else if (stats.netLoan < 0) {
+                        return <span className="text-xs font-semibold text-[#FF5A5F]">You owe ₹{Math.abs(stats.netLoan).toLocaleString('en-IN')}</span>;
+                      } else {
+                        return <span className="text-xs font-semibold text-[#8A8A8A]">Settled Balance</span>;
+                      }
+                    })()}
+                  </div>
+                </div>
+                <button
+                  onClick={() => {
+                    setSelectedPersonForLedger(null);
+                    setIsAddingTransaction(false);
+                    resetLedgerForm();
+                  }}
+                  className="rounded-lg p-1.5 text-[#8A8A8A] hover:text-white hover:bg-white/[0.06] transition-colors"
+                >
+                  <X className="h-5 w-5" />
+                </button>
+              </div>
+
+              {/* Content area: Scrollable list */}
+              <div className="flex-1 overflow-y-auto py-4 space-y-4 pr-1">
+                {/* Form to add transaction in ledger */}
+                {isAddingTransaction ? (
+                  <motion.div
+                    initial={{ opacity: 0, height: 0 }}
+                    animate={{ opacity: 1, height: 'auto' }}
+                    exit={{ opacity: 0, height: 0 }}
+                    className="bg-black/50 border border-white/[0.06] p-4 rounded-xl space-y-4"
+                  >
+                    <div className="flex justify-between items-center pb-2 border-b border-white/[0.04]">
+                      <h4 className="text-xs font-bold text-gold-400 uppercase tracking-wider">Record Transaction</h4>
+                      <button
+                        type="button"
+                        onClick={() => setIsAddingTransaction(false)}
+                        className="text-xs text-[#8A8A8A] hover:text-white"
+                      >
+                        Cancel
+                      </button>
+                    </div>
+
+                    {formError && (
+                      <div className="rounded-lg bg-[#FF5A5F]/10 border border-[#FF5A5F]/20 p-2.5 text-xs text-[#FF5A5F]">
+                        {formError}
+                      </div>
+                    )}
+
+                    <form onSubmit={handleAddLedgerSubmit} className="space-y-4">
+                      {/* Sub-type selection */}
+                      <div>
+                        <label className={labelClass}>Type</label>
+                        <div className="grid grid-cols-2 gap-2">
+                          {(['lent', 'received'] as const).map(type => (
+                            <button
+                              key={type}
+                              type="button"
+                              onClick={() => setLedgerType(type)}
+                              className={`py-2 px-3 rounded-xl border text-xs font-semibold capitalize transition-all ${
+                                ledgerType === type
+                                  ? 'bg-[#4ADE80]/10 border-[#4ADE80]/30 text-[#4ADE80]'
+                                  : 'bg-black border-white/[0.08] text-[#8A8A8A] hover:text-white'
+                              }`}
+                            >
+                              {type === 'lent' ? 'We Lent (Udhaar Diya)' : 'They Repaid (Udhaar Back)'}
+                            </button>
+                          ))}
+                          {(['borrowed', 'repaid'] as const).map(type => (
+                            <button
+                              key={type}
+                              type="button"
+                              onClick={() => setLedgerType(type)}
+                              className={`py-2 px-3 rounded-xl border text-xs font-semibold capitalize transition-all ${
+                                ledgerType === type
+                                  ? 'bg-[#FF5A5F]/10 border-[#FF5A5F]/30 text-[#FF5A5F]'
+                                  : 'bg-black border-white/[0.08] text-[#8A8A8A] hover:text-white'
+                              }`}
+                            >
+                              {type === 'borrowed' ? 'We Borrowed (Liya)' : 'We Repaid (Chukaya)'}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+
+                      {/* Title & Amount */}
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        <div>
+                          <label className={labelClass}>Title (Optional)</label>
+                          <input
+                            type="text"
+                            placeholder="e.g. Cash payment, GPay back"
+                            value={ledgerTitle}
+                            onChange={(e) => setLedgerTitle(e.target.value)}
+                            className={inputClass}
+                          />
+                        </div>
+                        <div>
+                          <label className={labelClass}>Amount (₹)</label>
+                          <input
+                            type="number"
+                            step="0.01"
+                            required
+                            placeholder="0.00"
+                            value={ledgerAmount}
+                            onChange={(e) => setLedgerAmount(e.target.value)}
+                            className={inputClass}
+                          />
+                        </div>
+                      </div>
+
+                      {/* Date & Payment Method */}
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        <div>
+                          <label className={labelClass}>Date</label>
+                          <input
+                            type="date"
+                            required
+                            value={ledgerDate}
+                            onChange={(e) => setLedgerDate(e.target.value)}
+                            className={inputClass}
+                          />
+                        </div>
+                        <div>
+                          <label className={labelClass}>Payment Method</label>
+                          <div className="grid grid-cols-2 gap-2">
+                            {(['Cash', 'UPI'] as const).map(method => (
+                              <button
+                                key={method}
+                                type="button"
+                                onClick={() => setLedgerPaymentMethod(method)}
+                                className={`py-2 px-3 rounded-xl border text-xs font-medium transition-all ${
+                                  ledgerPaymentMethod === method
+                                    ? 'bg-gold-400/10 border-gold-400/30 text-gold-400'
+                                    : 'bg-black border-white/[0.08] text-[#8A8A8A] hover:text-white'
+                                }`}
+                              >
+                                {method}
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* UPI details */}
+                      {ledgerPaymentMethod === 'UPI' && (
+                        <motion.div
+                          initial={{ opacity: 0, height: 0 }}
+                          animate={{ opacity: 1, height: 'auto' }}
+                          className="bg-black/40 p-3 rounded-xl border border-white/[0.04]"
+                        >
+                          <label className="block text-xs font-normal uppercase tracking-wider text-gold-400 mb-1.5">UPI App</label>
+                          <select
+                            value={ledgerUpiApp}
+                            onChange={(e) => setLedgerUpiApp(e.target.value as any)}
+                            className={inputClass}
+                          >
+                            <option value="GPay">GPay</option>
+                            <option value="Amazon Pay">Amazon Pay</option>
+                            <option value="Cred UPI">Cred UPI</option>
+                          </select>
+                        </motion.div>
+                      )}
+
+                      {/* Notes */}
+                      <div>
+                        <label className={labelClass}>Notes</label>
+                        <input
+                          type="text"
+                          placeholder="Repayment notes..."
+                          value={ledgerNotes}
+                          onChange={(e) => setLedgerNotes(e.target.value)}
+                          className={inputClass}
+                        />
+                      </div>
+
+                      <button
+                        type="submit"
+                        disabled={formLoading}
+                        className="flex items-center justify-center gap-2 w-full py-2.5 rounded-xl text-xs font-semibold bg-gold-400 text-black hover:bg-gold-500 transition-all disabled:opacity-50"
+                      >
+                        {formLoading && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
+                        Record Transaction
+                      </button>
+                    </form>
+                  </motion.div>
+                ) : (
+                  <button
+                    onClick={() => setIsAddingTransaction(true)}
+                    className="flex items-center justify-center gap-2 w-full py-3 bg-[#171717] hover:bg-white/[0.02] border border-white/[0.06] hover:border-gold-400/20 text-[#8A8A8A] hover:text-gold-400 rounded-xl text-xs font-semibold transition-all shrink-0"
+                  >
+                    <Plus className="h-4 w-4" />
+                    <span>Record Repayment or New Loan</span>
+                  </button>
+                )}
+
+                {/* List of ledger history */}
+                <div className="space-y-2.5">
+                  <h3 className="text-[10px] font-semibold text-[#555555] uppercase tracking-wider">Transaction History</h3>
+
+                  {personLedgerExpenses.length === 0 ? (
+                    <div className="py-12 text-center text-[#555555] text-xs font-light">
+                      No loan or repayment history recorded for this person.
+                    </div>
+                  ) : (
+                    personLedgerExpenses.map(exp => {
+                      const isLentFlow = exp.transactionType === 'lent' || exp.transactionType === 'received';
+                      const isOutflow = exp.transactionType === 'lent' || exp.transactionType === 'repaid';
+                      return (
+                        <div
+                          key={exp._id}
+                          className="bg-[#171717] border border-white/[0.04] p-3.5 rounded-xl flex items-center justify-between gap-4"
+                        >
+                          <div className="space-y-1">
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <span className="text-sm font-medium text-white">{exp.title}</span>
+                              <span className={`px-1.5 py-0.5 rounded-md text-[8px] font-bold uppercase tracking-wider ${
+                                exp.transactionType === 'lent' ? 'bg-[#4ADE80]/10 text-[#4ADE80] border border-[#4ADE80]/10' :
+                                exp.transactionType === 'received' ? 'bg-gold-400/10 text-gold-400 border border-gold-400/10' :
+                                exp.transactionType === 'borrowed' ? 'bg-[#FF5A5F]/10 text-[#FF5A5F] border border-[#FF5A5F]/10' :
+                                'bg-white/10 text-white border border-white/10'
+                              }`}>
+                                {exp.transactionType === 'lent' ? 'Lent' :
+                                 exp.transactionType === 'received' ? 'Received (Back)' :
+                                 exp.transactionType === 'borrowed' ? 'Borrowed' : 'Repaid'}
+                              </span>
+                            </div>
+                            <div className="flex items-center gap-2 text-[10px] text-[#555555]">
+                              <div className="flex items-center gap-1">
+                                <Calendar className="h-3 w-3" />
+                                <span>{new Date(exp.date).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}</span>
+                              </div>
+                              <span>·</span>
+                              <span>{exp.paymentMethod === 'UPI' && exp.upiApp ? `UPI (${exp.upiApp})` : exp.paymentMethod}</span>
+                            </div>
+                            {exp.notes && (
+                              <p className="text-[11px] text-[#8A8A8A] font-light italic mt-0.5">&ldquo;{exp.notes}&rdquo;</p>
+                            )}
+                          </div>
+
+                          <div className="flex items-center gap-3 shrink-0">
+                            <span className={`font-semibold text-sm ${isLentFlow ? 'text-[#4ADE80]' : 'text-[#FF5A5F]'}`}>
+                              {isOutflow ? '-' : '+'}₹{exp.amount.toLocaleString('en-IN', { minimumFractionDigits: 0 })}
+                            </span>
+                            <button
+                              onClick={() => handleDeleteLedgerItem(exp._id)}
+                              className="p-1.5 text-[#555555] hover:text-[#FF5A5F] hover:bg-[#FF5A5F]/5 rounded-md transition-colors"
+                            >
+                              <Trash2 className="h-3.5 w-3.5" />
+                            </button>
+                          </div>
+                        </div>
+                      );
+                    })
+                  )}
+                </div>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
 
       <PersonModal
         isOpen={isModalOpen}

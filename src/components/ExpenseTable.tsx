@@ -41,7 +41,7 @@ export default function ExpenseTable({
   const personMap = useMemo(() => new Map(persons.map(p => [p._id, p.name])), [persons]);
 
   const processedExpenses = useMemo(() => {
-    let result = [...expenses];
+    let result = expenses.filter(exp => exp.transactionType !== 'received' && exp.transactionType !== 'repaid');
 
     if (search.trim()) {
       const q = search.toLowerCase();
