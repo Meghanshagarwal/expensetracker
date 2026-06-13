@@ -331,40 +331,7 @@ export default function DashboardPage() {
         </div>
       </div>
 
-      {/* PWA Install Banner */}
-      {!isStandalone && showInstallBanner && (
-        <div className="relative bg-[#111111] border border-white/[0.06] rounded-2xl p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4 shadow-luxury overflow-hidden">
-          <div className="absolute top-0 left-4 right-4 h-px bg-gradient-to-r from-transparent via-gold-400/20 to-transparent" />
-          
-          <div className="space-y-1 z-10">
-            <h4 className="text-xs font-semibold text-gold-400 uppercase tracking-luxury-wide">Install FinTrack</h4>
-            <p className="text-xs text-[#8A8A8A] font-light leading-relaxed max-w-xl">
-              {isIOS 
-                ? "Tap the Share icon (box with up arrow) in Safari and select 'Add to Home Screen' for a premium full-screen experience."
-                : deferredPrompt 
-                  ? "Install FinTrack on your home screen for offline access and a full-screen app experience."
-                  : "Tap your browser's menu button (three dots) and select 'Install app' or 'Add to Home screen' to install FinTrack."}
-            </p>
-          </div>
 
-          <div className="flex items-center gap-3 shrink-0 z-10">
-            {deferredPrompt && (
-              <button
-                onClick={handleInstallClick}
-                className="px-4 py-2 bg-gold-400 hover:bg-gold-500 text-black rounded-xl text-xs font-semibold transition-all shadow-md"
-              >
-                Install
-              </button>
-            )}
-            <button
-              onClick={() => setShowInstallBanner(false)}
-              className="px-3 py-2 text-xs text-[#555555] hover:text-[#8A8A8A] transition-colors"
-            >
-              Dismiss
-            </button>
-          </div>
-        </div>
-      )}
 
       {/* Premium Balance Card */}
       <div className="relative bg-[#111111] rounded-3xl p-6 sm:p-8 border border-white/[0.06] shadow-luxury overflow-hidden">
@@ -500,6 +467,44 @@ export default function DashboardPage() {
           onDelete={handleDelete}
         />
       </div>
+
+      {/* PWA Install Banner */}
+      {!isStandalone && showInstallBanner && (
+        <div className="relative bg-[#111111] border border-white/[0.06] rounded-2xl p-5 flex flex-col md:flex-row items-center justify-between gap-4 shadow-luxury overflow-hidden">
+          {/* Subtle gold line at left side of banner */}
+          <div className="absolute left-0 top-0 bottom-0 w-[3px] bg-gold-400" />
+          
+          <div className="space-y-1 text-center md:text-left pl-2">
+            <h3 className="text-sm font-semibold text-white">
+              {isIOS ? 'Install on iPhone / iPad' : 'Install FinTrack App'}
+            </h3>
+            <p className="text-xs text-[#8A8A8A] font-light leading-relaxed">
+              {isIOS 
+                ? 'Tap the Share button in Safari, scroll down and select "Add to Home Screen".' 
+                : deferredPrompt 
+                  ? 'Add FinTrack to your home screen for quick offline access and a premium full-screen experience.'
+                  : 'Tap your browser\'s menu button (three dots) and select "Install app" or "Add to Home screen" to install FinTrack.'}
+            </p>
+          </div>
+
+          <div className="flex items-center gap-3 w-full md:w-auto justify-center">
+            {!isIOS && deferredPrompt && (
+              <button
+                onClick={handleInstallClick}
+                className="px-5 py-2.5 rounded-xl bg-gold-400 hover:bg-gold-500 text-black font-semibold text-xs transition-all whitespace-nowrap"
+              >
+                Install Now
+              </button>
+            )}
+            <button
+              onClick={() => setShowInstallBanner(false)}
+              className="px-4 py-2.5 rounded-xl bg-black border border-white/[0.08] hover:border-white/[0.15] text-xs font-normal text-[#8A8A8A] hover:text-white transition-all"
+            >
+              Dismiss
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Backup Section */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
