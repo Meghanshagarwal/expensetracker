@@ -68,19 +68,41 @@ export default function PeoplePage() {
   };
 
   const allPersonStats = useMemo(() => {
-    const statsMap = new Map<string, { count: number; totalExpenses: number; netLoan: number }>();
+    const statsMap = new Map<string, { 
+      count: number; 
+      totalExpenses: number; 
+      totalLent: number; 
+      totalBorrowed: number; 
+      netLoan: number;
+      lastActive: string | null;
+    }>();
 
     expenses.forEach(exp => {
-      const current = statsMap.get(exp.personId) || { count: 0, totalExpenses: 0, netLoan: 0 };
+      const current = statsMap.get(exp.personId) || { 
+        count: 0, 
+        totalExpenses: 0, 
+        totalLent: 0, 
+        totalBorrowed: 0, 
+        netLoan: 0,
+        lastActive: null 
+      };
+      
       current.count++;
       const type = exp.transactionType || 'expense';
       if (type === 'expense') {
         current.totalExpenses += exp.amount;
       } else if (type === 'lent') {
+        current.totalLent += exp.amount;
         current.netLoan += exp.amount;
       } else if (type === 'borrowed') {
+        current.totalBorrowed += exp.amount;
         current.netLoan -= exp.amount;
       }
+
+      if (!current.lastActive || new Date(exp.date) > new Date(current.lastActive)) {
+        current.lastActive = exp.date;
+      }
+
       statsMap.set(exp.personId, current);
     });
 
@@ -118,7 +140,7 @@ export default function PeoplePage() {
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           {persons.map(person => {
-            const { count, totalExpenses, netLoan } = allPersonStats.get(person._id) || { count: 0, totalExpenses: 0, netLoan: 0 };
+            const { count, totalExpenses, totalLent, totalBorrowed, netLoan, lastActive } = allPersonStats.get(person._id) || { count: 0, totalExpenses: 0, totalLent: 0, totalBorrowed: 0, netLoan: 0, lastActive: null };
             const isTemp = person._id.startsWith('temp_');
             return (
               <div
@@ -147,22 +169,36 @@ export default function PeoplePage() {
                 </div>
 
                 <div className="mt-6 pt-4 border-t border-white/[0.06] space-y-4">
-                  <div className="grid grid-cols-2 gap-4">
+                  <div className="grid grid-cols-2 gap-y-3.5 gap-x-4">
                     <div>
                       <span className="text-[9px] uppercase font-normal text-[#555555] tracking-luxury-wide">Total Share</span>
-                      <p className="text-base font-semibold text-white mt-0.5">₹{totalExpenses.toLocaleString('en-IN', { maximumFractionDigits: 2 })}</p>
+                      <p className="text-sm font-semibold text-white mt-0.5">₹{totalExpenses.toLocaleString('en-IN', { maximumFractionDigits: 2 })}</p>
                     </div>
                     <div>
-                      <span className="text-[9px] uppercase font-normal text-[#555555] tracking-luxury-wide">Udhaar Bal.</span>
+                      <span className="text-[9px] uppercase font-normal text-[#555555] tracking-luxury-wide">Net Balance</span>
                       {netLoan > 0 ? (
-                        <p className="text-base font-semibold text-[#4ADE80] mt-0.5">Owes ₹{netLoan.toLocaleString('en-IN', { maximumFractionDigits: 2 })}</p>
+                        <p className="text-sm font-semibold text-[#4ADE80] mt-0.5">Owes ₹{netLoan.toLocaleString('en-IN', { maximumFractionDigits: 2 })}</p>
                       ) : netLoan < 0 ? (
-                        <p className="text-base font-semibold text-[#FF5A5F] mt-0.5 font-sans">You owe ₹{Math.abs(netLoan).toLocaleString('en-IN', { maximumFractionDigits: 2 })}</p>
+                        <p className="text-sm font-semibold text-[#FF5A5F] mt-0.5 font-sans">You owe ₹{Math.abs(netLoan).toLocaleString('en-IN', { maximumFractionDigits: 2 })}</p>
                       ) : (
-                        <p className="text-base font-medium text-[#555555] mt-0.5">Settled</p>
+                        <p className="text-sm font-medium text-[#555555] mt-0.5">Settled</p>
                       )}
                     </div>
+                    <div>
+                      <span className="text-[9px] uppercase font-normal text-[#555555] tracking-luxury-wide">Total Lent</span>
+                      <p className="text-sm font-semibold text-white/90 mt-0.5">₹{totalLent.toLocaleString('en-IN', { maximumFractionDigits: 2 })}</p>
+                    </div>
+                    <div>
+                      <span className="text-[9px] uppercase font-normal text-[#555555] tracking-luxury-wide">Total Borrowed</span>
+                      <p className="text-sm font-semibold text-white/90 mt-0.5">₹{totalBorrowed.toLocaleString('en-IN', { maximumFractionDigits: 2 })}</p>
+                    </div>
                   </div>
+
+                  {lastActive && (
+                    <div className="text-[10px] text-[#555555] font-light pt-1 border-t border-white/[0.03]">
+                      Last active: {new Date(lastActive).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}
+                    </div>
+                  )}
                   
                   <div className="flex justify-end gap-1 pt-2 border-t border-white/[0.06]">
                     <button
