@@ -158,19 +158,15 @@ export default function DashboardPage() {
       const type = exp.transactionType || 'expense';
 
       // Track loan amounts per person
-      if (type === 'lent' || type === 'borrowed' || type === 'received' || type === 'repaid') {
+      if (type === 'lent' || type === 'borrowed') {
         if (!personNetMap.has(exp.personId)) {
           personNetMap.set(exp.personId, { lent: 0, borrowed: 0 });
         }
         const current = personNetMap.get(exp.personId)!;
         if (type === 'lent') {
           current.lent += exp.amount;
-        } else if (type === 'received') {
-          current.lent -= exp.amount;
-        } else if (type === 'borrowed') {
+        } else {
           current.borrowed += exp.amount;
-        } else if (type === 'repaid') {
-          current.borrowed -= exp.amount;
         }
       }
 

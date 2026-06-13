@@ -30,7 +30,7 @@ const ExpenseSchema = new Schema({
   },
   transactionType: {
     type: String,
-    enum: ["expense", "lent", "borrowed", "received", "repaid"],
+    enum: ["expense", "lent", "borrowed"],
     default: "expense",
   },
   personId: {

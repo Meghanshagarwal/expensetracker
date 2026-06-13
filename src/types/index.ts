@@ -9,7 +9,7 @@ export interface Expense {
   title: string;
   amount: number;
   category: string;
-  transactionType?: 'expense' | 'lent' | 'borrowed' | 'received' | 'repaid';
+  transactionType?: 'expense' | 'lent' | 'borrowed';
   personId: string; // references Person
   paymentMethod: string;
   date: string;

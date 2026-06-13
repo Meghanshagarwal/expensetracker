@@ -32,7 +32,7 @@ export default function ExpenseModal({
   const [amount, setAmount] = useState('');
   const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
   const [category, setCategory] = useState('Food');
-  const [transactionType, setTransactionType] = useState<'expense' | 'lent' | 'borrowed' | 'received' | 'repaid'>('expense');
+  const [transactionType, setTransactionType] = useState<'expense' | 'lent' | 'borrowed'>('expense');
   const [personId, setPersonId] = useState('');
   const [customPerson, setCustomPerson] = useState('');
   const [isCustomPersonActive, setIsCustomPersonActive] = useState(false);
@@ -53,7 +53,7 @@ export default function ExpenseModal({
   const visiblePaymentMethods = useMemo(() => {
     return sourceAccount === 'Salary Account'
       ? ['UPI']
-      : (transactionType === 'borrowed' || transactionType === 'received')
+      : transactionType === 'borrowed'
       ? ['Cash', 'UPI']
       : paymentMethods;
   }, [sourceAccount, transactionType, paymentMethods]);
@@ -191,7 +191,7 @@ export default function ExpenseModal({
         vehicle: category === 'Petrol' ? vehicle : undefined,
         sourceAccount,
         upiApp: paymentMethod === 'UPI' ? upiApp : undefined,
-        upiLinkedAccount: (paymentMethod === 'UPI' && upiApp && transactionType !== 'borrowed' && transactionType !== 'received') ? upiLinkedAccount : undefined,
+        upiLinkedAccount: (paymentMethod === 'UPI' && upiApp && transactionType !== 'borrowed') ? upiLinkedAccount : undefined,
         creditCardIssuer: paymentMethod === 'Credit Card' ? creditCardIssuer : undefined,
       };
 
@@ -292,7 +292,7 @@ export default function ExpenseModal({
                 <label className={labelClass}>
                   Transaction Type
                 </label>
-                <div className="grid grid-cols-3 gap-2 mb-2">
+                <div className="grid grid-cols-3 gap-2">
                   {(['expense', 'lent', 'borrowed'] as const).map((type) => (
                     <button
                       key={type}
@@ -305,22 +305,6 @@ export default function ExpenseModal({
                       }`}
                     >
                       {type === 'expense' ? 'Expense' : type === 'lent' ? 'Lent' : 'Borrowed'}
-                    </button>
-                  ))}
-                </div>
-                <div className="grid grid-cols-2 gap-2">
-                  {(['received', 'repaid'] as const).map((type) => (
-                    <button
-                      key={type}
-                      type="button"
-                      onClick={() => setTransactionType(type)}
-                      className={`py-2 px-3 rounded-xl border text-xs font-medium capitalize transition-all ${
-                        transactionType === type
-                          ? 'bg-gold-400/10 border-gold-400/30 text-gold-400'
-                          : 'bg-[#111111] border-white/[0.08] text-[#8A8A8A] hover:text-white hover:border-white/[0.15]'
-                      }`}
-                    >
-                      {type === 'received' ? 'Received (Udhaar Back)' : 'Repaid (Udhaar Chukaya)'}
                     </button>
                   ))}
                 </div>
@@ -419,10 +403,6 @@ export default function ExpenseModal({
                         ? 'Taken From (Person)'
                         : transactionType === 'lent'
                         ? 'Lent To'
-                        : transactionType === 'received'
-                        ? 'Received From'
-                        : transactionType === 'repaid'
-                        ? 'Paid Back To'
                         : 'Paid For / With Whom'}
                     </label>
                     <button
@@ -461,7 +441,7 @@ export default function ExpenseModal({
                 {/* Source Account select */}
                 <div>
                   <label className={labelClass}>
-                    {transactionType === 'borrowed' || transactionType === 'received' ? 'Destination Account' : 'Source Account'}
+                    {transactionType === 'borrowed' ? 'Destination Account' : 'Source Account'}
                   </label>
                   <select
                     value={sourceAccount}
@@ -478,7 +458,7 @@ export default function ExpenseModal({
               {sourceAccount !== 'Salary Account' && (
                 <div>
                   <label className={labelClass}>
-                    {transactionType === 'borrowed' || transactionType === 'received' ? 'Received Via' : 'Payment Method'}
+                    {transactionType === 'borrowed' ? 'Received Via' : 'Payment Method'}
                   </label>
                   <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
                     {visiblePaymentMethods.map(method => (
@@ -522,7 +502,7 @@ export default function ExpenseModal({
                         <option value="Cred UPI">Cred UPI</option>
                       </select>
                     </div>
-                    {transactionType !== 'borrowed' && transactionType !== 'received' && (
+                    {transactionType !== 'borrowed' && (
                       <div>
                         <label className="block text-xs font-normal uppercase tracking-wider text-gold-400 mb-1">
                           Linked Account
