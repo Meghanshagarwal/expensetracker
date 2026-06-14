@@ -77,6 +77,26 @@ export default function Navbar() {
         </nav>
       </header>
 
+      {/* Mobile Top Header */}
+      <header className="md:hidden fixed top-0 left-0 right-0 z-40 flex items-center justify-between px-4 h-14 bg-black/80 backdrop-blur-xl border-b border-white/[0.06] text-white">
+        <div className="flex items-center gap-2">
+          <div className="h-7 w-7 rounded-lg bg-gold-400/10 border border-gold-400/20 flex items-center justify-center font-semibold text-sm text-gold-400">
+            ₹
+          </div>
+          <span className="text-base font-medium tracking-wide text-white">
+            FinTrack
+          </span>
+        </div>
+
+        <button
+          onClick={handleLogout}
+          className="flex items-center justify-center h-9 w-9 rounded-xl text-[#8A8A8A] hover:text-white hover:bg-white/[0.04] active:bg-white/[0.08] transition-all"
+          title="Logout"
+        >
+          <LogOut className="h-4.5 w-4.5" />
+        </button>
+      </header>
+
       {/* Mobile Bottom Navigation — Frosted Dark Glass */}
       <nav className="md:hidden fixed bottom-5 left-1/2 -translate-x-1/2 z-40 w-[88%] max-w-sm bg-[#111111]/90 backdrop-blur-2xl border border-white/[0.06] rounded-2xl py-3 px-4 shadow-luxury flex items-center justify-around text-white">
         {navItems.filter(item => item.name !== 'Analytics').map(item => {
@@ -104,19 +124,10 @@ export default function Navbar() {
             </Link>
           );
         })}
-        <button
-          onClick={handleLogout}
-          className="flex flex-col items-center gap-1 py-1 px-3 text-[#555555] hover:text-[#8A8A8A] transition-all"
-        >
-          <LogOut className="h-5 w-5" strokeWidth={1.5} />
-          <span className="text-[9px] font-medium tracking-luxury-wide uppercase">
-            Exit
-          </span>
-        </button>
       </nav>
 
-      {/* Spacing for Desktop Header */}
-      <div className="hidden md:block h-20" />
+      {/* Spacing for Header (Mobile Top bar and Desktop Header) */}
+      <div className="h-16 md:h-20" />
     </>
   );
 }

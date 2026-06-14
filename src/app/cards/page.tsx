@@ -638,11 +638,11 @@ export default function CardsPage() {
                         !tx.isCardPaid ? 'cursor-pointer select-none' : ''
                       }`}
                     >
-                      <div className="space-y-1">
-                        <div className="flex items-center gap-2.5">
-                          <h3 className="font-semibold text-white text-base">
-                            {tx.title}
-                          </h3>
+                      <div className="space-y-1.5 flex-1 min-w-0">
+                        <h3 className="font-semibold text-white text-base truncate">
+                          {tx.title}
+                        </h3>
+                        <div className="flex flex-wrap items-center gap-1.5">
                           <span className="text-[10px] font-medium tracking-wide uppercase px-2 py-0.5 rounded-md bg-white/[0.04] text-[#8A8A8A]">
                             {tx.category}
                           </span>
@@ -653,12 +653,12 @@ export default function CardsPage() {
                             </span>
                           )}
                           {tx.paymentMethod === 'UPI' && (
-                            <span className="text-[9px] px-1.5 py-0.5 rounded bg-blue-500/10 text-blue-400 font-semibold border border-blue-500/20">
+                            <span className="text-[9px] px-1.5 py-0.5 rounded bg-blue-500/10 text-blue-400 font-semibold border border-blue-500/20 max-w-full truncate">
                               UPI ({tx.upiLinkedAccount})
                             </span>
                           )}
                         </div>
-                        <div className="flex items-center gap-4 text-xs text-[#8A8A8A]">
+                        <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-[#8A8A8A]">
                           <span className="flex items-center gap-1">
                             <Calendar className="h-3.5 w-3.5" />
                             {formatDate(tx.date)}
