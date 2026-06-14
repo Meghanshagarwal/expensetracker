@@ -60,8 +60,7 @@ export default function CardsPage() {
         return (isCC && exp.creditCardIssuer === 'OneCard');
       }
       if (card === 'Yes Bank') {
-        return (isCC && exp.creditCardIssuer === 'Yes Bank') ||
-               (isUPI && exp.upiLinkedAccount === 'Yes Bank');
+        return (isCC && exp.creditCardIssuer === 'Yes Bank');
       }
       return false;
     });
