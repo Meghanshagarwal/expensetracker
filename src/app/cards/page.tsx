@@ -2,12 +2,14 @@
 
 import { useEffect, useState, useCallback, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { 
+import {
   CreditCard, Calendar, CheckCircle2, XCircle,
-  Loader2, ArrowUpRight, Search, Undo2, Filter, User, Plus, Pencil
+  Loader2, ArrowUpRight, Search, Undo2, Filter, User, Plus, Pencil,
+  Bell, BellRing, BellOff, AlertCircle
 } from 'lucide-react';
 import { getLocalExpenses, getLocalPersons, getLocalCards, saveLocalExpenses, saveLocalCards, addToSyncQueue } from '@/lib/offlineDb';
 import { useOfflineSync } from '@/hooks/useOfflineSync';
+import { isPushSupported, getPushSubscribed, enablePush, disablePush } from '@/lib/push';
 import { Expense, Person, Card } from '@/types';
 
 type CardType = 'ICICI' | 'OneCard' | 'Yes Bank';
@@ -48,6 +50,11 @@ export default function CardsPage() {
   const [newDueDate, setNewDueDate] = useState<string>('');
   const [cardLoading, setCardLoading] = useState(false);
   const [cardError, setCardError] = useState<string | null>(null);
+
+  // Push reminder state
+  const [pushSupported, setPushSupported] = useState(false);
+  const [pushOn, setPushOn] = useState(false);
+  const [pushBusy, setPushBusy] = useState(false);
 
   const { isOnline, fetchAndCacheData, addCardOffline } = useOfflineSync();
 
@@ -299,6 +306,71 @@ export default function CardsPage() {
     return `${day}${s[(v - 20) % 10] || s[v] || s[0]}`;
   };
 
+  // Whole days from today until the next occurrence of a day-of-month
+  const daysUntilDue = (dueDay?: number): number | null => {
+    if (!dueDay) return null;
+    const now = new Date();
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const clamp = (y: number, m: number) => Math.min(dueDay, new Date(y, m + 1, 0).getDate());
+    let y = today.getFullYear();
+    let m = today.getMonth();
+    let due = new Date(y, m, clamp(y, m));
+    if (due < today) {
+      m += 1;
+      if (m > 11) { m = 0; y += 1; }
+      due = new Date(y, m, clamp(y, m));
+    }
+    return Math.round((due.getTime() - today.getTime()) / 86_400_000);
+  };
+
+  // Init push subscription status
+  useEffect(() => {
+    const supported = isPushSupported();
+    setPushSupported(supported);
+    if (supported) {
+      getPushSubscribed().then(setPushOn);
+    }
+  }, []);
+
+  const togglePush = async () => {
+    if (pushBusy) return;
+    setPushBusy(true);
+    try {
+      if (pushOn) {
+        await disablePush();
+        setPushOn(false);
+      } else {
+        const res = await enablePush();
+        if (res.ok) {
+          setPushOn(true);
+        } else if (res.reason === 'denied') {
+          alert('Notifications blocked. Please allow notifications for this site in your browser settings.');
+        } else if (res.reason === 'not-configured') {
+          alert('Reminders are not configured on the server yet (VAPID keys missing).');
+        } else if (res.reason === 'unsupported') {
+          alert('Your browser does not support push notifications. On iPhone, install the app to your Home Screen first.');
+        } else {
+          alert('Could not enable reminders. Please try again.');
+        }
+      }
+    } finally {
+      setPushBusy(false);
+    }
+  };
+
+  // Cards whose payment is due within 3 days and still has an outstanding balance
+  const dueSoonCards = useMemo(() => {
+    return cards
+      .map(c => ({
+        name: c.name,
+        days: daysUntilDue(c.dueDate),
+        outstanding: cardMetrics[c.name]?.outstanding || 0,
+      }))
+      .filter(c => c.days !== null && c.days <= 3 && c.outstanding > 0)
+      .sort((a, b) => (a.days as number) - (b.days as number));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [cards, cardMetrics]);
+
   const resetCardForm = () => {
     setNewCardName('');
     setNewCardNetwork('Visa');
@@ -492,6 +564,36 @@ export default function CardsPage() {
   return (
     <>
       <div className="overflow-x-hidden">
+        {/* Due-soon reminder banner */}
+        {dueSoonCards.length > 0 && (
+          <div className="mb-5 rounded-2xl border border-gold-400/25 bg-gold-400/[0.06] p-3.5 sm:p-4 flex items-start gap-3">
+            <AlertCircle className="h-5 w-5 text-gold-400 shrink-0 mt-0.5" />
+            <div className="min-w-0 flex-1">
+              <p className="text-sm font-semibold text-gold-400">Payment{dueSoonCards.length > 1 ? 's' : ''} due soon</p>
+              <p className="text-xs text-[#C9C9C9] mt-0.5 leading-relaxed">
+                {dueSoonCards.map((c, i) => (
+                  <span key={c.name}>
+                    {i > 0 && '  •  '}
+                    <span className="text-white font-medium">{c.name}</span>{' '}
+                    <span className="font-mono">{formatRupee(c.outstanding)}</span>{' '}
+                    {c.days === 0 ? 'due today' : c.days === 1 ? 'due tomorrow' : `due in ${c.days} days`}
+                  </span>
+                ))}
+              </p>
+            </div>
+            {pushSupported && !pushOn && (
+              <button
+                onClick={togglePush}
+                disabled={pushBusy}
+                className="shrink-0 hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold bg-gold-400 text-black hover:bg-gold-500 transition-all disabled:opacity-50"
+              >
+                {pushBusy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Bell className="h-3.5 w-3.5" />}
+                Remind me
+              </button>
+            )}
+          </div>
+        )}
+
         {/* Header Summary */}
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 mb-6">
           <div className="flex justify-between items-start gap-3 w-full md:w-auto">
@@ -505,13 +607,29 @@ export default function CardsPage() {
               </p>
             </div>
 
-            <button
-              onClick={openAddCard}
-              className="md:hidden shrink-0 flex items-center gap-1 px-3 py-1.5 rounded-xl text-xs font-semibold bg-gold-400 text-black hover:bg-gold-500 transition-all shadow-md mt-1"
-            >
-              <Plus className="h-3.5 w-3.5" />
-              Add Card
-            </button>
+            <div className="md:hidden shrink-0 flex items-center gap-2 mt-1">
+              {pushSupported && (
+                <button
+                  onClick={togglePush}
+                  disabled={pushBusy}
+                  title={pushOn ? 'Reminders on' : 'Enable due-date reminders'}
+                  className={`flex items-center justify-center h-8 w-8 rounded-xl border transition-all disabled:opacity-50 ${
+                    pushOn
+                      ? 'bg-gold-400/15 border-gold-400/40 text-gold-400'
+                      : 'bg-white/[0.04] border-white/[0.08] text-[#8A8A8A]'
+                  }`}
+                >
+                  {pushBusy ? <Loader2 className="h-4 w-4 animate-spin" /> : pushOn ? <BellRing className="h-4 w-4" /> : <BellOff className="h-4 w-4" />}
+                </button>
+              )}
+              <button
+                onClick={openAddCard}
+                className="flex items-center gap-1 px-3 py-1.5 rounded-xl text-xs font-semibold bg-gold-400 text-black hover:bg-gold-500 transition-all shadow-md"
+              >
+                <Plus className="h-3.5 w-3.5" />
+                Add Card
+              </button>
+            </div>
           </div>
           
           <div className="flex items-center gap-4 w-full md:w-auto justify-between md:justify-end">
@@ -523,6 +641,22 @@ export default function CardsPage() {
                 {formatRupee(totalOutstandingAllCards)}
               </span>
             </div>
+
+            {pushSupported && (
+              <button
+                onClick={togglePush}
+                disabled={pushBusy}
+                title={pushOn ? 'Due-date reminders on' : 'Enable due-date reminders'}
+                className={`hidden md:flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold border transition-all disabled:opacity-50 ${
+                  pushOn
+                    ? 'bg-gold-400/15 border-gold-400/40 text-gold-400'
+                    : 'bg-white/[0.04] border-white/[0.08] text-[#8A8A8A] hover:text-white'
+                }`}
+              >
+                {pushBusy ? <Loader2 className="h-4 w-4 animate-spin" /> : pushOn ? <BellRing className="h-4 w-4" /> : <Bell className="h-4 w-4" />}
+                {pushOn ? 'Reminders on' : 'Reminders'}
+              </button>
+            )}
 
             <button
               onClick={openAddCard}
