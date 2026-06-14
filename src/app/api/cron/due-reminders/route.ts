@@ -61,6 +61,46 @@ export async function GET(request: Request) {
     return NextResponse.json({ ok: false, reason: 'Push not configured (missing VAPID keys)' });
   }
 
+  // Test mode: ?test=1 sends an immediate test notification to all subscribers,
+  // ignoring due-date logic. Handy for verifying delivery end-to-end.
+  const isTest = new URL(request.url).searchParams.get('test') === '1';
+  if (isTest) {
+    try {
+      let subscriptions: any[];
+      if (isMockMode) {
+        subscriptions = getMockData().pushSubscriptions || [];
+      } else {
+        await dbConnect();
+        subscriptions = await PushSubscription.find({}).lean();
+      }
+
+      const payload = JSON.stringify({
+        title: '🔔 FinTrack Test',
+        body: 'Reminders are working! You will be notified before card payments are due.',
+        url: '/cards',
+      });
+
+      let sent = 0;
+      const stale: string[] = [];
+      await Promise.all(
+        subscriptions.map(async (sub) => {
+          try {
+            await webpush.sendNotification({ endpoint: sub.endpoint, keys: sub.keys } as any, payload);
+            sent += 1;
+          } catch (err: any) {
+            if (err?.statusCode === 404 || err?.statusCode === 410) stale.push(sub.endpoint);
+          }
+        }),
+      );
+      if (stale.length > 0 && !isMockMode) {
+        await PushSubscription.deleteMany({ endpoint: { $in: stale } });
+      }
+      return NextResponse.json({ ok: true, test: true, subscriptions: subscriptions.length, sent, pruned: stale.length });
+    } catch (error: any) {
+      return NextResponse.json({ error: error.message }, { status: 500 });
+    }
+  }
+
   try {
     let cards: any[];
     let expenses: any[];
