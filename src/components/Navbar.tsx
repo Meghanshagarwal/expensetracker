@@ -79,7 +79,7 @@ export default function Navbar() {
 
       {/* Mobile Bottom Navigation — Frosted Dark Glass */}
       <nav className="md:hidden fixed bottom-5 left-1/2 -translate-x-1/2 z-40 w-[88%] max-w-sm bg-[#111111]/90 backdrop-blur-2xl border border-white/[0.06] rounded-2xl py-3 px-4 shadow-luxury flex items-center justify-around text-white">
-        {navItems.map(item => {
+        {navItems.filter(item => item.name !== 'Analytics').map(item => {
           const isActive = pathname === item.path;
           const Icon = item.icon;
           return (

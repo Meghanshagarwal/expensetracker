@@ -21,6 +21,16 @@ export default function CardsPage() {
   const [filterStatus, setFilterStatus] = useState<'unpaid' | 'paid' | 'all'>('unpaid');
   const [searchQuery, setSearchQuery] = useState('');
   const [expandedTxId, setExpandedTxId] = useState<string | null>(null);
+  const [isMobile, setIsMobile] = useState(false);
+
+  useEffect(() => {
+    const handleResize = () => {
+      setIsMobile(window.innerWidth < 768);
+    };
+    handleResize();
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
 
   // Mark as Paid form inputs
   const [paidFrom, setPaidFrom] = useState<string>('Salary Account');
@@ -358,8 +368,7 @@ export default function CardsPage() {
     if (diff < -1) diff += totalCards;
 
     // Handle standard mobile width responsive scaling
-    const isMobile = typeof window !== 'undefined' ? window.innerWidth < 768 : false;
-    const xOffset = isMobile ? 55 : 120; // Fit perfectly on mobile screen width
+    const xOffset = isMobile ? 40 : 120; // Fit perfectly on mobile screen width without overflow
     const yOffset = isMobile ? 8 : 12;
     const rotation = isMobile ? 5 : 8;
 
@@ -383,7 +392,7 @@ export default function CardsPage() {
         rotate: rotation,
         zIndex: 20,
         filter: 'brightness(0.55)',
-        pointerEvents: 'none' as const
+        pointerEvents: 'auto' as const
       };
     } else {
       // Card fanned to the left
@@ -394,7 +403,7 @@ export default function CardsPage() {
         rotate: -rotation,
         zIndex: 10,
         filter: 'brightness(0.55)',
-        pointerEvents: 'none' as const
+        pointerEvents: 'auto' as const
       };
     }
   };
@@ -496,6 +505,7 @@ export default function CardsPage() {
               return (
                 <motion.div
                   key={card._id}
+                  style={{ touchAction: 'pan-y' }}
                   animate={getCardStyle(idx, cards.length)}
                   transition={{ type: 'spring', stiffness: 280, damping: 25 }}
                   drag="x"
@@ -513,7 +523,7 @@ export default function CardsPage() {
                     setSelectedCardId(card._id);
                     setExpandedTxId(null);
                   }}
-                  className={`absolute cursor-pointer rounded-2xl p-5 md:p-6 w-[270px] md:w-[325px] h-[175px] md:h-[200px] flex flex-col justify-between select-none shadow-2xl transition-shadow ${gradient} ${
+                  className={`absolute cursor-pointer rounded-2xl p-4 md:p-6 w-[245px] md:w-[325px] h-[160px] md:h-[200px] flex flex-col justify-between select-none shadow-2xl transition-shadow ${gradient} ${
                     isActive ? 'border-2 border-gold-400 shadow-[0_0_30px_rgba(212,175,55,0.18)]' : ''
                   }`}
                 >
