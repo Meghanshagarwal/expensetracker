@@ -721,7 +721,7 @@ export default function CardsPage() {
                     setExpandedTxId(null);
                   }}
                   className={`absolute cursor-pointer rounded-2xl p-5 md:p-6 w-[280px] md:w-[325px] h-[175px] md:h-[200px] flex flex-col justify-between select-none shadow-2xl transition-shadow overflow-hidden ${gradient} ${
-                    isActive ? 'border-2 border-gold-400 shadow-[0_0_36px_rgba(212,175,55,0.22)]' : ''
+                    isActive ? 'ring-2 ring-gold-400 ring-offset-0 shadow-[0_0_36px_rgba(212,175,55,0.22)]' : ''
                   }`}
                 >
                   {/* CRED-style glossy light sweep on the active card */}
