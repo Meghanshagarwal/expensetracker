@@ -118,7 +118,7 @@ export default function CardsPage() {
       const isUPI = exp.paymentMethod === 'UPI';
 
       return (isCC && exp.creditCardIssuer === cardName) ||
-             (isUPI && exp.upiLinkedAccount === `${cardName} Credit Card`);
+             (isUPI && (exp.upiLinkedAccount === `${cardName} Credit Card` || exp.upiLinkedAccount === cardName));
     });
   }, []);
 
@@ -368,9 +368,9 @@ export default function CardsPage() {
     if (diff < -1) diff += totalCards;
 
     // Handle standard mobile width responsive scaling
-    const xOffset = isMobile ? 40 : 120; // Fit perfectly on mobile screen width without overflow
-    const yOffset = isMobile ? 8 : 12;
-    const rotation = isMobile ? 5 : 8;
+    const xOffset = isMobile ? 22 : 120; // Fit perfectly on mobile screen width without overflow
+    const yOffset = isMobile ? 6 : 12;
+    const rotation = isMobile ? 4 : 8;
 
     if (diff === 0) {
       // Active card in front
@@ -523,7 +523,7 @@ export default function CardsPage() {
                     setSelectedCardId(card._id);
                     setExpandedTxId(null);
                   }}
-                  className={`absolute cursor-pointer rounded-2xl p-4 md:p-6 w-[245px] md:w-[325px] h-[160px] md:h-[200px] flex flex-col justify-between select-none shadow-2xl transition-shadow ${gradient} ${
+                  className={`absolute cursor-pointer rounded-2xl p-5 md:p-6 w-[280px] md:w-[325px] h-[175px] md:h-[200px] flex flex-col justify-between select-none shadow-2xl transition-shadow ${gradient} ${
                     isActive ? 'border-2 border-gold-400 shadow-[0_0_30px_rgba(212,175,55,0.18)]' : ''
                   }`}
                 >
