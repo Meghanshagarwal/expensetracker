@@ -90,14 +90,12 @@ export default function ExpenseModal({
     return sourceAccount === 'Salary Account' ? ['Cred UPI'] : ['GPay', 'Amazon Pay', 'Cred UPI'];
   }, [sourceAccount]);
 
-  // Credit Card dropdown = Visa / Mastercard cards
+  // Credit Card dropdown = all saved cards (RuPay/Visa/Mastercard are all credit cards)
   const creditCardOptions = useMemo(() => {
-    return cards
-      .filter(c => ['visa', 'mastercard'].includes((c.cardNetwork || '').toLowerCase()))
-      .map(c => c.name);
+    return cards.map(c => c.name);
   }, [cards]);
 
-  // UPI Linked Account dropdown = base bank account + RuPay cards
+  // UPI Linked Account dropdown = base bank account + RuPay cards (these can be UPI-linked)
   const linkedAccountOptions = useMemo(() => {
     const rupayCards = cards
       .filter(c => (c.cardNetwork || '').toLowerCase() === 'rupay')
