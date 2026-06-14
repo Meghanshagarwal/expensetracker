@@ -223,7 +223,7 @@ export default function ExpenseModal({
         vehicle: category === 'Petrol' ? vehicle : undefined,
         sourceAccount,
         upiApp: paymentMethod === 'UPI' ? upiApp : undefined,
-        upiLinkedAccount: (paymentMethod === 'UPI' && upiApp && transactionType !== 'borrowed') ? upiLinkedAccount : undefined,
+        upiLinkedAccount: (paymentMethod === 'UPI' && upiApp && transactionType !== 'borrowed' && sourceAccount !== 'Salary Account') ? upiLinkedAccount : undefined,
         creditCardIssuer: paymentMethod === 'Credit Card' ? creditCardIssuer : undefined,
       };
 
