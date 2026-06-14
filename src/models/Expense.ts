@@ -88,7 +88,6 @@ const ExpenseSchema = new Schema({
   },
   cardPaidFrom: {
     type: String,
-    enum: ["Salary Account", "Self Account"],
   },
   repayments: [
     {

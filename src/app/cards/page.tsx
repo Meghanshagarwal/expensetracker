@@ -4,38 +4,44 @@ import { useEffect, useState, useCallback, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   CreditCard, Calendar, CheckCircle2, XCircle, 
-  Loader2, ArrowUpRight, Search, Undo2, Filter
+  Loader2, ArrowUpRight, Search, Undo2, Filter, User
 } from 'lucide-react';
-import { getLocalExpenses, saveLocalExpenses, addToSyncQueue } from '@/lib/offlineDb';
+import { getLocalExpenses, getLocalPersons, saveLocalExpenses, addToSyncQueue } from '@/lib/offlineDb';
 import { useOfflineSync } from '@/hooks/useOfflineSync';
-import { Expense } from '@/types';
+import { Expense, Person } from '@/types';
 import Navbar from '@/components/Navbar';
 
 type CardType = 'ICICI' | 'OneCard' | 'Yes Bank';
 
 export default function CardsPage() {
   const [expenses, setExpenses] = useState<Expense[]>([]);
+  const [persons, setPersons] = useState<Person[]>([]);
   const [selectedCard, setSelectedCard] = useState<CardType>('OneCard');
   const [filterStatus, setFilterStatus] = useState<'unpaid' | 'paid' | 'all'>('unpaid');
   const [searchQuery, setSearchQuery] = useState('');
   const [expandedTxId, setExpandedTxId] = useState<string | null>(null);
 
   // Mark as Paid form inputs
-  const [paidFrom, setPaidFrom] = useState<'Salary Account' | 'Self Account'>('Salary Account');
+  const [paidFrom, setPaidFrom] = useState<string>('Salary Account');
   const [paidDate, setPaidDate] = useState(new Date().toISOString().split('T')[0]);
+  const [settlementNotes, setSettlementNotes] = useState('');
   const [submitLoading, setSubmitLoading] = useState(false);
 
   const { isOnline, fetchAndCacheData } = useOfflineSync();
 
   const loadData = useCallback(async () => {
     const localExp = await getLocalExpenses();
+    const localPer = await getLocalPersons();
     setExpenses(localExp);
+    setPersons(localPer);
 
     if (navigator.onLine) {
       try {
         await fetchAndCacheData();
         const updatedExp = await getLocalExpenses();
+        const updatedPer = await getLocalPersons();
         setExpenses(updatedExp);
+        setPersons(updatedPer);
       } catch (err) {
         console.error('Failed to sync and load card expenses:', err);
       }
@@ -45,6 +51,25 @@ export default function CardsPage() {
   useEffect(() => {
     loadData();
   }, [loadData]);
+
+  const getPersonName = useCallback((personId: string) => {
+    const p = persons.find(per => per._id === personId);
+    return p ? p.name : 'Self';
+  }, [persons]);
+
+  const isPersonSelf = useCallback((name: string) => {
+    const lowerName = name.toLowerCase();
+    return lowerName === 'self' || lowerName === 'my self' || lowerName === 'myself';
+  }, []);
+
+  // Reset inputs when selected transaction expands
+  useEffect(() => {
+    if (expandedTxId) {
+      setPaidFrom('Salary Account');
+      setPaidDate(new Date().toISOString().split('T')[0]);
+      setSettlementNotes('');
+    }
+  }, [expandedTxId]);
 
   // Card Transaction Matching Logic
   const getCardExpenses = useCallback((card: CardType, list: Expense[]) => {
@@ -122,11 +147,25 @@ export default function CardsPage() {
     if (submitLoading) return;
     setSubmitLoading(true);
 
+    const isPersonRepayment = paidFrom.includes('(Cash)') || paidFrom.includes('(UPI)');
+    let updatedRepayments = expense.repayments ? [...expense.repayments] : [];
+
+    if (isPersonRepayment) {
+      const paymentMethod = paidFrom.includes('(Cash)') ? 'Cash' : 'UPI';
+      updatedRepayments.push({
+        amount: expense.amount,
+        paymentMethod: paymentMethod,
+        date: new Date(paidDate).toISOString(),
+        notes: settlementNotes.trim() || `Settled credit card statement charge for "${expense.title}"`
+      });
+    }
+
     const updatedExpense: Expense = {
       ...expense,
       isCardPaid: true,
       cardPaidDate: new Date(paidDate).toISOString(),
-      cardPaidFrom: paidFrom
+      cardPaidFrom: paidFrom,
+      repayments: updatedRepayments
     };
 
     try {
@@ -147,7 +186,8 @@ export default function CardsPage() {
             id: expense._id,
             isCardPaid: true,
             cardPaidDate: new Date(paidDate).toISOString(),
-            cardPaidFrom: paidFrom
+            cardPaidFrom: paidFrom,
+            repayments: updatedRepayments
           })
         });
 
@@ -171,11 +211,21 @@ export default function CardsPage() {
   const handleMarkAsUnpaid = async (expense: Expense) => {
     if (!window.confirm('Are you sure you want to mark this transaction as UNPAID?')) return;
 
+    let updatedRepayments = expense.repayments ? [...expense.repayments] : [];
+    if (expense.cardPaidFrom && (expense.cardPaidFrom.includes('(Cash)') || expense.cardPaidFrom.includes('(UPI)'))) {
+      // Revert the matching repayment that was added during settlement
+      const repaymentIndex = updatedRepayments.findIndex(r => r.amount === expense.amount);
+      if (repaymentIndex !== -1) {
+        updatedRepayments.splice(repaymentIndex, 1);
+      }
+    }
+
     const updatedExpense: Expense = {
       ...expense,
       isCardPaid: false,
       cardPaidDate: undefined,
-      cardPaidFrom: undefined
+      cardPaidFrom: undefined,
+      repayments: updatedRepayments
     };
 
     try {
@@ -195,7 +245,8 @@ export default function CardsPage() {
             id: expense._id,
             isCardPaid: false,
             cardPaidDate: null,
-            cardPaidFrom: null
+            cardPaidFrom: null,
+            repayments: updatedRepayments
           })
         });
 
@@ -209,6 +260,40 @@ export default function CardsPage() {
       console.error(err);
       alert('Error updating transaction status');
     }
+  };
+
+  // Stack/Fan layout metrics based on currently selected card
+  const getCardStyle = (card: CardType) => {
+    const offset = 100; // Overlapping shift distance
+
+    if (selectedCard === card) {
+      return {
+        x: 0,
+        y: 0,
+        scale: 1,
+        rotate: 0,
+        zIndex: 30,
+        filter: 'brightness(1)',
+      };
+    }
+
+    let position: 'left' | 'right' = 'right';
+    if (selectedCard === 'OneCard') {
+      position = card === 'ICICI' ? 'right' : 'left';
+    } else if (selectedCard === 'ICICI') {
+      position = card === 'Yes Bank' ? 'right' : 'left';
+    } else if (selectedCard === 'Yes Bank') {
+      position = card === 'OneCard' ? 'right' : 'left';
+    }
+
+    return {
+      x: position === 'left' ? -offset : offset,
+      y: 12,
+      scale: 0.88,
+      rotate: position === 'left' ? -6 : 6,
+      zIndex: position === 'left' ? 10 : 20,
+      filter: 'brightness(0.55)',
+    };
   };
 
   const formatRupee = (num: number) => {
@@ -230,7 +315,7 @@ export default function CardsPage() {
 
       <main className="max-w-6xl mx-auto px-4 py-8 pb-32 md:pb-12">
         {/* Header Summary */}
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 mb-10">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 mb-6">
           <div>
             <h1 className="text-3xl font-extrabold tracking-tight text-white flex items-center gap-3">
               <CreditCard className="h-8 w-8 text-gold-400" />
@@ -251,24 +336,22 @@ export default function CardsPage() {
           </div>
         </div>
 
-        {/* 3 Premium Credit Cards Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-12">
+        {/* Overlapping CRED Card Carousel Stack */}
+        <div className="relative h-[250px] w-full max-w-[480px] mx-auto flex items-center justify-center mb-8 overflow-visible mt-4">
           {/* ONECARD */}
           <motion.div
-            whileHover={{ y: -6 }}
+            animate={getCardStyle('OneCard')}
+            transition={{ type: 'spring', stiffness: 280, damping: 25 }}
             onClick={() => {
               setSelectedCard('OneCard');
               setExpandedTxId(null);
             }}
-            className={`cursor-pointer relative overflow-hidden rounded-2xl p-6 h-[200px] flex flex-col justify-between transition-all duration-300 select-none ${
+            className={`absolute cursor-pointer rounded-2xl p-6 w-[290px] md:w-[320px] h-[185px] md:h-[195px] flex flex-col justify-between select-none shadow-2xl transition-shadow ${
               selectedCard === 'OneCard'
-                ? 'bg-gradient-to-br from-[#121212] via-[#222222] to-[#0A0A0A] border-2 border-gold-400 shadow-[0_0_25px_rgba(212,175,55,0.12)]'
-                : 'bg-gradient-to-br from-[#0D0D0D] to-[#141414] border border-white/[0.06] opacity-70 hover:opacity-95'
+                ? 'bg-gradient-to-br from-[#121212] via-[#222222] to-[#0A0A0A] border-2 border-gold-400 shadow-[0_0_30px_rgba(212,175,55,0.18)]'
+                : 'bg-gradient-to-br from-[#0D0D0D] to-[#141414] border border-white/[0.06]'
             }`}
           >
-            {/* Card BG Accent */}
-            <div className="absolute right-0 top-0 w-32 h-32 bg-gold-400/5 rounded-full blur-2xl -mr-8 -mt-8" />
-            
             <div className="flex justify-between items-start">
               <div>
                 <span className="text-xs font-semibold text-gold-400 tracking-widest uppercase">
@@ -303,19 +386,18 @@ export default function CardsPage() {
 
           {/* ICICI CARD */}
           <motion.div
-            whileHover={{ y: -6 }}
+            animate={getCardStyle('ICICI')}
+            transition={{ type: 'spring', stiffness: 280, damping: 25 }}
             onClick={() => {
               setSelectedCard('ICICI');
               setExpandedTxId(null);
             }}
-            className={`cursor-pointer relative overflow-hidden rounded-2xl p-6 h-[200px] flex flex-col justify-between transition-all duration-300 select-none ${
+            className={`absolute cursor-pointer rounded-2xl p-6 w-[290px] md:w-[320px] h-[185px] md:h-[195px] flex flex-col justify-between select-none shadow-2xl transition-shadow ${
               selectedCard === 'ICICI'
-                ? 'bg-gradient-to-br from-[#E75B3F] via-[#C93E23] to-[#7A1200] border-2 border-gold-400 shadow-[0_0_25px_rgba(212,175,55,0.12)]'
-                : 'bg-gradient-to-br from-[#3D1A15] to-[#25100D] border border-white/[0.06] opacity-70 hover:opacity-95'
+                ? 'bg-gradient-to-br from-[#E75B3F] via-[#C93E23] to-[#7A1200] border-2 border-gold-400 shadow-[0_0_30px_rgba(212,175,55,0.18)]'
+                : 'bg-gradient-to-br from-[#3D1A15] to-[#25100D] border border-white/[0.06]'
             }`}
           >
-            <div className="absolute right-0 top-0 w-32 h-32 bg-white/5 rounded-full blur-2xl -mr-8 -mt-8" />
-
             <div className="flex justify-between items-start">
               <div>
                 <span className="text-xs font-bold text-white tracking-wider">
@@ -350,19 +432,18 @@ export default function CardsPage() {
 
           {/* YES BANK */}
           <motion.div
-            whileHover={{ y: -6 }}
+            animate={getCardStyle('Yes Bank')}
+            transition={{ type: 'spring', stiffness: 280, damping: 25 }}
             onClick={() => {
               setSelectedCard('Yes Bank');
               setExpandedTxId(null);
             }}
-            className={`cursor-pointer relative overflow-hidden rounded-2xl p-6 h-[200px] flex flex-col justify-between transition-all duration-300 select-none ${
+            className={`absolute cursor-pointer rounded-2xl p-6 w-[290px] md:w-[320px] h-[185px] md:h-[195px] flex flex-col justify-between select-none shadow-2xl transition-shadow ${
               selectedCard === 'Yes Bank'
-                ? 'bg-gradient-to-br from-[#003C8F] via-[#002171] to-[#000A21] border-2 border-gold-400 shadow-[0_0_25px_rgba(212,175,55,0.12)]'
-                : 'bg-gradient-to-br from-[#0A122C] to-[#05091B] border border-white/[0.06] opacity-70 hover:opacity-95'
+                ? 'bg-gradient-to-br from-[#003C8F] via-[#002171] to-[#000A21] border-2 border-gold-400 shadow-[0_0_30px_rgba(212,175,55,0.18)]'
+                : 'bg-gradient-to-br from-[#0A122C] to-[#05091B] border border-white/[0.06]'
             }`}
           >
-            <div className="absolute right-0 top-0 w-32 h-32 bg-blue-400/5 rounded-full blur-2xl -mr-8 -mt-8" />
-
             <div className="flex justify-between items-start">
               <div>
                 <span className="text-xs font-extrabold text-[#90CAF9] tracking-wider">
@@ -397,7 +478,7 @@ export default function CardsPage() {
         </div>
 
         {/* Transactions Panel Section */}
-        <div className="bg-[#111111] border border-white/[0.06] rounded-2xl p-6 shadow-luxury">
+        <div className="bg-[#111111] border border-white/[0.06] rounded-2xl p-6 shadow-luxury mt-8">
           {/* Title & Toolbar */}
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-6 border-b border-white/[0.06] mb-6">
             <h2 className="text-lg font-semibold text-white flex items-center gap-2">
@@ -449,7 +530,9 @@ export default function CardsPage() {
             ) : (
               filteredTransactions.map(tx => {
                 const isExpanded = expandedTxId === tx._id;
-                
+                const personName = getPersonName(tx.personId);
+                const isSelf = isPersonSelf(personName);
+
                 return (
                   <div
                     key={tx._id}
@@ -476,6 +559,12 @@ export default function CardsPage() {
                           <span className="text-[10px] font-medium tracking-wide uppercase px-2 py-0.5 rounded-md bg-white/[0.04] text-[#8A8A8A]">
                             {tx.category}
                           </span>
+                          {!isSelf && (
+                            <span className="text-[10px] text-gold-400 bg-gold-400/10 border border-gold-400/20 px-2 py-0.5 rounded flex items-center gap-1 font-medium">
+                              <User className="h-3 w-3" />
+                              {personName}
+                            </span>
+                          )}
                           {tx.paymentMethod === 'UPI' && (
                             <span className="text-[9px] px-1.5 py-0.5 rounded bg-blue-500/10 text-blue-400 font-semibold border border-blue-500/20">
                               UPI ({tx.upiLinkedAccount})
@@ -505,7 +594,7 @@ export default function CardsPage() {
                             <div className="flex items-center gap-3">
                               <span className="text-[10px] text-green-400 bg-green-500/15 border border-green-500/30 px-2.5 py-1 rounded-lg flex items-center gap-1 font-semibold">
                                 <CheckCircle2 className="h-3 w-3" />
-                                PAID
+                                PAID ({tx.cardPaidFrom})
                               </span>
                               <button
                                 onClick={(e) => {
@@ -556,11 +645,17 @@ export default function CardsPage() {
                                 </label>
                                 <select
                                   value={paidFrom}
-                                  onChange={(e) => setPaidFrom(e.target.value as any)}
+                                  onChange={(e) => setPaidFrom(e.target.value)}
                                   className="w-full rounded-xl bg-[#111111] border border-white/[0.08] px-3.5 py-2 text-sm text-white focus:border-gold-400/40 focus:outline-none"
                                 >
                                   <option value="Salary Account">Salary Account</option>
                                   <option value="Self Account">Self Account</option>
+                                  {!isSelf && (
+                                    <>
+                                      <option value={`${personName} (Cash)`}>{personName} (Cash)</option>
+                                      <option value={`${personName} (UPI)`}>{personName} (UPI)</option>
+                                    </>
+                                  )}
                                 </select>
                               </div>
                               <div>
@@ -572,6 +667,19 @@ export default function CardsPage() {
                                   value={paidDate}
                                   onChange={(e) => setPaidDate(e.target.value)}
                                   className="w-full rounded-xl bg-[#111111] border border-white/[0.08] px-3.5 py-2 text-sm text-white focus:border-gold-400/40 focus:outline-none"
+                                />
+                              </div>
+
+                              <div className="sm:col-span-2">
+                                <label className="block text-xs text-[#8A8A8A] uppercase tracking-wider mb-1.5 font-medium">
+                                  Settlement Note (Optional)
+                                </label>
+                                <input
+                                  type="text"
+                                  placeholder="Add details, e.g. Paid card bill from salary account"
+                                  value={settlementNotes}
+                                  onChange={(e) => setSettlementNotes(e.target.value)}
+                                  className="w-full rounded-xl bg-[#111111] border border-white/[0.08] px-3.5 py-2.5 text-sm text-white placeholder:text-[#555555] focus:border-gold-400/40 focus:outline-none"
                                 />
                               </div>
                             </div>
