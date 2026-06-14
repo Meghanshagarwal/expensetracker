@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { LayoutDashboard, BarChart3, Users, LogOut } from 'lucide-react';
+import { LayoutDashboard, BarChart3, Users, LogOut, CreditCard } from 'lucide-react';
 import { motion } from 'framer-motion';
 
 export default function Navbar() {
@@ -26,6 +26,7 @@ export default function Navbar() {
   const navItems = [
     { name: 'Dashboard', path: '/', icon: LayoutDashboard },
     { name: 'Analytics', path: '/analytics', icon: BarChart3 },
+    { name: 'Cards', path: '/cards', icon: CreditCard },
     { name: 'People', path: '/people', icon: Users },
   ];
 

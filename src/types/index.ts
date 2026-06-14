@@ -33,6 +33,9 @@ export interface Expense {
   upiApp?: string;            // For UPI: 'GPay', 'Amazon Pay', 'Cred UPI'
   upiLinkedAccount?: string;  // For UPI Linked: 'ICICI Credit Card', 'Yes Bank'
   creditCardIssuer?: string;  // For Credit Card: 'ICICI', 'Yes Bank', 'OneCard'
+  isCardPaid?: boolean;
+  cardPaidDate?: string;
+  cardPaidFrom?: string;
 }
 
 export interface DashboardStats {

@@ -79,6 +79,17 @@ const ExpenseSchema = new Schema({
     type: String,
     enum: ["ICICI", "Yes Bank", "OneCard"],
   },
+  isCardPaid: {
+    type: Boolean,
+    default: false,
+  },
+  cardPaidDate: {
+    type: Date,
+  },
+  cardPaidFrom: {
+    type: String,
+    enum: ["Salary Account", "Self Account"],
+  },
   repayments: [
     {
       amount: { type: Number, required: true },
