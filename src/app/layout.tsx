@@ -1,22 +1,22 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { Inter } from 'next/font/google';
-import { Geist } from 'next/font/google';
+import { Space_Grotesk } from 'next/font/google';
+import { JetBrains_Mono } from 'next/font/google';
 import PinLogin from '@/components/PinLogin';
 import Navbar from '@/components/Navbar';
 import '@/app/globals.css';
 
-const inter = Inter({
+const spaceGrotesk = Space_Grotesk({
   subsets: ['latin'],
-  variable: '--font-inter',
-  weight: ['300', '400', '500', '700'],
+  variable: '--font-space',
+  weight: ['300', '400', '500', '600', '700'],
 });
 
-const geist = Geist({
+const jetBrainsMono = JetBrains_Mono({
   subsets: ['latin'],
-  variable: '--font-geist',
-  weight: ['300', '400', '500', '700'],
+  variable: '--font-mono',
+  weight: ['400', '500', '600', '700'],
 });
 
 export default function RootLayout({
@@ -75,7 +75,7 @@ export default function RootLayout({
   }, []);
 
   return (
-    <html lang="en" className={`${inter.variable} ${geist.variable} dark`}>
+    <html lang="en" className={`${spaceGrotesk.variable} ${jetBrainsMono.variable} dark`}>
       <head>
         <title>FinTrack — Premium Expense Manager</title>
         <meta name="description" content="Ultra-premium personal finance tracker with offline support." />

@@ -73,7 +73,8 @@ const config: Config = {
         "4xl": "2rem",
       },
       fontFamily: {
-        sans: ["var(--font-geist)", "var(--font-inter)", "Inter", "SF Pro Display", "-apple-system", "system-ui", "sans-serif"],
+        sans: ["var(--font-space)", "SF Pro Display", "-apple-system", "system-ui", "sans-serif"],
+        mono: ["var(--font-mono)", "ui-monospace", "SFMono-Regular", "Menlo", "monospace"],
       },
       boxShadow: {
         "luxury": "0 4px 24px rgba(0, 0, 0, 0.5), 0 1px 0 rgba(255, 255, 255, 0.03) inset",

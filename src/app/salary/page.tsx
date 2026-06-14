@@ -9,7 +9,6 @@ import {
 import { getLocalExpenses, getLocalPersons } from '@/lib/offlineDb';
 import { useOfflineSync } from '@/hooks/useOfflineSync';
 import { Expense, Person } from '@/types';
-import Navbar from '@/components/Navbar';
 
 interface SalaryTransaction {
   id: string;
@@ -162,11 +161,8 @@ export default function SalaryAccountPage() {
   };
 
   return (
-    <div className="min-h-screen bg-black text-white selection:bg-gold-400 selection:text-black">
-      <Navbar />
-
-      <main className="max-w-6xl mx-auto px-4 py-8 pb-32 md:pb-12">
-        {/* Header Summary */}
+    <div>
+      {/* Header Summary */}
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 mb-10">
           <div>
             <h1 className="text-3xl font-extrabold tracking-tight text-white flex items-center gap-3">
@@ -300,7 +296,6 @@ export default function SalaryAccountPage() {
             )}
           </div>
         </div>
-      </main>
     </div>
   );
 }

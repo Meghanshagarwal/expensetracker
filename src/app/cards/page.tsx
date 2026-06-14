@@ -9,7 +9,6 @@ import {
 import { getLocalExpenses, getLocalPersons, getLocalCards, saveLocalExpenses, saveLocalCards, addToSyncQueue } from '@/lib/offlineDb';
 import { useOfflineSync } from '@/hooks/useOfflineSync';
 import { Expense, Person, Card } from '@/types';
-import Navbar from '@/components/Navbar';
 
 type CardType = 'ICICI' | 'OneCard' | 'Yes Bank';
 
@@ -423,10 +422,8 @@ export default function CardsPage() {
   };
 
   return (
-    <div className="min-h-screen bg-black text-white selection:bg-gold-400 selection:text-black">
-      <Navbar />
-
-      <main className="max-w-6xl mx-auto px-4 py-8 pb-32 md:pb-12 overflow-x-hidden">
+    <>
+      <div className="overflow-x-hidden">
         {/* Header Summary */}
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 mb-6">
           <div className="flex justify-between items-start gap-3 w-full md:w-auto">
@@ -457,7 +454,7 @@ export default function CardsPage() {
               <span className="text-[10px] uppercase tracking-wider text-[#8A8A8A] font-medium block mb-1">
                 Total Outstanding Balance
               </span>
-              <span className="text-3xl font-extrabold text-gold-400 tracking-tight">
+              <span className="text-3xl font-extrabold font-mono tabular-nums text-gold-400 tracking-tight">
                 {formatRupee(totalOutstandingAllCards)}
               </span>
             </div>
@@ -476,7 +473,7 @@ export default function CardsPage() {
         </div>
 
         {/* Overlapping CRED Card Carousel Stack */}
-        <div className="relative h-[210px] md:h-[240px] w-full max-w-[480px] mx-auto flex items-center justify-center mb-8 overflow-visible mt-2">
+        <div className="relative h-[185px] md:h-[210px] w-full max-w-[480px] mx-auto flex items-center justify-center mb-6 overflow-visible">
           {cards.length === 0 ? (
             <div className="text-[#555555] text-xs py-8">Loading credit cards...</div>
           ) : (
@@ -508,15 +505,18 @@ export default function CardsPage() {
                   key={card._id}
                   style={{ touchAction: 'pan-y' }}
                   animate={getCardStyle(idx, cards.length)}
-                  transition={{ type: 'spring', stiffness: 280, damping: 25 }}
+                  transition={{ type: 'spring', stiffness: 320, damping: 30, mass: 0.9 }}
                   drag="x"
                   dragConstraints={{ left: 0, right: 0 }}
-                  dragElastic={0.4}
+                  dragElastic={0.5}
+                  whileDrag={{ scale: isActive ? 1.03 : 0.88, cursor: 'grabbing' }}
+                  whileTap={{ scale: isActive ? 0.98 : 0.84 }}
                   onDragEnd={(event, info) => {
-                    const threshold = 50;
-                    if (info.offset.x < -threshold) {
+                    const threshold = 45;
+                    const velocity = info.velocity.x;
+                    if (info.offset.x < -threshold || velocity < -350) {
                       handleNextCard();
-                    } else if (info.offset.x > threshold) {
+                    } else if (info.offset.x > threshold || velocity > 350) {
                       handlePrevCard();
                     }
                   }}
@@ -524,11 +524,18 @@ export default function CardsPage() {
                     setSelectedCardId(card._id);
                     setExpandedTxId(null);
                   }}
-                  className={`absolute cursor-pointer rounded-2xl p-5 md:p-6 w-[280px] md:w-[325px] h-[175px] md:h-[200px] flex flex-col justify-between select-none shadow-2xl transition-shadow ${gradient} ${
-                    isActive ? 'border-2 border-gold-400 shadow-[0_0_30px_rgba(212,175,55,0.18)]' : ''
+                  className={`absolute cursor-pointer rounded-2xl p-5 md:p-6 w-[280px] md:w-[325px] h-[175px] md:h-[200px] flex flex-col justify-between select-none shadow-2xl transition-shadow overflow-hidden ${gradient} ${
+                    isActive ? 'border-2 border-gold-400 shadow-[0_0_36px_rgba(212,175,55,0.22)]' : ''
                   }`}
                 >
-                  <div className="flex justify-between items-start">
+                  {/* CRED-style glossy light sweep on the active card */}
+                  {isActive && (
+                    <div className="card-sheen pointer-events-none absolute inset-0 z-20">
+                      <span className="card-sheen-beam" />
+                    </div>
+                  )}
+
+                  <div className="relative z-10 flex justify-between items-start">
                     <div>
                       <span className={`text-xs font-semibold tracking-widest uppercase ${textAccent}`}>
                         {card.name}
@@ -550,12 +557,12 @@ export default function CardsPage() {
                     <span className="text-[9px] text-[#8A8A8A] uppercase tracking-wider block">
                       Outstanding Balance
                     </span>
-                    <span className="text-xl md:text-2xl font-bold tracking-tight text-white mt-0.5 block">
+                    <span className="text-xl md:text-2xl font-bold font-mono tabular-nums tracking-tight text-white mt-0.5 block">
                       {formatRupee(cardMetrics[card.name]?.outstanding || 0)}
                     </span>
                   </div>
 
-                  <div className="flex justify-between items-end text-[9px] text-[#555555]">
+                  <div className="relative z-10 flex justify-between items-end text-[9px] text-[#555555] font-mono tabular-nums tracking-wider">
                     <span>{cardNum}</span>
                     <span className="text-[#8A8A8A]">Total: {formatRupee(cardMetrics[card.name]?.spent || 0)}</span>
                   </div>
@@ -673,7 +680,7 @@ export default function CardsPage() {
                       </div>
 
                       <div className="flex items-center gap-3 sm:gap-4 w-full sm:w-auto justify-between sm:justify-end min-w-0">
-                        <span className={`text-lg font-bold shrink-0 ${tx.isCardPaid ? 'text-[#8A8A8A] line-through' : 'text-white'}`}>
+                        <span className={`text-lg font-bold font-mono tabular-nums shrink-0 ${tx.isCardPaid ? 'text-[#8A8A8A] line-through' : 'text-white'}`}>
                           ₹{tx.amount.toLocaleString('en-IN')}
                         </span>
 
@@ -800,7 +807,7 @@ export default function CardsPage() {
             )}
           </div>
         </div>
-      </main>
+      </div>
 
       {/* Add Card Modal */}
       <AnimatePresence>
@@ -916,6 +923,6 @@ export default function CardsPage() {
           </div>
         )}
       </AnimatePresence>
-    </div>
+    </>
   );
 }

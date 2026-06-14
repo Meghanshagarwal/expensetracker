@@ -125,3 +125,42 @@ input:focus, select:focus, textarea:focus {
   border-color: rgba(245, 196, 81, 0.4) !important;
   box-shadow: 0 0 0 1px rgba(245, 196, 81, 0.1);
 }
+
+/* CRED-style glossy light sweep across the active card */
+.card-sheen {
+  overflow: hidden;
+  border-radius: 1rem;
+}
+.card-sheen-beam {
+  position: absolute;
+  top: -25%;
+  left: 0;
+  height: 150%;
+  width: 55%;
+  background: linear-gradient(
+    105deg,
+    transparent 20%,
+    rgba(255, 255, 255, 0.08) 42%,
+    rgba(255, 255, 255, 0.22) 50%,
+    rgba(255, 255, 255, 0.08) 58%,
+    transparent 80%
+  );
+  transform: translateX(-180%) skewX(-14deg);
+  animation: card-sheen-sweep 4.5s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+  will-change: transform;
+}
+@keyframes card-sheen-sweep {
+  0% {
+    transform: translateX(-180%) skewX(-14deg);
+  }
+  45%,
+  100% {
+    transform: translateX(360%) skewX(-14deg);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .card-sheen-beam {
+    animation: none;
+    opacity: 0;
+  }
+}
