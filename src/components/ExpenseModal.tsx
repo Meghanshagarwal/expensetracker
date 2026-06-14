@@ -3,7 +3,8 @@
 import { useState, useEffect, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, Loader2, CreditCard } from 'lucide-react';
-import { Expense, Person } from '@/types';
+import { Expense, Person, Card } from '@/types';
+import { getLocalCards, saveLocalCards } from '@/lib/offlineDb';
 
 interface ExpenseModalProps {
   isOpen: boolean;
@@ -45,6 +46,37 @@ export default function ExpenseModal({
   const [upiApp, setUpiApp] = useState('GPay');
   const [upiLinkedAccount, setUpiLinkedAccount] = useState('Yes Bank');
   const [creditCardIssuer, setCreditCardIssuer] = useState('ICICI');
+  
+  const [cards, setCards] = useState<Card[]>([]);
+
+  useEffect(() => {
+    const loadCards = async () => {
+      const localCards = await getLocalCards();
+      setCards(localCards);
+      
+      if (navigator.onLine) {
+        try {
+          const res = await fetch('/api/cards');
+          if (res.ok) {
+            const serverCards = await res.json();
+            setCards(serverCards);
+            await saveLocalCards(serverCards);
+          }
+        } catch (e) {
+          console.error('Failed to fetch cards in modal:', e);
+        }
+      }
+    };
+    if (isOpen) {
+      loadCards();
+    }
+  }, [isOpen]);
+
+  useEffect(() => {
+    if (cards.length > 0 && !expenseToEdit) {
+      setCreditCardIssuer(cards[0].name);
+    }
+  }, [cards, expenseToEdit]);
   
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -513,7 +545,11 @@ export default function ExpenseModal({
                           className={inputClass}
                         >
                           <option value="Yes Bank">Yes Bank</option>
-                          <option value="ICICI Credit Card">ICICI Credit Card</option>
+                          {cards.filter(c => c.cardNetwork === 'Rupay').map(c => (
+                            <option key={c._id} value={`${c.name} Credit Card`}>
+                              {c.name} Credit Card
+                            </option>
+                          ))}
                         </select>
                       </div>
                     )}
@@ -537,9 +573,9 @@ export default function ExpenseModal({
                     onChange={(e) => setCreditCardIssuer(e.target.value)}
                     className={inputClass}
                   >
-                    <option value="ICICI">ICICI</option>
-                    <option value="Yes Bank">Yes Bank</option>
-                    <option value="OneCard">OneCard</option>
+                    {cards.map(c => (
+                      <option key={c._id} value={c.name}>{c.name}</option>
+                    ))}
                   </select>
                 </motion.div>
               )}

@@ -1,7 +1,7 @@
 import { openDB, IDBPDatabase } from 'idb';
 
 const DB_NAME = 'expense-tracker-db';
-const DB_VERSION = 1;
+const DB_VERSION = 2;
 
 let dbPromise: Promise<IDBPDatabase> | null = null;
 
@@ -18,7 +18,11 @@ function getDB() {
         if (!db.objectStoreNames.contains('persons')) {
           db.createObjectStore('persons', { keyPath: '_id' });
         }
-        // Queue for offline mutations (expenses or persons to be created/updated)
+        // Cache for synced cards
+        if (!db.objectStoreNames.contains('cards')) {
+          db.createObjectStore('cards', { keyPath: '_id' });
+        }
+        // Queue for offline mutations (expenses, persons, or cards to be created/updated)
         if (!db.objectStoreNames.contains('sync-queue')) {
           db.createObjectStore('sync-queue', { keyPath: 'tempId' });
         }
@@ -68,7 +72,7 @@ export async function getSyncQueue() {
   return db.getAll('sync-queue');
 }
 
-export async function addToSyncQueue(type: 'expense' | 'person', action: 'create' | 'update' | 'delete', data: any) {
+export async function addToSyncQueue(type: 'expense' | 'person' | 'card', action: 'create' | 'update' | 'delete', data: any) {
   const db = await getDB();
   if (!db) return;
   const tempId = data._id || `temp_${Date.now()}_${Math.random().toString(36).substring(2, 11)}`;
@@ -94,5 +98,22 @@ export async function clearSyncQueue() {
   if (!db) return;
   const tx = db.transaction('sync-queue', 'readwrite');
   await tx.objectStore('sync-queue').clear();
+  await tx.done;
+}
+
+export async function getLocalCards() {
+  const db = await getDB();
+  if (!db) return [];
+  return db.getAll('cards');
+}
+
+export async function saveLocalCards(cards: any[]) {
+  const db = await getDB();
+  if (!db) return;
+  const tx = db.transaction('cards', 'readwrite');
+  await tx.objectStore('cards').clear();
+  for (const c of cards) {
+    await tx.objectStore('cards').put(c);
+  }
   await tx.done;
 }

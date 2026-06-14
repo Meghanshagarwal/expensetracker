@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import dbConnect, { isMockMode, getMockData, saveMockData } from '@/lib/mongodb';
 import Person from '@/models/Person';
 import Expense from '@/models/Expense';
+import Card from '@/models/Card';
 
 export async function POST(request: Request) {
   try {
@@ -34,6 +35,26 @@ export async function POST(request: Request) {
             const idx = data.persons.findIndex((p: any) => p._id === id);
             if (idx !== -1) {
               data.persons[idx].name = pData.name.trim();
+            }
+          }
+        }
+      }
+
+      for (const item of items) {
+        if (item.type === 'card') {
+          const { action, data: cData } = item;
+          if (action === 'create') {
+            const exists = data.cards?.find((c: any) => c.name === cData.name);
+            if (!exists) {
+              if (!data.cards) data.cards = [];
+              data.cards.push({
+                _id: cData._id || `mock_card_${Date.now()}`,
+                name: cData.name,
+                cardNetwork: cData.cardNetwork,
+                last4: cData.last4,
+                colorTheme: cData.colorTheme || 'charcoal',
+                createdAt: new Date().toISOString()
+              });
             }
           }
         }
@@ -108,6 +129,23 @@ export async function POST(request: Request) {
           const id = pData._id.startsWith('temp_') ? personIdMap.get(pData._id) : pData._id;
           if (id) {
             await Person.findByIdAndUpdate(id, { name: pData.name });
+          }
+        }
+      }
+    }
+
+    for (const item of items) {
+      if (item.type === 'card') {
+        const { action, data: cData } = item;
+        if (action === 'create') {
+          let existingCard = await Card.findOne({ name: cData.name });
+          if (!existingCard) {
+            await Card.create({
+              name: cData.name,
+              cardNetwork: cData.cardNetwork,
+              last4: cData.last4,
+              colorTheme: cData.colorTheme || 'charcoal'
+            });
           }
         }
       }

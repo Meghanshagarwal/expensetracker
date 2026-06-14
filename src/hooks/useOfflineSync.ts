@@ -2,13 +2,15 @@ import { useEffect, useState, useCallback, useRef } from 'react';
 import {
   getLocalExpenses,
   getLocalPersons,
+  getLocalCards,
   saveLocalExpenses,
   saveLocalPersons,
+  saveLocalCards,
   getSyncQueue,
   removeFromSyncQueue,
   addToSyncQueue
 } from '@/lib/offlineDb';
-import { Expense, Person } from '@/types';
+import { Expense, Person, Card } from '@/types';
 
 export function useOfflineSync() {
   const [isOnline, setIsOnline] = useState(typeof navigator !== 'undefined' ? navigator.onLine : true);
@@ -21,17 +23,20 @@ export function useOfflineSync() {
   const fetchAndCacheData = useCallback(async () => {
     if (navigator.onLine) {
       try {
-        const [expRes, perRes] = await Promise.all([
+        const [expRes, perRes, cardRes] = await Promise.all([
           fetch('/api/expenses'),
           fetch('/api/persons'),
+          fetch('/api/cards'),
         ]);
 
-        if (expRes.ok && perRes.ok) {
+        if (expRes.ok && perRes.ok && cardRes.ok) {
           const expensesData = await expRes.json();
           const personsData = await perRes.json();
+          const cardsData = await cardRes.json();
 
           await saveLocalExpenses(expensesData.expenses || expensesData);
           await saveLocalPersons(personsData.persons || personsData);
+          await saveLocalCards(cardsData);
         }
       } catch (err) {
         console.error('Failed to update local cache from server:', err);
@@ -138,6 +143,26 @@ export function useOfflineSync() {
     return newPerson;
   };
 
+  // Offline wrapper for adding card
+  const addCardOffline = async (cardData: Omit<Card, '_id' | 'createdAt'>) => {
+    const tempId = `temp_card_${Date.now()}`;
+    const newCard: Card = {
+      ...cardData,
+      _id: tempId,
+      createdAt: new Date().toISOString(),
+      isPendingSync: true,
+    };
+
+    const current = await getLocalCards();
+    await saveLocalCards([...current, newCard]);
+    await addToSyncQueue('card', 'create', newCard);
+
+    if (navigator.onLine) {
+      triggerSync();
+    }
+    return newCard;
+  };
+
   return {
     isOnline,
     isSyncing,
@@ -146,5 +171,6 @@ export function useOfflineSync() {
     fetchAndCacheData,
     addExpenseOffline,
     addPersonOffline,
+    addCardOffline,
   };
 }

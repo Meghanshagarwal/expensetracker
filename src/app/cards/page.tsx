@@ -4,11 +4,11 @@ import { useEffect, useState, useCallback, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   CreditCard, Calendar, CheckCircle2, XCircle, 
-  Loader2, ArrowUpRight, Search, Undo2, Filter, User
+  Loader2, ArrowUpRight, Search, Undo2, Filter, User, Plus
 } from 'lucide-react';
-import { getLocalExpenses, getLocalPersons, saveLocalExpenses, addToSyncQueue } from '@/lib/offlineDb';
+import { getLocalExpenses, getLocalPersons, getLocalCards, saveLocalExpenses, saveLocalCards, addToSyncQueue } from '@/lib/offlineDb';
 import { useOfflineSync } from '@/hooks/useOfflineSync';
-import { Expense, Person } from '@/types';
+import { Expense, Person, Card } from '@/types';
 import Navbar from '@/components/Navbar';
 
 type CardType = 'ICICI' | 'OneCard' | 'Yes Bank';
@@ -16,7 +16,8 @@ type CardType = 'ICICI' | 'OneCard' | 'Yes Bank';
 export default function CardsPage() {
   const [expenses, setExpenses] = useState<Expense[]>([]);
   const [persons, setPersons] = useState<Person[]>([]);
-  const [selectedCard, setSelectedCard] = useState<CardType>('OneCard');
+  const [cards, setCards] = useState<Card[]>([]);
+  const [selectedCardId, setSelectedCardId] = useState<string>('');
   const [filterStatus, setFilterStatus] = useState<'unpaid' | 'paid' | 'all'>('unpaid');
   const [searchQuery, setSearchQuery] = useState('');
   const [expandedTxId, setExpandedTxId] = useState<string | null>(null);
@@ -27,21 +28,34 @@ export default function CardsPage() {
   const [settlementNotes, setSettlementNotes] = useState('');
   const [submitLoading, setSubmitLoading] = useState(false);
 
-  const { isOnline, fetchAndCacheData } = useOfflineSync();
+  // Add Card form inputs
+  const [isAddCardModalOpen, setIsAddCardModalOpen] = useState(false);
+  const [newCardName, setNewCardName] = useState('');
+  const [newCardNetwork, setNewCardNetwork] = useState<'Rupay' | 'Visa' | 'Mastercard'>('Visa');
+  const [newCardLast4, setNewCardLast4] = useState('');
+  const [newCardColorTheme, setNewCardColorTheme] = useState('charcoal');
+  const [cardLoading, setCardLoading] = useState(false);
+  const [cardError, setCardError] = useState<string | null>(null);
+
+  const { isOnline, fetchAndCacheData, addCardOffline } = useOfflineSync();
 
   const loadData = useCallback(async () => {
     const localExp = await getLocalExpenses();
     const localPer = await getLocalPersons();
+    const localCards = await getLocalCards();
     setExpenses(localExp);
     setPersons(localPer);
+    setCards(localCards);
 
     if (navigator.onLine) {
       try {
         await fetchAndCacheData();
         const updatedExp = await getLocalExpenses();
         const updatedPer = await getLocalPersons();
+        const updatedCards = await getLocalCards();
         setExpenses(updatedExp);
         setPersons(updatedPer);
+        setCards(updatedCards);
       } catch (err) {
         console.error('Failed to sync and load card expenses:', err);
       }
@@ -51,6 +65,13 @@ export default function CardsPage() {
   useEffect(() => {
     loadData();
   }, [loadData]);
+
+  // Set default selected card once cards load
+  useEffect(() => {
+    if (cards.length > 0 && !selectedCardId) {
+      setSelectedCardId(cards[0]._id);
+    }
+  }, [cards, selectedCardId]);
 
   const getPersonName = useCallback((personId: string) => {
     const p = persons.find(per => per._id === personId);
@@ -71,58 +92,54 @@ export default function CardsPage() {
     }
   }, [expandedTxId]);
 
+  // Currently selected card object
+  const selectedCardObj = useMemo(() => {
+    return cards.find(c => c._id === selectedCardId) || cards[0];
+  }, [cards, selectedCardId]);
+
+  const selectedCardName = useMemo(() => {
+    return selectedCardObj?.name || 'OneCard';
+  }, [selectedCardObj]);
+
   // Card Transaction Matching Logic
-  const getCardExpenses = useCallback((card: CardType, list: Expense[]) => {
+  const getCardExpenses = useCallback((cardName: string, list: Expense[]) => {
     return list.filter(exp => {
       const isCC = exp.paymentMethod === 'Credit Card';
       const isUPI = exp.paymentMethod === 'UPI';
 
-      if (card === 'ICICI') {
-        return (isCC && exp.creditCardIssuer === 'ICICI') ||
-               (isUPI && exp.upiLinkedAccount === 'ICICI Credit Card');
-      }
-      if (card === 'OneCard') {
-        return (isCC && exp.creditCardIssuer === 'OneCard');
-      }
-      if (card === 'Yes Bank') {
-        return (isCC && exp.creditCardIssuer === 'Yes Bank');
-      }
-      return false;
+      return (isCC && exp.creditCardIssuer === cardName) ||
+             (isUPI && exp.upiLinkedAccount === `${cardName} Credit Card`);
     });
   }, []);
 
   // Compute Metrics for each card
   const cardMetrics = useMemo(() => {
-    const metrics = {
-      OneCard: { spent: 0, outstanding: 0, paid: 0 },
-      ICICI: { spent: 0, outstanding: 0, paid: 0 },
-      'Yes Bank': { spent: 0, outstanding: 0, paid: 0 }
-    };
+    const metrics: Record<string, { spent: number; outstanding: number; paid: number }> = {};
 
-    const cards: CardType[] = ['OneCard', 'ICICI', 'Yes Bank'];
     cards.forEach(card => {
-      const txs = getCardExpenses(card, expenses);
+      metrics[card.name] = { spent: 0, outstanding: 0, paid: 0 };
+      const txs = getCardExpenses(card.name, expenses);
       txs.forEach(t => {
-        metrics[card].spent += t.amount;
+        metrics[card.name].spent += t.amount;
         if (t.isCardPaid) {
-          metrics[card].paid += t.amount;
+          metrics[card.name].paid += t.amount;
         } else {
-          metrics[card].outstanding += t.amount;
+          metrics[card.name].outstanding += t.amount;
         }
       });
     });
 
     return metrics;
-  }, [expenses, getCardExpenses]);
+  }, [expenses, cards, getCardExpenses]);
 
   // Total Outstanding across all cards
   const totalOutstandingAllCards = useMemo(() => {
-    return cardMetrics.OneCard.outstanding + cardMetrics.ICICI.outstanding + cardMetrics['Yes Bank'].outstanding;
+    return Object.values(cardMetrics).reduce((sum, c) => sum + c.outstanding, 0);
   }, [cardMetrics]);
 
   // Filtered transactions for the currently selected card
   const filteredTransactions = useMemo(() => {
-    const cardTxs = getCardExpenses(selectedCard, expenses);
+    const cardTxs = getCardExpenses(selectedCardName, expenses);
     
     return cardTxs.filter(tx => {
       // Apply status filter
@@ -140,7 +157,7 @@ export default function CardsPage() {
 
       return true;
     });
-  }, [selectedCard, expenses, filterStatus, searchQuery, getCardExpenses]);
+  }, [selectedCardName, expenses, filterStatus, searchQuery, getCardExpenses]);
 
   // Mark as Paid handler
   const handleMarkAsPaid = async (expense: Expense) => {
@@ -213,7 +230,6 @@ export default function CardsPage() {
 
     let updatedRepayments = expense.repayments ? [...expense.repayments] : [];
     if (expense.cardPaidFrom && (expense.cardPaidFrom.includes('(Cash)') || expense.cardPaidFrom.includes('(UPI)'))) {
-      // Revert the matching repayment that was added during settlement
       const repaymentIndex = updatedRepayments.findIndex(r => r.amount === expense.amount);
       if (repaymentIndex !== -1) {
         updatedRepayments.splice(repaymentIndex, 1);
@@ -262,11 +278,93 @@ export default function CardsPage() {
     }
   };
 
-  // Stack/Fan layout metrics based on currently selected card
-  const getCardStyle = (card: CardType) => {
-    const offset = 100; // Overlapping shift distance
+  // Add custom card submission handler
+  const handleAddCardSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newCardName.trim() || !newCardLast4.trim() || newCardLast4.length !== 4) return;
 
-    if (selectedCard === card) {
+    setCardLoading(true);
+    setCardError(null);
+
+    const payload = {
+      name: newCardName.trim(),
+      cardNetwork: newCardNetwork,
+      last4: newCardLast4.trim(),
+      colorTheme: newCardColorTheme
+    };
+
+    try {
+      if (!navigator.onLine) {
+        const newCard = await addCardOffline(payload);
+        setCards(prev => [...prev, newCard]);
+        setSelectedCardId(newCard._id);
+        setIsAddCardModalOpen(false);
+        setNewCardName('');
+        setNewCardLast4('');
+      } else {
+        const res = await fetch('/api/cards', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+
+        if (res.ok) {
+          const newCard = await res.json();
+          // Reload cards database cache
+          const updatedCards = await getLocalCards();
+          setCards(updatedCards);
+          setSelectedCardId(newCard._id);
+          setIsAddCardModalOpen(false);
+          setNewCardName('');
+          setNewCardLast4('');
+        } else {
+          const data = await res.json();
+          setCardError(data.error || 'Failed to add card');
+        }
+      }
+    } catch (err) {
+      console.error(err);
+      setCardError('Error connecting to server');
+    } finally {
+      setCardLoading(false);
+    }
+  };
+
+  // Carousel Swipe Actions
+  const handleNextCard = () => {
+    if (cards.length <= 1) return;
+    const currentIndex = cards.findIndex(c => c._id === selectedCardId);
+    const nextIndex = (currentIndex + 1) % cards.length;
+    setSelectedCardId(cards[nextIndex]._id);
+    setExpandedTxId(null);
+  };
+
+  const handlePrevCard = () => {
+    if (cards.length <= 1) return;
+    const currentIndex = cards.findIndex(c => c._id === selectedCardId);
+    const prevIndex = (currentIndex - 1 + cards.length) % cards.length;
+    setSelectedCardId(cards[prevIndex]._id);
+    setExpandedTxId(null);
+  };
+
+  // Stack/Fan layout metrics based on currently selected card
+  const getCardStyle = (cardIndex: number, totalCards: number) => {
+    const activeIndex = cards.findIndex(c => c._id === selectedCardId);
+    if (activeIndex === -1) return {};
+
+    // Calculate relative index diff
+    let diff = cardIndex - activeIndex;
+    if (diff > 1) diff -= totalCards;
+    if (diff < -1) diff += totalCards;
+
+    // Handle standard mobile width responsive scaling
+    const isMobile = typeof window !== 'undefined' ? window.innerWidth < 768 : false;
+    const xOffset = isMobile ? 55 : 120; // Fit perfectly on mobile screen width
+    const yOffset = isMobile ? 8 : 12;
+    const rotation = isMobile ? 5 : 8;
+
+    if (diff === 0) {
+      // Active card in front
       return {
         x: 0,
         y: 0,
@@ -274,26 +372,31 @@ export default function CardsPage() {
         rotate: 0,
         zIndex: 30,
         filter: 'brightness(1)',
+        pointerEvents: 'auto' as const
+      };
+    } else if (diff === 1 || (diff < -1 && totalCards === 2)) {
+      // Card fanned to the right
+      return {
+        x: xOffset,
+        y: yOffset,
+        scale: 0.85,
+        rotate: rotation,
+        zIndex: 20,
+        filter: 'brightness(0.55)',
+        pointerEvents: 'none' as const
+      };
+    } else {
+      // Card fanned to the left
+      return {
+        x: -xOffset,
+        y: yOffset,
+        scale: 0.85,
+        rotate: -rotation,
+        zIndex: 10,
+        filter: 'brightness(0.55)',
+        pointerEvents: 'none' as const
       };
     }
-
-    let position: 'left' | 'right' = 'right';
-    if (selectedCard === 'OneCard') {
-      position = card === 'ICICI' ? 'right' : 'left';
-    } else if (selectedCard === 'ICICI') {
-      position = card === 'Yes Bank' ? 'right' : 'left';
-    } else if (selectedCard === 'Yes Bank') {
-      position = card === 'OneCard' ? 'right' : 'left';
-    }
-
-    return {
-      x: position === 'left' ? -offset : offset,
-      y: 12,
-      scale: 0.88,
-      rotate: position === 'left' ? -6 : 6,
-      zIndex: position === 'left' ? 10 : 20,
-      filter: 'brightness(0.55)',
-    };
   };
 
   const formatRupee = (num: number) => {
@@ -313,168 +416,142 @@ export default function CardsPage() {
     <div className="min-h-screen bg-black text-white selection:bg-gold-400 selection:text-black">
       <Navbar />
 
-      <main className="max-w-6xl mx-auto px-4 py-8 pb-32 md:pb-12">
+      <main className="max-w-6xl mx-auto px-4 py-8 pb-32 md:pb-12 overflow-x-hidden">
         {/* Header Summary */}
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 mb-6">
-          <div>
-            <h1 className="text-3xl font-extrabold tracking-tight text-white flex items-center gap-3">
-              <CreditCard className="h-8 w-8 text-gold-400" />
-              Cards Ledger
-            </h1>
-            <p className="text-sm text-[#8A8A8A] mt-1">
-              Track outstanding balances and mark credit card statements as paid.
-            </p>
+          <div className="flex justify-between items-start w-full md:w-auto">
+            <div>
+              <h1 className="text-3xl font-extrabold tracking-tight text-white flex items-center gap-3">
+                <CreditCard className="h-8 w-8 text-gold-400" />
+                Cards Ledger
+              </h1>
+              <p className="text-xs text-[#8A8A8A] mt-1">
+                Track outstanding balances and mark credit card statements as paid.
+              </p>
+            </div>
+            
+            <button
+              onClick={() => {
+                setIsAddCardModalOpen(true);
+                setCardError(null);
+              }}
+              className="md:hidden flex items-center gap-1 px-3 py-1.5 rounded-xl text-xs font-semibold bg-gold-400 text-black hover:bg-gold-500 transition-all shadow-md mt-1"
+            >
+              <Plus className="h-3.5 w-3.5" />
+              Add Card
+            </button>
           </div>
           
-          <div className="bg-[#111111] border border-white/[0.06] rounded-2xl p-5 md:min-w-[280px] shadow-luxury">
-            <span className="text-[10px] uppercase tracking-wider text-[#8A8A8A] font-medium block mb-1">
-              Total Outstanding Balance
-            </span>
-            <span className="text-3xl font-extrabold text-gold-400 tracking-tight">
-              {formatRupee(totalOutstandingAllCards)}
-            </span>
+          <div className="flex items-center gap-4 w-full md:w-auto justify-between md:justify-end">
+            <div className="bg-[#111111] border border-white/[0.06] rounded-2xl p-4 md:p-5 w-full md:min-w-[280px] shadow-luxury">
+              <span className="text-[10px] uppercase tracking-wider text-[#8A8A8A] font-medium block mb-1">
+                Total Outstanding Balance
+              </span>
+              <span className="text-3xl font-extrabold text-gold-400 tracking-tight">
+                {formatRupee(totalOutstandingAllCards)}
+              </span>
+            </div>
+
+            <button
+              onClick={() => {
+                setIsAddCardModalOpen(true);
+                setCardError(null);
+              }}
+              className="hidden md:flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-semibold bg-gold-400 text-black hover:bg-gold-500 transition-all shadow-md"
+            >
+              <Plus className="h-4 w-4" />
+              Add Card
+            </button>
           </div>
         </div>
 
         {/* Overlapping CRED Card Carousel Stack */}
-        <div className="relative h-[250px] w-full max-w-[480px] mx-auto flex items-center justify-center mb-8 overflow-visible mt-4">
-          {/* ONECARD */}
-          <motion.div
-            animate={getCardStyle('OneCard')}
-            transition={{ type: 'spring', stiffness: 280, damping: 25 }}
-            onClick={() => {
-              setSelectedCard('OneCard');
-              setExpandedTxId(null);
-            }}
-            className={`absolute cursor-pointer rounded-2xl p-6 w-[290px] md:w-[320px] h-[185px] md:h-[195px] flex flex-col justify-between select-none shadow-2xl transition-shadow ${
-              selectedCard === 'OneCard'
-                ? 'bg-gradient-to-br from-[#121212] via-[#222222] to-[#0A0A0A] border-2 border-gold-400 shadow-[0_0_30px_rgba(212,175,55,0.18)]'
-                : 'bg-gradient-to-br from-[#0D0D0D] to-[#141414] border border-white/[0.06]'
-            }`}
-          >
-            <div className="flex justify-between items-start">
-              <div>
-                <span className="text-xs font-semibold text-gold-400 tracking-widest uppercase">
-                  ONECARD
-                </span>
-                <span className="block text-[9px] text-[#555555] uppercase mt-0.5">
-                  Metal Edition
-                </span>
-              </div>
-              <div className="w-10 h-7 bg-gradient-to-br from-yellow-300 via-yellow-500 to-amber-600 rounded-md border border-amber-800/10 shadow-inner flex items-center justify-center overflow-hidden">
-                <div className="grid grid-cols-3 gap-0.5 w-full h-full p-0.5 opacity-30">
-                  <div className="border border-black/20" /><div className="border border-black/20" /><div className="border border-black/20" />
-                  <div className="border border-black/20" /><div className="border border-black/20" /><div className="border border-black/20" />
-                </div>
-              </div>
-            </div>
+        <div className="relative h-[210px] md:h-[240px] w-full max-w-[480px] mx-auto flex items-center justify-center mb-8 overflow-visible mt-2">
+          {cards.length === 0 ? (
+            <div className="text-[#555555] text-xs py-8">Loading credit cards...</div>
+          ) : (
+            cards.map((card, idx) => {
+              const isActive = selectedCardId === card._id;
+              
+              // Define dynamic gradient themes based on colorTheme or name
+              let gradient = 'bg-gradient-to-br from-[#121212] via-[#222222] to-[#0A0A0A] border border-white/[0.08]'; // Default OneCard
+              let textAccent = 'text-gold-400';
+              let chipTheme = 'from-yellow-300 via-yellow-500 to-amber-600';
+              let cardNum = `•••• •••• •••• ${card.last4}`;
 
-            <div>
-              <span className="text-[10px] text-[#8A8A8A] uppercase tracking-wider block">
-                Outstanding Balance
-              </span>
-              <span className="text-2xl font-bold tracking-tight text-white mt-1 block">
-                {formatRupee(cardMetrics.OneCard.outstanding)}
-              </span>
-            </div>
+              if (card.colorTheme === 'coral' || card.name.toLowerCase() === 'icici') {
+                gradient = 'bg-gradient-to-br from-[#E75B3F] via-[#C93E23] to-[#7A1200] border border-orange-500/10';
+                textAccent = 'text-white';
+                chipTheme = 'from-slate-200 to-slate-400';
+              } else if (card.colorTheme === 'cobalt' || card.name.toLowerCase() === 'yes bank') {
+                gradient = 'bg-gradient-to-br from-[#003C8F] via-[#002171] to-[#000A21] border border-blue-500/10';
+                textAccent = 'text-[#90CAF9]';
+                chipTheme = 'from-yellow-200 via-yellow-400 to-amber-600';
+              } else if (card.colorTheme === 'emerald') {
+                gradient = 'bg-gradient-to-br from-[#004D40] via-[#00701a] to-[#00251a] border border-emerald-500/15';
+                textAccent = 'text-emerald-300';
+                chipTheme = 'from-yellow-200 via-yellow-400 to-amber-500';
+              }
 
-            <div className="flex justify-between items-end text-[10px] text-[#555555]">
-              <span>•••• •••• •••• 1001</span>
-              <span className="text-[#8A8A8A]">Total Spent: {formatRupee(cardMetrics.OneCard.spent)}</span>
-            </div>
-          </motion.div>
+              return (
+                <motion.div
+                  key={card._id}
+                  animate={getCardStyle(idx, cards.length)}
+                  transition={{ type: 'spring', stiffness: 280, damping: 25 }}
+                  drag="x"
+                  dragConstraints={{ left: 0, right: 0 }}
+                  dragElastic={0.4}
+                  onDragEnd={(event, info) => {
+                    const threshold = 50;
+                    if (info.offset.x < -threshold) {
+                      handleNextCard();
+                    } else if (info.offset.x > threshold) {
+                      handlePrevCard();
+                    }
+                  }}
+                  onClick={() => {
+                    setSelectedCardId(card._id);
+                    setExpandedTxId(null);
+                  }}
+                  className={`absolute cursor-pointer rounded-2xl p-5 md:p-6 w-[270px] md:w-[325px] h-[175px] md:h-[200px] flex flex-col justify-between select-none shadow-2xl transition-shadow ${gradient} ${
+                    isActive ? 'border-2 border-gold-400 shadow-[0_0_30px_rgba(212,175,55,0.18)]' : ''
+                  }`}
+                >
+                  <div className="flex justify-between items-start">
+                    <div>
+                      <span className={`text-xs font-semibold tracking-widest uppercase ${textAccent}`}>
+                        {card.name}
+                      </span>
+                      <span className="block text-[8px] text-white/50 uppercase tracking-wide mt-0.5">
+                        {card.cardNetwork} Edition
+                      </span>
+                    </div>
+                    
+                    <div className="w-9 h-6 bg-gradient-to-br from-yellow-300 via-yellow-500 to-amber-600 rounded border border-amber-800/10 shadow-inner flex items-center justify-center overflow-hidden opacity-40">
+                      <div className="grid grid-cols-3 gap-0.5 w-full h-full p-0.5">
+                        <div className="border border-black/20" /><div className="border border-black/20" /><div className="border border-black/20" />
+                        <div className="border border-black/20" /><div className="border border-black/20" /><div className="border border-black/20" />
+                      </div>
+                    </div>
+                  </div>
 
-          {/* ICICI CARD */}
-          <motion.div
-            animate={getCardStyle('ICICI')}
-            transition={{ type: 'spring', stiffness: 280, damping: 25 }}
-            onClick={() => {
-              setSelectedCard('ICICI');
-              setExpandedTxId(null);
-            }}
-            className={`absolute cursor-pointer rounded-2xl p-6 w-[290px] md:w-[320px] h-[185px] md:h-[195px] flex flex-col justify-between select-none shadow-2xl transition-shadow ${
-              selectedCard === 'ICICI'
-                ? 'bg-gradient-to-br from-[#E75B3F] via-[#C93E23] to-[#7A1200] border-2 border-gold-400 shadow-[0_0_30px_rgba(212,175,55,0.18)]'
-                : 'bg-gradient-to-br from-[#3D1A15] to-[#25100D] border border-white/[0.06]'
-            }`}
-          >
-            <div className="flex justify-between items-start">
-              <div>
-                <span className="text-xs font-bold text-white tracking-wider">
-                  ICICI BANK
-                </span>
-                <span className="block text-[8px] text-white/60 tracking-wider uppercase mt-0.5">
-                  Coral Credit Card
-                </span>
-              </div>
-              <div className="w-10 h-7 bg-gradient-to-br from-slate-200 to-slate-400 rounded-md border border-slate-500/20 shadow-inner flex items-center justify-center overflow-hidden">
-                <div className="grid grid-cols-3 gap-0.5 w-full h-full p-0.5 opacity-40">
-                  <div className="border border-black/20" /><div className="border border-black/20" /><div className="border border-black/20" />
-                  <div className="border border-black/20" /><div className="border border-black/20" /><div className="border border-black/20" />
-                </div>
-              </div>
-            </div>
+                  <div>
+                    <span className="text-[9px] text-[#8A8A8A] uppercase tracking-wider block">
+                      Outstanding Balance
+                    </span>
+                    <span className="text-xl md:text-2xl font-bold tracking-tight text-white mt-0.5 block">
+                      {formatRupee(cardMetrics[card.name]?.outstanding || 0)}
+                    </span>
+                  </div>
 
-            <div>
-              <span className="text-[10px] text-white/70 uppercase tracking-wider block">
-                Outstanding Balance
-              </span>
-              <span className="text-2xl font-bold tracking-tight text-white mt-1 block">
-                {formatRupee(cardMetrics.ICICI.outstanding)}
-              </span>
-            </div>
-
-            <div className="flex justify-between items-end text-[10px] text-white/50">
-              <span>•••• •••• •••• 4004</span>
-              <span className="text-white/80">Total Spent: {formatRupee(cardMetrics.ICICI.spent)}</span>
-            </div>
-          </motion.div>
-
-          {/* YES BANK */}
-          <motion.div
-            animate={getCardStyle('Yes Bank')}
-            transition={{ type: 'spring', stiffness: 280, damping: 25 }}
-            onClick={() => {
-              setSelectedCard('Yes Bank');
-              setExpandedTxId(null);
-            }}
-            className={`absolute cursor-pointer rounded-2xl p-6 w-[290px] md:w-[320px] h-[185px] md:h-[195px] flex flex-col justify-between select-none shadow-2xl transition-shadow ${
-              selectedCard === 'Yes Bank'
-                ? 'bg-gradient-to-br from-[#003C8F] via-[#002171] to-[#000A21] border-2 border-gold-400 shadow-[0_0_30px_rgba(212,175,55,0.18)]'
-                : 'bg-gradient-to-br from-[#0A122C] to-[#05091B] border border-white/[0.06]'
-            }`}
-          >
-            <div className="flex justify-between items-start">
-              <div>
-                <span className="text-xs font-extrabold text-[#90CAF9] tracking-wider">
-                  YES BANK
-                </span>
-                <span className="block text-[8px] text-[#90CAF9]/60 tracking-wider uppercase mt-0.5">
-                  FinTech Mastercard
-                </span>
-              </div>
-              <div className="w-10 h-7 bg-gradient-to-br from-yellow-200 via-yellow-400 to-amber-600 rounded-md border border-amber-800/10 shadow-inner flex items-center justify-center overflow-hidden">
-                <div className="grid grid-cols-3 gap-0.5 w-full h-full p-0.5 opacity-30">
-                  <div className="border border-black/20" /><div className="border border-black/20" /><div className="border border-black/20" />
-                  <div className="border border-black/20" /><div className="border border-black/20" /><div className="border border-black/20" />
-                </div>
-              </div>
-            </div>
-
-            <div>
-              <span className="text-[10px] text-[#90CAF9]/80 uppercase tracking-wider block">
-                Outstanding Balance
-              </span>
-              <span className="text-2xl font-bold tracking-tight text-white mt-1 block">
-                {formatRupee(cardMetrics['Yes Bank'].outstanding)}
-              </span>
-            </div>
-
-            <div className="flex justify-between items-end text-[10px] text-[#90CAF9]/50">
-              <span>•••• •••• •••• 8008</span>
-              <span className="text-[#90CAF9]/80">Total Spent: {formatRupee(cardMetrics['Yes Bank'].spent)}</span>
-            </div>
-          </motion.div>
+                  <div className="flex justify-between items-end text-[9px] text-[#555555]">
+                    <span>{cardNum}</span>
+                    <span className="text-[#8A8A8A]">Total: {formatRupee(cardMetrics[card.name]?.spent || 0)}</span>
+                  </div>
+                </motion.div>
+              );
+            })
+          )}
         </div>
 
         {/* Transactions Panel Section */}
@@ -483,10 +560,10 @@ export default function CardsPage() {
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-6 border-b border-white/[0.06] mb-6">
             <h2 className="text-lg font-semibold text-white flex items-center gap-2">
               <span className="h-2 w-2 rounded-full bg-gold-400 animate-pulse" />
-              {selectedCard} Transactions ({filteredTransactions.length})
+              {selectedCardName} Transactions ({filteredTransactions.length})
             </h2>
 
-            <div className="flex flex-col sm:flex-row gap-3">
+            <div className="flex flex-col sm:flex-row gap-3 w-full md:w-auto">
               {/* Search Bar */}
               <div className="relative">
                 <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-[#555555]" />
@@ -713,6 +790,121 @@ export default function CardsPage() {
           </div>
         </div>
       </main>
+
+      {/* Add Card Modal */}
+      <AnimatePresence>
+        {isAddCardModalOpen && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setIsAddCardModalOpen(false)}
+              className="fixed inset-0 bg-black/80 backdrop-blur-md"
+            />
+
+            <motion.div
+              initial={{ scale: 0.95, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.95, opacity: 0 }}
+              className="relative w-full max-w-sm rounded-2xl bg-[#111111] border border-white/[0.06] p-6 text-white shadow-luxury z-10"
+            >
+              <h3 className="text-lg font-bold text-white mb-4 flex items-center gap-2">
+                <CreditCard className="h-5 w-5 text-gold-400" />
+                Add Custom Card
+              </h3>
+
+              {cardError && (
+                <div className="mb-4 rounded-xl bg-[#FF5A5F]/10 border border-[#FF5A5F]/20 p-2.5 text-xs text-[#FF5A5F]">
+                  {cardError}
+                </div>
+              )}
+
+              <form onSubmit={handleAddCardSubmit} className="space-y-4">
+                <div>
+                  <label className="block text-[10px] text-[#8A8A8A] uppercase tracking-wider mb-1.5 font-medium">
+                    Card Name
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    placeholder="e.g. SBI, HDFC, Axis"
+                    value={newCardName}
+                    onChange={(e) => setNewCardName(e.target.value)}
+                    className="w-full rounded-xl bg-black border border-white/[0.08] px-3.5 py-2.5 text-sm text-white placeholder:text-[#555555] focus:border-gold-400/40 focus:outline-none"
+                  />
+                </div>
+
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-[10px] text-[#8A8A8A] uppercase tracking-wider mb-1.5 font-medium">
+                      Card Network
+                    </label>
+                    <select
+                      value={newCardNetwork}
+                      onChange={(e) => setNewCardNetwork(e.target.value as any)}
+                      className="w-full rounded-xl bg-black border border-white/[0.08] px-3.5 py-2 text-sm text-white focus:border-gold-400/40 focus:outline-none"
+                    >
+                      <option value="Visa">Visa</option>
+                      <option value="Mastercard">Mastercard</option>
+                      <option value="Rupay">Rupay</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-[10px] text-[#8A8A8A] uppercase tracking-wider mb-1.5 font-medium">
+                      Last 4 digits
+                    </label>
+                    <input
+                      type="text"
+                      required
+                      pattern="\d{4}"
+                      maxLength={4}
+                      placeholder="e.g. 5678"
+                      value={newCardLast4}
+                      onChange={(e) => setNewCardLast4(e.target.value.replace(/\D/g, ''))}
+                      className="w-full rounded-xl bg-black border border-white/[0.08] px-3.5 py-2 text-sm text-white placeholder:text-[#555555] focus:border-gold-400/40 focus:outline-none"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-[10px] text-[#8A8A8A] uppercase tracking-wider mb-1.5 font-medium">
+                    Card Color Theme
+                  </label>
+                  <select
+                    value={newCardColorTheme}
+                    onChange={(e) => setNewCardColorTheme(e.target.value)}
+                    className="w-full rounded-xl bg-black border border-white/[0.08] px-3.5 py-2 text-sm text-white focus:border-gold-400/40 focus:outline-none"
+                  >
+                    <option value="charcoal">Charcoal Black (Default)</option>
+                    <option value="coral">Coral Ruby (ICICI)</option>
+                    <option value="cobalt">Cobalt Indigo (Yes Bank)</option>
+                    <option value="emerald">Emerald Jade (Rupay)</option>
+                  </select>
+                </div>
+
+                <div className="flex gap-2 justify-end pt-2">
+                  <button
+                    type="button"
+                    onClick={() => setIsAddCardModalOpen(false)}
+                    className="px-4 py-2 rounded-xl text-xs font-medium text-[#8A8A8A] hover:text-white"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={cardLoading}
+                    className="px-5 py-2 rounded-xl text-xs font-semibold bg-gold-400 text-black hover:bg-gold-500 flex items-center gap-1.5 disabled:opacity-50"
+                  >
+                    {cardLoading && <Loader2 className="h-3 w-3 animate-spin" />}
+                    Add Card
+                  </button>
+                </div>
+              </form>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

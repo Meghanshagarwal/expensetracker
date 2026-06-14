@@ -76,3 +76,13 @@ export interface PaymentDistributionData {
   name: string;
   value: number;
 }
+
+export interface Card {
+  _id: string;
+  name: string;
+  cardNetwork: 'Rupay' | 'Visa' | 'Mastercard';
+  last4: string;
+  colorTheme?: string;
+  createdAt: string;
+  isPendingSync?: boolean;
+}
