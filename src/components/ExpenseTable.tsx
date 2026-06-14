@@ -113,6 +113,9 @@ export default function ExpenseTable({
   };
 
   const renderPaymentMethodDetail = (exp: Expense) => {
+    if (exp.sourceAccount === 'Salary Account') {
+      return 'Salary';
+    }
     if (exp.paymentMethod === 'UPI' && exp.upiApp) {
       return `UPI (${exp.upiApp}${exp.upiLinkedAccount ? ` - ${exp.upiLinkedAccount}` : ''})`;
     }
