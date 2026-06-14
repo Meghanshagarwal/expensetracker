@@ -20,6 +20,16 @@ export default function PeoplePage() {
   // Ledger States
   const [selectedPersonForLedger, setSelectedPersonForLedger] = useState<Person | null>(null);
   const [isAddingTransaction, setIsAddingTransaction] = useState(false);
+  const [expandedExpenseId, setExpandedExpenseId] = useState<string | null>(null);
+
+  // Inline Repayment Form States
+  const [repaymentAmount, setRepaymentAmount] = useState('');
+  const [repaymentMethod, setRepaymentMethod] = useState<'Cash' | 'UPI'>('UPI');
+  const [repaymentUpiApp, setRepaymentUpiApp] = useState<'GPay' | 'Amazon Pay' | 'Cred UPI'>('GPay');
+  const [repaymentDate, setRepaymentDate] = useState(new Date().toISOString().split('T')[0]);
+  const [repaymentNotes, setRepaymentNotes] = useState('');
+  const [repaymentLoading, setRepaymentLoading] = useState(false);
+  const [repaymentError, setRepaymentError] = useState<string | null>(null);
   
   // Ledger Form State
   const [ledgerType, setLedgerType] = useState<'lent' | 'received' | 'borrowed' | 'repaid'>('lent');
@@ -194,6 +204,85 @@ export default function PeoplePage() {
     setLedgerUpiApp('GPay');
     setLedgerNotes('');
     setFormError(null);
+  };
+
+  const handleAddRepaymentSubmit = async (e: React.FormEvent, expense: Expense) => {
+    e.preventDefault();
+    if (!repaymentAmount || parseFloat(repaymentAmount) <= 0) return;
+
+    if (!navigator.onLine) {
+      alert('Adding repayments is currently disabled offline.');
+      return;
+    }
+
+    setRepaymentLoading(true);
+    setRepaymentError(null);
+
+    const newRepayment = {
+      amount: parseFloat(repaymentAmount),
+      paymentMethod: repaymentMethod,
+      upiApp: repaymentMethod === 'UPI' ? repaymentUpiApp : undefined,
+      date: new Date(repaymentDate).toISOString(),
+      notes: repaymentNotes.trim() || undefined,
+    };
+
+    const updatedRepayments = [...(expense.repayments || []), newRepayment];
+
+    try {
+      const res = await fetch('/api/expenses', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          id: expense._id,
+          repayments: updatedRepayments,
+        }),
+      });
+
+      if (res.ok) {
+        await loadData();
+        // Clear form
+        setRepaymentAmount('');
+        setRepaymentNotes('');
+        setRepaymentDate(new Date().toISOString().split('T')[0]);
+      } else {
+        const data = await res.json();
+        setRepaymentError(data.error || 'Failed to save repayment');
+      }
+    } catch (err: any) {
+      setRepaymentError(err.message || 'Something went wrong');
+    } finally {
+      setRepaymentLoading(false);
+    }
+  };
+
+  const handleDeleteRepayment = async (expense: Expense, repaymentIndex: number) => {
+    if (!window.confirm('Are you sure you want to delete this repayment?')) return;
+
+    if (!navigator.onLine) {
+      alert('Deleting repayments is currently disabled offline.');
+      return;
+    }
+
+    const updatedRepayments = (expense.repayments || []).filter((_, idx) => idx !== repaymentIndex);
+
+    try {
+      const res = await fetch('/api/expenses', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          id: expense._id,
+          repayments: updatedRepayments,
+        }),
+      });
+
+      if (res.ok) {
+        await loadData();
+      } else {
+        alert('Failed to delete repayment');
+      }
+    } catch (err) {
+      alert('Error connecting to server');
+    }
   };
 
   const allPersonStats = useMemo(() => {
@@ -636,60 +725,219 @@ export default function PeoplePage() {
                       
                       const isLentFlow = type === 'lent' || type === 'received' || (type === 'expense' && !isSelf);
                       const isOutflow = type === 'lent' || type === 'repaid' || (type === 'expense' && !isSelf);
+                      const isExpanded = expandedExpenseId === exp._id;
+                      const totalRepayments = exp.repayments ? exp.repayments.reduce((sum, r) => sum + r.amount, 0) : 0;
+                      const canHaveRepayments = type === 'lent' || type === 'borrowed' || (type === 'expense' && !isSelf);
 
                       return (
                         <div
                           key={exp._id}
-                          className="bg-[#171717] border border-white/[0.04] p-3.5 rounded-xl flex items-center justify-between gap-4"
+                          onClick={() => {
+                            if (canHaveRepayments) {
+                              setExpandedExpenseId(isExpanded ? null : exp._id);
+                              // Reset form errors
+                              setRepaymentError(null);
+                            }
+                          }}
+                          className={`bg-[#171717] border ${
+                            isExpanded ? 'border-gold-400/20' : 'border-white/[0.04]'
+                          } rounded-xl p-3.5 transition-all duration-300 ${
+                            canHaveRepayments ? 'cursor-pointer hover:border-white/10' : ''
+                          }`}
                         >
-                          <div className="space-y-1">
-                            <div className="flex items-center gap-2 flex-wrap">
-                              <span className="text-sm font-medium text-white">{exp.title}</span>
-                              <span className={`px-1.5 py-0.5 rounded-md text-[8px] font-bold uppercase tracking-wider ${
-                                type === 'lent' ? 'bg-[#4ADE80]/10 text-[#4ADE80] border border-[#4ADE80]/10' :
-                                type === 'received' ? 'bg-gold-400/10 text-gold-400 border border-gold-400/10' :
-                                type === 'borrowed' ? 'bg-[#FF5A5F]/10 text-[#FF5A5F] border border-[#FF5A5F]/10' :
-                                type === 'repaid' ? 'bg-white/10 text-white border border-white/10' :
-                                isSelf ? 'bg-white/5 text-[#8A8A8A] border border-white/5' :
-                                'bg-[#4ADE80]/10 text-[#4ADE80] border border-[#4ADE80]/10'
-                              }`}>
-                                {type === 'lent' ? 'Lent' :
-                                 type === 'received' ? 'Received (Back)' :
-                                 type === 'borrowed' ? 'Borrowed' :
-                                 type === 'repaid' ? 'Repaid' :
-                                 isSelf ? 'Personal Expense' : 'Expense (Lent)'}
-                              </span>
-                            </div>
-                            <div className="flex items-center gap-2 text-[10px] text-[#555555]">
-                              <div className="flex items-center gap-1">
-                                <Calendar className="h-3 w-3" />
-                                <span>{new Date(exp.date).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}</span>
+                          <div className="flex items-center justify-between gap-4">
+                            <div className="space-y-1">
+                              <div className="flex items-center gap-2 flex-wrap">
+                                <span className="text-sm font-medium text-white">{exp.title}</span>
+                                <span className={`px-1.5 py-0.5 rounded-md text-[8px] font-bold uppercase tracking-wider ${
+                                  type === 'lent' ? 'bg-[#4ADE80]/10 text-[#4ADE80] border border-[#4ADE80]/10' :
+                                  type === 'received' ? 'bg-gold-400/10 text-gold-400 border border-gold-400/10' :
+                                  type === 'borrowed' ? 'bg-[#FF5A5F]/10 text-[#FF5A5F] border border-[#FF5A5F]/10' :
+                                  type === 'repaid' ? 'bg-white/10 text-white border border-white/10' :
+                                  isSelf ? 'bg-white/5 text-[#8A8A8A] border border-white/5' :
+                                  'bg-[#4ADE80]/10 text-[#4ADE80] border border-[#4ADE80]/10'
+                                }`}>
+                                  {type === 'lent' ? 'Lent' :
+                                   type === 'received' ? 'Received (Back)' :
+                                   type === 'borrowed' ? 'Borrowed' :
+                                   type === 'repaid' ? 'Repaid' :
+                                   isSelf ? 'Personal Expense' : 'Expense (Lent)'}
+                                </span>
+                                {totalRepayments > 0 && (
+                                  <span className="px-1.5 py-0.5 rounded-md text-[8px] font-bold uppercase tracking-wider bg-gold-400/10 text-gold-400 border border-gold-400/15">
+                                    Partially Paid (₹{totalRepayments})
+                                  </span>
+                                )}
                               </div>
-                              <span>·</span>
-                              <span>{exp.paymentMethod === 'UPI' && exp.upiApp ? `UPI (${exp.upiApp})` : exp.paymentMethod}</span>
+                              <div className="flex items-center gap-2 text-[10px] text-[#555555]">
+                                <div className="flex items-center gap-1">
+                                  <Calendar className="h-3 w-3" />
+                                  <span>{new Date(exp.date).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}</span>
+                                </div>
+                                <span>·</span>
+                                <span>{exp.paymentMethod === 'UPI' && exp.upiApp ? `UPI (${exp.upiApp})` : exp.paymentMethod}</span>
+                              </div>
+                              {exp.notes && (
+                                <p className="text-[11px] text-[#8A8A8A] font-light italic mt-0.5">&ldquo;{exp.notes}&rdquo;</p>
+                              )}
                             </div>
-                            {exp.notes && (
-                              <p className="text-[11px] text-[#8A8A8A] font-light italic mt-0.5">&ldquo;{exp.notes}&rdquo;</p>
-                            )}
+
+                            <div className="flex items-center gap-3 shrink-0">
+                              {isSelf && type === 'expense' ? (
+                                <span className="font-semibold text-sm text-[#8A8A8A]">
+                                  ₹{exp.amount.toLocaleString('en-IN', { minimumFractionDigits: 0 })}
+                                </span>
+                              ) : (
+                                <span className={`font-semibold text-sm ${isLentFlow ? 'text-[#4ADE80]' : 'text-[#FF5A5F]'}`}>
+                                  {isOutflow ? '-' : '+'}₹{exp.amount.toLocaleString('en-IN', { minimumFractionDigits: 0 })}
+                                </span>
+                              )}
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleDeleteLedgerItem(exp._id);
+                                }}
+                                className="p-1.5 text-[#555555] hover:text-[#FF5A5F] hover:bg-[#FF5A5F]/5 rounded-md transition-colors"
+                              >
+                                <Trash2 className="h-3.5 w-3.5" />
+                              </button>
+                            </div>
                           </div>
 
-                          <div className="flex items-center gap-3 shrink-0">
-                            {isSelf && type === 'expense' ? (
-                              <span className="font-semibold text-sm text-[#8A8A8A]">
-                                ₹{exp.amount.toLocaleString('en-IN', { minimumFractionDigits: 0 })}
-                              </span>
-                            ) : (
-                              <span className={`font-semibold text-sm ${isLentFlow ? 'text-[#4ADE80]' : 'text-[#FF5A5F]'}`}>
-                                {isOutflow ? '-' : '+'}₹{exp.amount.toLocaleString('en-IN', { minimumFractionDigits: 0 })}
-                              </span>
-                            )}
-                            <button
-                              onClick={() => handleDeleteLedgerItem(exp._id)}
-                              className="p-1.5 text-[#555555] hover:text-[#FF5A5F] hover:bg-[#FF5A5F]/5 rounded-md transition-colors"
+                          {/* Expanded view for linked repayments */}
+                          {isExpanded && (
+                            <div 
+                              onClick={(e) => e.stopPropagation()} 
+                              className="mt-4 pt-4 border-t border-white/[0.04] space-y-4 cursor-default animate-fadeIn"
                             >
-                              <Trash2 className="h-3.5 w-3.5" />
-                            </button>
-                          </div>
+                              {/* Outstanding indicator */}
+                              <div className="flex justify-between items-center bg-black/30 p-2.5 rounded-xl border border-white/[0.03]">
+                                <span className="text-[10px] font-normal text-[#8A8A8A] uppercase tracking-wider">Remaining Outstanding</span>
+                                <span className={`text-xs font-semibold ${isLentFlow ? 'text-[#4ADE80]' : 'text-[#FF5A5F]'}`}>
+                                  ₹{Math.max(0, exp.amount - totalRepayments).toLocaleString('en-IN')} / ₹{exp.amount.toLocaleString('en-IN')}
+                                </span>
+                              </div>
+
+                              {/* Repayments log list */}
+                              <div className="space-y-2">
+                                <span className="text-[9px] font-semibold text-[#555555] uppercase tracking-wider block">Repayment Log</span>
+                                {!exp.repayments || exp.repayments.length === 0 ? (
+                                  <p className="text-[11px] text-[#555555] font-light">No repayments recorded for this transaction yet.</p>
+                                ) : (
+                                  <div className="space-y-1.5">
+                                    {exp.repayments.map((rep, idx) => (
+                                      <div key={idx} className="flex justify-between items-center bg-black/20 px-3 py-2 rounded-lg border border-white/[0.02]">
+                                        <div className="text-[11px]">
+                                          <span className="text-white font-medium">₹{rep.amount}</span>
+                                          <span className="text-[#8A8A8A] ml-2">via {rep.paymentMethod === 'UPI' && rep.upiApp ? `UPI (${rep.upiApp})` : rep.paymentMethod}</span>
+                                          <span className="text-[#555555] ml-2">({new Date(rep.date).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })})</span>
+                                          {rep.notes && <p className="text-[10px] text-[#8A8A8A] italic mt-0.5">&ldquo;{rep.notes}&rdquo;</p>}
+                                        </div>
+                                        <button
+                                          onClick={() => handleDeleteRepayment(exp, idx)}
+                                          className="p-1 hover:bg-[#FF5A5F]/5 text-[#555555] hover:text-[#FF5A5F] rounded-md transition-colors"
+                                        >
+                                          <Trash2 className="h-3 w-3" />
+                                        </button>
+                                      </div>
+                                    ))}
+                                  </div>
+                                )}
+                              </div>
+
+                              {/* Form to add repayment */}
+                              <form onSubmit={(e) => handleAddRepaymentSubmit(e, exp)} className="space-y-3 pt-2 border-t border-white/[0.03]">
+                                <span className="text-[9px] font-semibold text-gold-400 uppercase tracking-wider block">Record Amount Received Back</span>
+                                
+                                {repaymentError && (
+                                  <div className="rounded-lg bg-[#FF5A5F]/10 border border-[#FF5A5F]/20 p-2 text-[10px] text-[#FF5A5F]">
+                                    {repaymentError}
+                                  </div>
+                                )}
+
+                                <div className="grid grid-cols-2 gap-2">
+                                  <div>
+                                    <label className="text-[9px] font-normal uppercase tracking-wider text-[#8A8A8A] mb-1 block">Amount Received (₹)</label>
+                                    <input
+                                      type="number"
+                                      step="0.01"
+                                      required
+                                      placeholder="0.00"
+                                      value={repaymentAmount}
+                                      onChange={(e) => setRepaymentAmount(e.target.value)}
+                                      className="w-full rounded-lg bg-black border border-white/[0.08] px-3 py-1.5 text-xs text-white placeholder:text-[#555555] focus:border-gold-400/40 focus:outline-none transition-all"
+                                    />
+                                  </div>
+                                  <div>
+                                    <label className="text-[9px] font-normal uppercase tracking-wider text-[#8A8A8A] mb-1 block">Payment Method</label>
+                                    <div className="grid grid-cols-2 gap-1.5">
+                                      {(['Cash', 'UPI'] as const).map(method => (
+                                        <button
+                                          key={method}
+                                          type="button"
+                                          onClick={() => setRepaymentMethod(method)}
+                                          className={`py-1.5 rounded-lg border text-[10px] font-medium transition-all ${
+                                            repaymentMethod === method
+                                              ? 'bg-gold-400/10 border-gold-400/30 text-gold-400'
+                                              : 'bg-black border-white/[0.08] text-[#8A8A8A] hover:text-white'
+                                          }`}
+                                        >
+                                          {method}
+                                        </button>
+                                      ))}
+                                    </div>
+                                  </div>
+                                </div>
+
+                                <div className="grid grid-cols-2 gap-2">
+                                  <div>
+                                    <label className="text-[9px] font-normal uppercase tracking-wider text-[#8A8A8A] mb-1 block">Date</label>
+                                    <input
+                                      type="date"
+                                      required
+                                      value={repaymentDate}
+                                      onChange={(e) => setRepaymentDate(e.target.value)}
+                                      className="w-full rounded-lg bg-black border border-white/[0.08] px-3 py-1.5 text-xs text-white focus:border-gold-400/40 focus:outline-none transition-all"
+                                    />
+                                  </div>
+                                  {repaymentMethod === 'UPI' && (
+                                    <div>
+                                      <label className="text-[9px] font-normal uppercase tracking-wider text-gold-400 mb-1 block">UPI App</label>
+                                      <select
+                                        value={repaymentUpiApp}
+                                        onChange={(e) => setRepaymentUpiApp(e.target.value as any)}
+                                        className="w-full rounded-lg bg-black border border-white/[0.08] px-3 py-1.5 text-xs text-white focus:border-gold-400/40 focus:outline-none transition-all"
+                                      >
+                                        <option value="GPay">GPay</option>
+                                        <option value="Amazon Pay">Amazon Pay</option>
+                                        <option value="Cred UPI">Cred UPI</option>
+                                      </select>
+                                    </div>
+                                  )}
+                                </div>
+
+                                <div>
+                                  <label className="text-[9px] font-normal uppercase tracking-wider text-[#8A8A8A] mb-1 block">Notes (Optional)</label>
+                                  <input
+                                    type="text"
+                                    placeholder="e.g. Partial recovery, final settle"
+                                    value={repaymentNotes}
+                                    onChange={(e) => setRepaymentNotes(e.target.value)}
+                                    className="w-full rounded-lg bg-black border border-white/[0.08] px-3 py-1.5 text-xs text-white placeholder:text-[#555555] focus:border-gold-400/40 focus:outline-none transition-all"
+                                  />
+                                </div>
+
+                                <button
+                                  type="submit"
+                                  disabled={repaymentLoading}
+                                  className="flex items-center justify-center gap-1.5 w-full py-2 rounded-lg text-xs font-semibold bg-gold-400 text-black hover:bg-gold-500 transition-all disabled:opacity-50"
+                                >
+                                  {repaymentLoading && <Loader2 className="h-3 w-3 animate-spin" />}
+                                  Record Amount Received
+                                </button>
+                              </form>
+                            </div>
+                          )}
                         </div>
                       );
                     })

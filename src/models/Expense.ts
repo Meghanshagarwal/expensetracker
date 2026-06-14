@@ -79,6 +79,15 @@ const ExpenseSchema = new Schema({
     type: String,
     enum: ["ICICI", "Yes Bank", "OneCard"],
   },
+  repayments: [
+    {
+      amount: { type: Number, required: true },
+      paymentMethod: { type: String, required: true, enum: ['Cash', 'UPI'] },
+      upiApp: { type: String, enum: ['GPay', 'Amazon Pay', 'Cred UPI'] },
+      date: { type: Date, required: true, default: Date.now },
+      notes: { type: String, trim: true }
+    }
+  ],
 });
 
 export default models.Expense || model("Expense", ExpenseSchema);

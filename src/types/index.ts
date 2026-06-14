@@ -4,6 +4,15 @@ export interface Person {
   createdAt: string;
 }
 
+export interface Repayment {
+  _id?: string;
+  amount: number;
+  paymentMethod: 'Cash' | 'UPI';
+  upiApp?: 'GPay' | 'Amazon Pay' | 'Cred UPI';
+  date: string;
+  notes?: string;
+}
+
 export interface Expense {
   _id: string;
   title: string;
@@ -16,6 +25,7 @@ export interface Expense {
   notes?: string;
   createdAt: string;
   isPendingSync?: boolean; // For PWA offline queue tracking
+  repayments?: Repayment[];
 
   // Conditional Fields
   vehicle?: string;           // For Petrol: 'Car', 'Jupiter 125', 'Maestro Edge'

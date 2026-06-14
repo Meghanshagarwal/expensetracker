@@ -168,6 +168,9 @@ export default function DashboardPage() {
         }
       }
 
+      const totalRepayments = exp.repayments ? exp.repayments.reduce((sum, r) => sum + r.amount, 0) : 0;
+      const outstandingAmount = Math.max(0, exp.amount - totalRepayments);
+
       // Track loan amounts per person
       if (loanType === 'lent' || loanType === 'borrowed' || loanType === 'received' || loanType === 'repaid') {
         if (!personNetMap.has(exp.personId)) {
@@ -175,11 +178,11 @@ export default function DashboardPage() {
         }
         const current = personNetMap.get(exp.personId)!;
         if (loanType === 'lent') {
-          current.lent += exp.amount;
+          current.lent += outstandingAmount;
         } else if (loanType === 'received') {
           current.lent -= exp.amount;
         } else if (loanType === 'borrowed') {
-          current.borrowed += exp.amount;
+          current.borrowed += outstandingAmount;
         } else if (loanType === 'repaid') {
           current.borrowed -= exp.amount;
         }
