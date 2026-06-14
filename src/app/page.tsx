@@ -154,28 +154,39 @@ export default function DashboardPage() {
     const personNetMap = new Map<string, { lent: number; borrowed: number }>();
     persons.forEach(p => personNetMap.set(p._id, { lent: 0, borrowed: 0 }));
 
+    const personMap = new Map(persons.map(p => [p._id, p.name]));
+
     expenses.forEach(exp => {
-      const type = exp.transactionType || 'expense';
+      const originalType = exp.transactionType || 'expense';
+      let loanType = originalType;
+
+      if (originalType === 'expense') {
+        const personName = personMap.get(exp.personId) || '';
+        const isSelf = personName.toLowerCase() === 'self' || personName.toLowerCase() === 'my self';
+        if (!isSelf) {
+          loanType = 'lent';
+        }
+      }
 
       // Track loan amounts per person
-      if (type === 'lent' || type === 'borrowed' || type === 'received' || type === 'repaid') {
+      if (loanType === 'lent' || loanType === 'borrowed' || loanType === 'received' || loanType === 'repaid') {
         if (!personNetMap.has(exp.personId)) {
           personNetMap.set(exp.personId, { lent: 0, borrowed: 0 });
         }
         const current = personNetMap.get(exp.personId)!;
-        if (type === 'lent') {
+        if (loanType === 'lent') {
           current.lent += exp.amount;
-        } else if (type === 'received') {
+        } else if (loanType === 'received') {
           current.lent -= exp.amount;
-        } else if (type === 'borrowed') {
+        } else if (loanType === 'borrowed') {
           current.borrowed += exp.amount;
-        } else if (type === 'repaid') {
+        } else if (loanType === 'repaid') {
           current.borrowed -= exp.amount;
         }
       }
 
       // Process standard spending statistics
-      if (type === 'expense') {
+      if (originalType === 'expense') {
         const expDate = new Date(exp.date);
         const expMonth = expDate.getMonth();
         const expYear = expDate.getFullYear();

@@ -206,6 +206,8 @@ export default function PeoplePage() {
       lastActive: string | null;
     }>();
 
+    const personMap = new Map(persons.map(p => [p._id, p.name]));
+
     expenses.forEach(exp => {
       const current = statsMap.get(exp.personId) || { 
         count: 0, 
@@ -218,8 +220,15 @@ export default function PeoplePage() {
       
       current.count++;
       const type = exp.transactionType || 'expense';
+      const personName = personMap.get(exp.personId) || '';
+      const isSelf = personName.toLowerCase() === 'self' || personName.toLowerCase() === 'my self';
+
       if (type === 'expense') {
         current.totalExpenses += exp.amount;
+        if (!isSelf) {
+          current.totalLent += exp.amount;
+          current.netLoan += exp.amount;
+        }
       } else if (type === 'lent') {
         current.totalLent += exp.amount;
         current.netLoan += exp.amount;
@@ -240,13 +249,13 @@ export default function PeoplePage() {
     });
 
     return statsMap;
-  }, [expenses]);
+  }, [expenses, persons]);
 
   // Filter and sort ledger list for selected person
   const personLedgerExpenses = useMemo(() => {
     if (!currentPersonForLedger) return [];
     return expenses
-      .filter(exp => exp.personId === currentPersonForLedger._id && exp.transactionType !== 'expense')
+      .filter(exp => exp.personId === currentPersonForLedger._id)
       .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
   }, [currentPersonForLedger, expenses]);
 
@@ -621,8 +630,13 @@ export default function PeoplePage() {
                     </div>
                   ) : (
                     personLedgerExpenses.map(exp => {
-                      const isLentFlow = exp.transactionType === 'lent' || exp.transactionType === 'received';
-                      const isOutflow = exp.transactionType === 'lent' || exp.transactionType === 'repaid';
+                      const type = exp.transactionType || 'expense';
+                      const personName = currentPersonForLedger.name;
+                      const isSelf = personName.toLowerCase() === 'self' || personName.toLowerCase() === 'my self';
+                      
+                      const isLentFlow = type === 'lent' || type === 'received' || (type === 'expense' && !isSelf);
+                      const isOutflow = type === 'lent' || type === 'repaid' || (type === 'expense' && !isSelf);
+
                       return (
                         <div
                           key={exp._id}
@@ -632,14 +646,18 @@ export default function PeoplePage() {
                             <div className="flex items-center gap-2 flex-wrap">
                               <span className="text-sm font-medium text-white">{exp.title}</span>
                               <span className={`px-1.5 py-0.5 rounded-md text-[8px] font-bold uppercase tracking-wider ${
-                                exp.transactionType === 'lent' ? 'bg-[#4ADE80]/10 text-[#4ADE80] border border-[#4ADE80]/10' :
-                                exp.transactionType === 'received' ? 'bg-gold-400/10 text-gold-400 border border-gold-400/10' :
-                                exp.transactionType === 'borrowed' ? 'bg-[#FF5A5F]/10 text-[#FF5A5F] border border-[#FF5A5F]/10' :
-                                'bg-white/10 text-white border border-white/10'
+                                type === 'lent' ? 'bg-[#4ADE80]/10 text-[#4ADE80] border border-[#4ADE80]/10' :
+                                type === 'received' ? 'bg-gold-400/10 text-gold-400 border border-gold-400/10' :
+                                type === 'borrowed' ? 'bg-[#FF5A5F]/10 text-[#FF5A5F] border border-[#FF5A5F]/10' :
+                                type === 'repaid' ? 'bg-white/10 text-white border border-white/10' :
+                                isSelf ? 'bg-white/5 text-[#8A8A8A] border border-white/5' :
+                                'bg-[#4ADE80]/10 text-[#4ADE80] border border-[#4ADE80]/10'
                               }`}>
-                                {exp.transactionType === 'lent' ? 'Lent' :
-                                 exp.transactionType === 'received' ? 'Received (Back)' :
-                                 exp.transactionType === 'borrowed' ? 'Borrowed' : 'Repaid'}
+                                {type === 'lent' ? 'Lent' :
+                                 type === 'received' ? 'Received (Back)' :
+                                 type === 'borrowed' ? 'Borrowed' :
+                                 type === 'repaid' ? 'Repaid' :
+                                 isSelf ? 'Personal Expense' : 'Expense (Lent)'}
                               </span>
                             </div>
                             <div className="flex items-center gap-2 text-[10px] text-[#555555]">
@@ -656,9 +674,15 @@ export default function PeoplePage() {
                           </div>
 
                           <div className="flex items-center gap-3 shrink-0">
-                            <span className={`font-semibold text-sm ${isLentFlow ? 'text-[#4ADE80]' : 'text-[#FF5A5F]'}`}>
-                              {isOutflow ? '-' : '+'}₹{exp.amount.toLocaleString('en-IN', { minimumFractionDigits: 0 })}
-                            </span>
+                            {isSelf && type === 'expense' ? (
+                              <span className="font-semibold text-sm text-[#8A8A8A]">
+                                ₹{exp.amount.toLocaleString('en-IN', { minimumFractionDigits: 0 })}
+                              </span>
+                            ) : (
+                              <span className={`font-semibold text-sm ${isLentFlow ? 'text-[#4ADE80]' : 'text-[#FF5A5F]'}`}>
+                                {isOutflow ? '-' : '+'}₹{exp.amount.toLocaleString('en-IN', { minimumFractionDigits: 0 })}
+                              </span>
+                            )}
                             <button
                               onClick={() => handleDeleteLedgerItem(exp._id)}
                               className="p-1.5 text-[#555555] hover:text-[#FF5A5F] hover:bg-[#FF5A5F]/5 rounded-md transition-colors"
