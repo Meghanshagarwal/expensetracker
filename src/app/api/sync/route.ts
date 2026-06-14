@@ -53,8 +53,24 @@ export async function POST(request: Request) {
                 cardNetwork: cData.cardNetwork,
                 last4: cData.last4,
                 colorTheme: cData.colorTheme || 'charcoal',
+                statementDate: cData.statementDate,
+                dueDate: cData.dueDate,
                 createdAt: new Date().toISOString()
               });
+            }
+          } else if (action === 'update') {
+            if (!data.cards) data.cards = [];
+            const idx = data.cards.findIndex((c: any) => c._id === cData._id || c.name === cData.name);
+            if (idx !== -1) {
+              data.cards[idx] = {
+                ...data.cards[idx],
+                name: cData.name,
+                cardNetwork: cData.cardNetwork,
+                last4: cData.last4,
+                colorTheme: cData.colorTheme || 'charcoal',
+                statementDate: cData.statementDate,
+                dueDate: cData.dueDate,
+              };
             }
           }
         }
@@ -144,8 +160,24 @@ export async function POST(request: Request) {
               name: cData.name,
               cardNetwork: cData.cardNetwork,
               last4: cData.last4,
-              colorTheme: cData.colorTheme || 'charcoal'
+              colorTheme: cData.colorTheme || 'charcoal',
+              statementDate: cData.statementDate,
+              dueDate: cData.dueDate
             });
+          }
+        } else if (action === 'update') {
+          const fields = {
+            name: cData.name,
+            cardNetwork: cData.cardNetwork,
+            last4: cData.last4,
+            colorTheme: cData.colorTheme || 'charcoal',
+            statementDate: cData.statementDate,
+            dueDate: cData.dueDate,
+          };
+          if (cData._id && !String(cData._id).startsWith('temp_')) {
+            await Card.findByIdAndUpdate(cData._id, fields);
+          } else {
+            await Card.findOneAndUpdate({ name: cData.name }, fields);
           }
         }
       }

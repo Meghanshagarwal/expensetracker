@@ -22,6 +22,16 @@ const CardSchema = new Schema({
     type: String,
     default: "charcoal",
   },
+  statementDate: {
+    type: Number,
+    min: [1, "Statement date must be between 1 and 31."],
+    max: [31, "Statement date must be between 1 and 31."],
+  },
+  dueDate: {
+    type: Number,
+    min: [1, "Due date must be between 1 and 31."],
+    max: [31, "Due date must be between 1 and 31."],
+  },
   createdAt: {
     type: Date,
     default: Date.now,

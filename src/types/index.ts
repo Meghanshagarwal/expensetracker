@@ -85,6 +85,8 @@ export interface Card {
   cardNetwork: 'Rupay' | 'Visa' | 'Mastercard';
   last4: string;
   colorTheme?: string;
+  statementDate?: number; // day of month (1-31) the statement is generated
+  dueDate?: number;       // day of month (1-31) the payment is due
   createdAt: string;
   isPendingSync?: boolean;
 }

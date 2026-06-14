@@ -3,8 +3,8 @@
 import { useEffect, useState, useCallback, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
-  CreditCard, Calendar, CheckCircle2, XCircle, 
-  Loader2, ArrowUpRight, Search, Undo2, Filter, User, Plus
+  CreditCard, Calendar, CheckCircle2, XCircle,
+  Loader2, ArrowUpRight, Search, Undo2, Filter, User, Plus, Pencil
 } from 'lucide-react';
 import { getLocalExpenses, getLocalPersons, getLocalCards, saveLocalExpenses, saveLocalCards, addToSyncQueue } from '@/lib/offlineDb';
 import { useOfflineSync } from '@/hooks/useOfflineSync';
@@ -37,12 +37,15 @@ export default function CardsPage() {
   const [settlementNotes, setSettlementNotes] = useState('');
   const [submitLoading, setSubmitLoading] = useState(false);
 
-  // Add Card form inputs
+  // Add / Edit Card form inputs
   const [isAddCardModalOpen, setIsAddCardModalOpen] = useState(false);
+  const [editingCardId, setEditingCardId] = useState<string | null>(null);
   const [newCardName, setNewCardName] = useState('');
   const [newCardNetwork, setNewCardNetwork] = useState<'Rupay' | 'Visa' | 'Mastercard'>('Visa');
   const [newCardLast4, setNewCardLast4] = useState('');
   const [newCardColorTheme, setNewCardColorTheme] = useState('charcoal');
+  const [newStatementDate, setNewStatementDate] = useState<string>('');
+  const [newDueDate, setNewDueDate] = useState<string>('');
   const [cardLoading, setCardLoading] = useState(false);
   const [cardError, setCardError] = useState<string | null>(null);
 
@@ -288,8 +291,49 @@ export default function CardsPage() {
     }
   };
 
-  // Add custom card submission handler
-  const handleAddCardSubmit = async (e: React.FormEvent) => {
+  // Format a day-of-month as an ordinal, e.g. 1 -> "1st", 22 -> "22nd"
+  const ordinalDay = (day?: number) => {
+    if (!day) return null;
+    const s = ['th', 'st', 'nd', 'rd'];
+    const v = day % 100;
+    return `${day}${s[(v - 20) % 10] || s[v] || s[0]}`;
+  };
+
+  const resetCardForm = () => {
+    setNewCardName('');
+    setNewCardNetwork('Visa');
+    setNewCardLast4('');
+    setNewCardColorTheme('charcoal');
+    setNewStatementDate('');
+    setNewDueDate('');
+    setCardError(null);
+  };
+
+  const openAddCard = () => {
+    setEditingCardId(null);
+    resetCardForm();
+    setIsAddCardModalOpen(true);
+  };
+
+  const openEditCard = (card: Card) => {
+    setEditingCardId(card._id);
+    setNewCardName(card.name);
+    setNewCardNetwork((card.cardNetwork as 'Rupay' | 'Visa' | 'Mastercard') || 'Visa');
+    setNewCardLast4(card.last4 || '');
+    setNewCardColorTheme(card.colorTheme || 'charcoal');
+    setNewStatementDate(card.statementDate ? String(card.statementDate) : '');
+    setNewDueDate(card.dueDate ? String(card.dueDate) : '');
+    setCardError(null);
+    setIsAddCardModalOpen(true);
+  };
+
+  const closeCardModal = () => {
+    setIsAddCardModalOpen(false);
+    setEditingCardId(null);
+  };
+
+  // Add / Edit card submission handler
+  const handleCardSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newCardName.trim() || !newCardLast4.trim() || newCardLast4.length !== 4) return;
 
@@ -300,36 +344,60 @@ export default function CardsPage() {
       name: newCardName.trim(),
       cardNetwork: newCardNetwork,
       last4: newCardLast4.trim(),
-      colorTheme: newCardColorTheme
+      colorTheme: newCardColorTheme,
+      statementDate: newStatementDate ? Number(newStatementDate) : undefined,
+      dueDate: newDueDate ? Number(newDueDate) : undefined,
     };
 
     try {
-      if (!navigator.onLine) {
-        const newCard = await addCardOffline(payload);
-        setCards(prev => [...prev, newCard]);
-        setSelectedCardId(newCard._id);
-        setIsAddCardModalOpen(false);
-        setNewCardName('');
-        setNewCardLast4('');
-      } else {
-        const res = await fetch('/api/cards', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(payload)
-        });
-
-        if (res.ok) {
-          const newCard = await res.json();
-          // Reload cards database cache
-          const updatedCards = await getLocalCards();
-          setCards(updatedCards);
-          setSelectedCardId(newCard._id);
-          setIsAddCardModalOpen(false);
-          setNewCardName('');
-          setNewCardLast4('');
+      if (editingCardId) {
+        // ----- EDIT existing card -----
+        if (!navigator.onLine) {
+          const existing = cards.find(c => c._id === editingCardId);
+          const updatedCard = { ...existing, ...payload, _id: editingCardId } as Card;
+          const updatedList = cards.map(c => (c._id === editingCardId ? updatedCard : c));
+          await saveLocalCards(updatedList);
+          await addToSyncQueue('card', 'update', updatedCard);
+          setCards(updatedList);
+          closeCardModal();
         } else {
-          const data = await res.json();
-          setCardError(data.error || 'Failed to add card');
+          const res = await fetch('/api/cards', {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ id: editingCardId, ...payload }),
+          });
+          if (res.ok) {
+            await fetchAndCacheData();
+            setCards(await getLocalCards());
+            closeCardModal();
+          } else {
+            const data = await res.json();
+            setCardError(data.error || 'Failed to update card');
+          }
+        }
+      } else {
+        // ----- ADD new card -----
+        if (!navigator.onLine) {
+          const newCard = await addCardOffline(payload);
+          setCards(prev => [...prev, newCard]);
+          setSelectedCardId(newCard._id);
+          closeCardModal();
+        } else {
+          const res = await fetch('/api/cards', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload),
+          });
+          if (res.ok) {
+            const newCard = await res.json();
+            await fetchAndCacheData();
+            setCards(await getLocalCards());
+            setSelectedCardId(newCard._id);
+            closeCardModal();
+          } else {
+            const data = await res.json();
+            setCardError(data.error || 'Failed to add card');
+          }
         }
       }
     } catch (err) {
@@ -438,10 +506,7 @@ export default function CardsPage() {
             </div>
 
             <button
-              onClick={() => {
-                setIsAddCardModalOpen(true);
-                setCardError(null);
-              }}
+              onClick={openAddCard}
               className="md:hidden shrink-0 flex items-center gap-1 px-3 py-1.5 rounded-xl text-xs font-semibold bg-gold-400 text-black hover:bg-gold-500 transition-all shadow-md mt-1"
             >
               <Plus className="h-3.5 w-3.5" />
@@ -460,10 +525,7 @@ export default function CardsPage() {
             </div>
 
             <button
-              onClick={() => {
-                setIsAddCardModalOpen(true);
-                setCardError(null);
-              }}
+              onClick={openAddCard}
               className="hidden md:flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-semibold bg-gold-400 text-black hover:bg-gold-500 transition-all shadow-md"
             >
               <Plus className="h-4 w-4" />
@@ -545,11 +607,18 @@ export default function CardsPage() {
                       </span>
                     </div>
                     
-                    <div className="w-9 h-6 bg-gradient-to-br from-yellow-300 via-yellow-500 to-amber-600 rounded border border-amber-800/10 shadow-inner flex items-center justify-center overflow-hidden opacity-40">
-                      <div className="grid grid-cols-3 gap-0.5 w-full h-full p-0.5">
-                        <div className="border border-black/20" /><div className="border border-black/20" /><div className="border border-black/20" />
-                        <div className="border border-black/20" /><div className="border border-black/20" /><div className="border border-black/20" />
+                    <div className="flex flex-col items-end gap-1.5">
+                      <div className="w-9 h-6 bg-gradient-to-br from-yellow-300 via-yellow-500 to-amber-600 rounded border border-amber-800/10 shadow-inner flex items-center justify-center overflow-hidden opacity-40">
+                        <div className="grid grid-cols-3 gap-0.5 w-full h-full p-0.5">
+                          <div className="border border-black/20" /><div className="border border-black/20" /><div className="border border-black/20" />
+                          <div className="border border-black/20" /><div className="border border-black/20" /><div className="border border-black/20" />
+                        </div>
                       </div>
+                      {card.dueDate && (
+                        <span className="text-[8px] font-mono font-semibold uppercase tracking-wider text-white/80 bg-black/30 border border-white/10 px-1.5 py-0.5 rounded">
+                          Due {ordinalDay(card.dueDate)}
+                        </span>
+                      )}
                     </div>
                   </div>
 
@@ -576,10 +645,40 @@ export default function CardsPage() {
         <div className="bg-[#111111] border border-white/[0.06] rounded-2xl p-4 sm:p-6 shadow-luxury mt-8">
           {/* Title & Toolbar */}
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-6 border-b border-white/[0.06] mb-6">
-            <h2 className="text-lg font-semibold text-white flex items-center gap-2">
-              <span className="h-2 w-2 rounded-full bg-gold-400 animate-pulse" />
-              {selectedCardName} Transactions ({filteredTransactions.length})
-            </h2>
+            <div className="min-w-0">
+              <div className="flex items-center gap-2">
+                <h2 className="text-lg font-semibold text-white flex items-center gap-2 min-w-0">
+                  <span className="h-2 w-2 rounded-full bg-gold-400 animate-pulse shrink-0" />
+                  <span className="truncate">{selectedCardName} Transactions ({filteredTransactions.length})</span>
+                </h2>
+                {selectedCardObj && (
+                  <button
+                    onClick={() => openEditCard(selectedCardObj)}
+                    className="shrink-0 flex items-center gap-1 px-2.5 py-1 rounded-lg text-[11px] font-medium bg-white/[0.04] border border-white/[0.08] text-[#8A8A8A] hover:text-gold-400 hover:border-gold-400/30 transition-all"
+                    title="Edit card details"
+                  >
+                    <Pencil className="h-3 w-3" />
+                    Edit
+                  </button>
+                )}
+              </div>
+              {(selectedCardObj?.statementDate || selectedCardObj?.dueDate) && (
+                <p className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-[#8A8A8A] font-mono">
+                  {selectedCardObj?.statementDate && (
+                    <span className="flex items-center gap-1">
+                      <Calendar className="h-3 w-3 text-[#555555]" />
+                      Statement: <span className="text-white/80">{ordinalDay(selectedCardObj.statementDate)}</span>
+                    </span>
+                  )}
+                  {selectedCardObj?.dueDate && (
+                    <span className="flex items-center gap-1">
+                      <CheckCircle2 className="h-3 w-3 text-gold-400/70" />
+                      Due: <span className="text-gold-400">{ordinalDay(selectedCardObj.dueDate)}</span> of every month
+                    </span>
+                  )}
+                </p>
+              )}
+            </div>
 
             <div className="flex flex-col sm:flex-row gap-3 w-full md:w-auto">
               {/* Search Bar */}
@@ -817,7 +916,7 @@ export default function CardsPage() {
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
-              onClick={() => setIsAddCardModalOpen(false)}
+              onClick={closeCardModal}
               className="fixed inset-0 bg-black/80 backdrop-blur-md"
             />
 
@@ -829,7 +928,7 @@ export default function CardsPage() {
             >
               <h3 className="text-lg font-bold text-white mb-4 flex items-center gap-2">
                 <CreditCard className="h-5 w-5 text-gold-400" />
-                Add Custom Card
+                {editingCardId ? 'Edit Card Details' : 'Add Custom Card'}
               </h3>
 
               {cardError && (
@@ -838,7 +937,7 @@ export default function CardsPage() {
                 </div>
               )}
 
-              <form onSubmit={handleAddCardSubmit} className="space-y-4">
+              <form onSubmit={handleCardSubmit} className="space-y-4">
                 <div>
                   <label className="block text-[10px] text-[#8A8A8A] uppercase tracking-wider mb-1.5 font-medium">
                     Card Name
@@ -901,10 +1000,44 @@ export default function CardsPage() {
                   </select>
                 </div>
 
+                {/* Billing cycle — statement & due day of month */}
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-[10px] text-[#8A8A8A] uppercase tracking-wider mb-1.5 font-medium">
+                      Statement Date
+                    </label>
+                    <select
+                      value={newStatementDate}
+                      onChange={(e) => setNewStatementDate(e.target.value)}
+                      className="w-full rounded-xl bg-black border border-white/[0.08] px-3.5 py-2 text-sm text-white focus:border-gold-400/40 focus:outline-none"
+                    >
+                      <option value="">Not set</option>
+                      {Array.from({ length: 31 }, (_, i) => i + 1).map(d => (
+                        <option key={d} value={d}>{ordinalDay(d)} of month</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-[10px] text-[#8A8A8A] uppercase tracking-wider mb-1.5 font-medium">
+                      Due Date
+                    </label>
+                    <select
+                      value={newDueDate}
+                      onChange={(e) => setNewDueDate(e.target.value)}
+                      className="w-full rounded-xl bg-black border border-white/[0.08] px-3.5 py-2 text-sm text-white focus:border-gold-400/40 focus:outline-none"
+                    >
+                      <option value="">Not set</option>
+                      {Array.from({ length: 31 }, (_, i) => i + 1).map(d => (
+                        <option key={d} value={d}>{ordinalDay(d)} of month</option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+
                 <div className="flex gap-2 justify-end pt-2">
                   <button
                     type="button"
-                    onClick={() => setIsAddCardModalOpen(false)}
+                    onClick={closeCardModal}
                     className="px-4 py-2 rounded-xl text-xs font-medium text-[#8A8A8A] hover:text-white"
                   >
                     Cancel
@@ -915,7 +1048,7 @@ export default function CardsPage() {
                     className="px-5 py-2 rounded-xl text-xs font-semibold bg-gold-400 text-black hover:bg-gold-500 flex items-center gap-1.5 disabled:opacity-50"
                   >
                     {cardLoading && <Loader2 className="h-3 w-3 animate-spin" />}
-                    Add Card
+                    {editingCardId ? 'Save Changes' : 'Add Card'}
                   </button>
                 </div>
               </form>
