@@ -74,12 +74,6 @@ export default function ExpenseModal({
     }
   }, [isOpen]);
 
-  useEffect(() => {
-    if (cards.length > 0 && !expenseToEdit) {
-      setCreditCardIssuer(cards[0].name);
-    }
-  }, [cards, expenseToEdit]);
-  
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -95,6 +89,28 @@ export default function ExpenseModal({
   const visibleUpiApps = useMemo(() => {
     return sourceAccount === 'Salary Account' ? ['Cred UPI'] : ['GPay', 'Amazon Pay', 'Cred UPI'];
   }, [sourceAccount]);
+
+  // Credit Card dropdown = Visa / Mastercard cards
+  const creditCardOptions = useMemo(() => {
+    return cards
+      .filter(c => ['visa', 'mastercard'].includes((c.cardNetwork || '').toLowerCase()))
+      .map(c => c.name);
+  }, [cards]);
+
+  // UPI Linked Account dropdown = base bank account + RuPay cards
+  const linkedAccountOptions = useMemo(() => {
+    const rupayCards = cards
+      .filter(c => (c.cardNetwork || '').toLowerCase() === 'rupay')
+      .map(c => `${c.name} Credit Card`);
+    return ['Yes Bank', ...rupayCards];
+  }, [cards]);
+
+  // Default the credit-card selection to the first available Visa/Mastercard card
+  useEffect(() => {
+    if (creditCardOptions.length > 0 && !expenseToEdit) {
+      setCreditCardIssuer(prev => creditCardOptions.includes(prev) ? prev : creditCardOptions[0]);
+    }
+  }, [creditCardOptions, expenseToEdit]);
 
   useEffect(() => {
     if (expenseToEdit) {
@@ -595,12 +611,12 @@ export default function ExpenseModal({
                           onChange={(e) => setUpiLinkedAccount(e.target.value)}
                           className={inputClass}
                         >
-                          <option value="Yes Bank">Yes Bank</option>
-                          {cards.filter(c => c.cardNetwork?.toLowerCase() === 'rupay').map(c => (
-                            <option key={c._id} value={`${c.name} Credit Card`}>
-                              {c.name} Credit Card
-                            </option>
+                          {linkedAccountOptions.map(acc => (
+                            <option key={acc} value={acc}>{acc}</option>
                           ))}
+                          {upiLinkedAccount && !linkedAccountOptions.includes(upiLinkedAccount) && (
+                            <option value={upiLinkedAccount}>{upiLinkedAccount}</option>
+                          )}
                         </select>
                       </div>
                     )}
@@ -624,9 +640,12 @@ export default function ExpenseModal({
                     onChange={(e) => setCreditCardIssuer(e.target.value)}
                     className={inputClass}
                   >
-                    {cards.map(c => (
-                      <option key={c._id} value={c.name}>{c.name}</option>
+                    {creditCardOptions.map(name => (
+                      <option key={name} value={name}>{name}</option>
                     ))}
+                    {creditCardIssuer && !creditCardOptions.includes(creditCardIssuer) && (
+                      <option value={creditCardIssuer}>{creditCardIssuer}</option>
+                    )}
                   </select>
                 </motion.div>
               )}

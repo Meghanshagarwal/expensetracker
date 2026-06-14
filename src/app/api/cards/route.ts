@@ -141,3 +141,34 @@ export async function PUT(request: Request) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }
+
+export async function DELETE(request: Request) {
+  try {
+    const { searchParams } = new URL(request.url);
+    const id = searchParams.get('id');
+    if (!id) {
+      return NextResponse.json({ error: 'Card ID is required' }, { status: 400 });
+    }
+
+    if (isMockMode) {
+      const data = getMockData();
+      if (!data.cards) data.cards = [...defaultCards];
+      const idx = data.cards.findIndex((c: any) => c._id === id);
+      if (idx === -1) {
+        return NextResponse.json({ error: 'Card not found' }, { status: 404 });
+      }
+      data.cards.splice(idx, 1);
+      saveMockData(data);
+      return NextResponse.json({ success: true });
+    }
+
+    await dbConnect();
+    const deleted = await Card.findByIdAndDelete(id);
+    if (!deleted) {
+      return NextResponse.json({ error: 'Card not found' }, { status: 404 });
+    }
+    return NextResponse.json({ success: true });
+  } catch (error: any) {
+    return NextResponse.json({ error: error.message }, { status: 500 });
+  }
+}

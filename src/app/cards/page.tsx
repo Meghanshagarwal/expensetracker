@@ -4,7 +4,7 @@ import { useEffect, useState, useCallback, useMemo, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   CreditCard, Calendar, CheckCircle2, XCircle,
-  Loader2, ArrowUpRight, Search, Undo2, Filter, User, Plus, Pencil,
+  Loader2, ArrowUpRight, Search, Undo2, Filter, User, Plus, Pencil, Trash2,
   Bell, BellRing, BellOff, AlertCircle
 } from 'lucide-react';
 import { getLocalExpenses, getLocalPersons, getLocalCards, saveLocalExpenses, saveLocalCards, addToSyncQueue } from '@/lib/offlineDb';
@@ -480,6 +480,44 @@ export default function CardsPage() {
     }
   };
 
+  // Delete a card (with confirmation). Existing transactions are kept intact.
+  const handleDeleteCard = async (card: Card) => {
+    const txCount = getCardExpenses(card.name, expenses).length;
+    const warning = txCount > 0
+      ? `Delete "${card.name}"? Its ${txCount} transaction(s) will stay in your history but the card will be removed.`
+      : `Delete "${card.name}"?`;
+    if (!window.confirm(warning)) return;
+
+    try {
+      if (!navigator.onLine) {
+        const updatedList = cards.filter(c => c._id !== card._id);
+        await saveLocalCards(updatedList);
+        await addToSyncQueue('card', 'delete', card);
+        setCards(updatedList);
+        setSelectedCardId(updatedList[0]?._id || '');
+        closeCardModal();
+        return;
+      }
+
+      const res = await fetch(`/api/cards?id=${card._id}`, { method: 'DELETE' });
+      if (res.ok) {
+        await fetchAndCacheData();
+        const updatedList = await getLocalCards();
+        setCards(updatedList);
+        if (card._id === selectedCardId) {
+          setSelectedCardId(updatedList[0]?._id || '');
+        }
+        closeCardModal();
+      } else {
+        const data = await res.json();
+        setCardError(data.error || 'Failed to delete card');
+      }
+    } catch (err) {
+      console.error(err);
+      setCardError('Error connecting to server');
+    }
+  };
+
   // ---- Samsung Wallet–style swipe sound (synthesized, no asset) ----
   const audioCtxRef = useRef<AudioContext | null>(null);
   const playSwipeSound = () => {
@@ -835,6 +873,16 @@ export default function CardsPage() {
                   >
                     <Pencil className="h-3 w-3" />
                     Edit
+                  </button>
+                )}
+                {selectedCardObj && (
+                  <button
+                    onClick={() => handleDeleteCard(selectedCardObj)}
+                    className="shrink-0 flex items-center gap-1 px-2.5 py-1 rounded-lg text-[11px] font-medium bg-white/[0.04] border border-white/[0.08] text-[#8A8A8A] hover:text-[#FF5A5F] hover:border-[#FF5A5F]/30 transition-all"
+                    title="Delete card"
+                  >
+                    <Trash2 className="h-3 w-3" />
+                    Delete
                   </button>
                 )}
               </div>

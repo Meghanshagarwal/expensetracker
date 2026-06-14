@@ -71,13 +71,13 @@ const ExpenseSchema = new Schema({
     type: String,
     enum: ["GPay", "Amazon Pay", "Cred UPI"],
   },
+  // Driven dynamically by the user's saved cards (RuPay cards linked to UPI)
   upiLinkedAccount: {
     type: String,
-    enum: ["ICICI Credit Card", "Yes Bank"],
   },
+  // Driven dynamically by the user's saved cards (Visa / Mastercard)
   creditCardIssuer: {
     type: String,
-    enum: ["ICICI", "Yes Bank", "OneCard"],
   },
   isCardPaid: {
     type: Boolean,

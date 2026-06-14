@@ -72,6 +72,9 @@ export async function POST(request: Request) {
                 dueDate: cData.dueDate,
               };
             }
+          } else if (action === 'delete') {
+            if (!data.cards) data.cards = [];
+            data.cards = data.cards.filter((c: any) => c._id !== cData._id && c.name !== cData.name);
           }
         }
       }
@@ -178,6 +181,12 @@ export async function POST(request: Request) {
             await Card.findByIdAndUpdate(cData._id, fields);
           } else {
             await Card.findOneAndUpdate({ name: cData.name }, fields);
+          }
+        } else if (action === 'delete') {
+          if (cData._id && !String(cData._id).startsWith('temp_')) {
+            await Card.findByIdAndDelete(cData._id);
+          } else {
+            await Card.findOneAndDelete({ name: cData.name });
           }
         }
       }
