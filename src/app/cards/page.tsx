@@ -113,12 +113,13 @@ export default function CardsPage() {
 
   // Card Transaction Matching Logic
   const getCardExpenses = useCallback((cardName: string, list: Expense[]) => {
+    const targetName = cardName.toLowerCase();
     return list.filter(exp => {
       const isCC = exp.paymentMethod === 'Credit Card';
       const isUPI = exp.paymentMethod === 'UPI';
 
-      return (isCC && exp.creditCardIssuer === cardName) ||
-             (isUPI && (exp.upiLinkedAccount === `${cardName} Credit Card` || exp.upiLinkedAccount === cardName));
+      return (isCC && exp.creditCardIssuer?.toLowerCase() === targetName) ||
+             (isUPI && (exp.upiLinkedAccount?.toLowerCase() === `${targetName} credit card` || exp.upiLinkedAccount?.toLowerCase() === targetName));
     });
   }, []);
 

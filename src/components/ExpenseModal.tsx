@@ -545,7 +545,7 @@ export default function ExpenseModal({
                           className={inputClass}
                         >
                           <option value="Yes Bank">Yes Bank</option>
-                          {cards.filter(c => c.cardNetwork === 'Rupay').map(c => (
+                          {cards.filter(c => c.cardNetwork?.toLowerCase() === 'rupay').map(c => (
                             <option key={c._id} value={`${c.name} Credit Card`}>
                               {c.name} Credit Card
                             </option>
