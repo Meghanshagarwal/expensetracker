@@ -429,23 +429,23 @@ export default function CardsPage() {
       <main className="max-w-6xl mx-auto px-4 py-8 pb-32 md:pb-12 overflow-x-hidden">
         {/* Header Summary */}
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 mb-6">
-          <div className="flex justify-between items-start w-full md:w-auto">
-            <div>
-              <h1 className="text-3xl font-extrabold tracking-tight text-white flex items-center gap-3">
-                <CreditCard className="h-8 w-8 text-gold-400" />
+          <div className="flex justify-between items-start gap-3 w-full md:w-auto">
+            <div className="min-w-0">
+              <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-white flex items-center gap-2 sm:gap-3">
+                <CreditCard className="h-6 w-6 sm:h-8 sm:w-8 text-gold-400 shrink-0" />
                 Cards Ledger
               </h1>
               <p className="text-xs text-[#8A8A8A] mt-1">
                 Track outstanding balances and mark credit card statements as paid.
               </p>
             </div>
-            
+
             <button
               onClick={() => {
                 setIsAddCardModalOpen(true);
                 setCardError(null);
               }}
-              className="md:hidden flex items-center gap-1 px-3 py-1.5 rounded-xl text-xs font-semibold bg-gold-400 text-black hover:bg-gold-500 transition-all shadow-md mt-1"
+              className="md:hidden shrink-0 flex items-center gap-1 px-3 py-1.5 rounded-xl text-xs font-semibold bg-gold-400 text-black hover:bg-gold-500 transition-all shadow-md mt-1"
             >
               <Plus className="h-3.5 w-3.5" />
               Add Card
@@ -566,7 +566,7 @@ export default function CardsPage() {
         </div>
 
         {/* Transactions Panel Section */}
-        <div className="bg-[#111111] border border-white/[0.06] rounded-2xl p-6 shadow-luxury mt-8">
+        <div className="bg-[#111111] border border-white/[0.06] rounded-2xl p-4 sm:p-6 shadow-luxury mt-8">
           {/* Title & Toolbar */}
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-6 border-b border-white/[0.06] mb-6">
             <h2 className="text-lg font-semibold text-white flex items-center gap-2">
@@ -672,24 +672,24 @@ export default function CardsPage() {
                         </div>
                       </div>
 
-                      <div className="flex items-center gap-4 w-full sm:w-auto justify-between sm:justify-end">
-                        <span className={`text-lg font-bold ${tx.isCardPaid ? 'text-[#8A8A8A] line-through' : 'text-white'}`}>
+                      <div className="flex items-center gap-3 sm:gap-4 w-full sm:w-auto justify-between sm:justify-end min-w-0">
+                        <span className={`text-lg font-bold shrink-0 ${tx.isCardPaid ? 'text-[#8A8A8A] line-through' : 'text-white'}`}>
                           ₹{tx.amount.toLocaleString('en-IN')}
                         </span>
 
-                        <div className="flex items-center gap-2">
+                        <div className="flex items-center gap-2 min-w-0">
                           {tx.isCardPaid ? (
-                            <div className="flex items-center gap-3">
-                              <span className="text-[10px] text-green-400 bg-green-500/15 border border-green-500/30 px-2.5 py-1 rounded-lg flex items-center gap-1 font-semibold">
-                                <CheckCircle2 className="h-3 w-3" />
-                                PAID ({tx.cardPaidFrom})
+                            <div className="flex items-center gap-2 sm:gap-3 min-w-0">
+                              <span className="text-[10px] text-green-400 bg-green-500/15 border border-green-500/30 px-2.5 py-1 rounded-lg flex items-center gap-1 font-semibold min-w-0 max-w-[150px] sm:max-w-none">
+                                <CheckCircle2 className="h-3 w-3 shrink-0" />
+                                <span className="truncate">PAID ({tx.cardPaidFrom})</span>
                               </span>
                               <button
                                 onClick={(e) => {
                                   e.stopPropagation();
                                   handleMarkAsUnpaid(tx);
                                 }}
-                                className="p-1.5 rounded-lg bg-[#222222] border border-white/[0.05] text-[#8A8A8A] hover:text-white hover:bg-[#333333] transition-all"
+                                className="shrink-0 p-1.5 rounded-lg bg-[#222222] border border-white/[0.05] text-[#8A8A8A] hover:text-white hover:bg-[#333333] transition-all"
                                 title="Mark as Unpaid"
                               >
                                 <Undo2 className="h-3.5 w-3.5" />
