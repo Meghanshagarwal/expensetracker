@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, useCallback, useMemo } from 'react';
+import { useEffect, useState, useCallback, useMemo, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   CreditCard, Calendar, CheckCircle2, XCircle,
@@ -480,6 +480,48 @@ export default function CardsPage() {
     }
   };
 
+  // ---- Samsung Wallet–style swipe sound (synthesized, no asset) ----
+  const audioCtxRef = useRef<AudioContext | null>(null);
+  const playSwipeSound = () => {
+    try {
+      if (!audioCtxRef.current) {
+        const Ctx = window.AudioContext || (window as any).webkitAudioContext;
+        if (!Ctx) return;
+        audioCtxRef.current = new Ctx();
+      }
+      const ctx = audioCtxRef.current;
+      if (ctx.state === 'suspended') ctx.resume();
+      const now = ctx.currentTime;
+
+      // Soft rising "swoosh" blip
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(420, now);
+      osc.frequency.exponentialRampToValueAtTime(900, now + 0.09);
+      gain.gain.setValueAtTime(0.0001, now);
+      gain.gain.exponentialRampToValueAtTime(0.13, now + 0.015);
+      gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.16);
+      osc.connect(gain).connect(ctx.destination);
+      osc.start(now);
+      osc.stop(now + 0.18);
+
+      // Subtle high "tick" for a tactile click
+      const tick = ctx.createOscillator();
+      const tickGain = ctx.createGain();
+      tick.type = 'triangle';
+      tick.frequency.setValueAtTime(1500, now);
+      tickGain.gain.setValueAtTime(0.0001, now);
+      tickGain.gain.exponentialRampToValueAtTime(0.05, now + 0.005);
+      tickGain.gain.exponentialRampToValueAtTime(0.0001, now + 0.05);
+      tick.connect(tickGain).connect(ctx.destination);
+      tick.start(now);
+      tick.stop(now + 0.06);
+    } catch {
+      /* ignore audio errors */
+    }
+  };
+
   // Carousel Swipe Actions
   const handleNextCard = () => {
     if (cards.length <= 1) return;
@@ -487,6 +529,7 @@ export default function CardsPage() {
     const nextIndex = (currentIndex + 1) % cards.length;
     setSelectedCardId(cards[nextIndex]._id);
     setExpandedTxId(null);
+    playSwipeSound();
   };
 
   const handlePrevCard = () => {
@@ -495,9 +538,10 @@ export default function CardsPage() {
     const prevIndex = (currentIndex - 1 + cards.length) % cards.length;
     setSelectedCardId(cards[prevIndex]._id);
     setExpandedTxId(null);
+    playSwipeSound();
   };
 
-  // Stack/Fan layout metrics based on currently selected card
+  // Vertical wallet stack layout — active card in front, prev peeks above, next peeks below
   const getCardStyle = (cardIndex: number, totalCards: number) => {
     const activeIndex = cards.findIndex(c => c._id === selectedCardId);
     if (activeIndex === -1) return {};
@@ -507,10 +551,7 @@ export default function CardsPage() {
     if (diff > 1) diff -= totalCards;
     if (diff < -1) diff += totalCards;
 
-    // Handle standard mobile width responsive scaling
-    const xOffset = isMobile ? 22 : 120; // Fit perfectly on mobile screen width without overflow
-    const yOffset = isMobile ? 6 : 12;
-    const rotation = isMobile ? 4 : 8;
+    const yOffset = isMobile ? 50 : 62; // vertical peek distance
 
     if (diff === 0) {
       // Active card in front
@@ -524,25 +565,25 @@ export default function CardsPage() {
         pointerEvents: 'auto' as const
       };
     } else if (diff === 1 || (diff < -1 && totalCards === 2)) {
-      // Card fanned to the right
+      // Next card peeks below
       return {
-        x: xOffset,
+        x: 0,
         y: yOffset,
-        scale: 0.85,
-        rotate: rotation,
+        scale: 0.9,
+        rotate: 0,
         zIndex: 20,
-        filter: 'brightness(0.55)',
+        filter: 'brightness(0.5)',
         pointerEvents: 'auto' as const
       };
     } else {
-      // Card fanned to the left
+      // Previous card peeks above
       return {
-        x: -xOffset,
-        y: yOffset,
-        scale: 0.85,
-        rotate: -rotation,
+        x: 0,
+        y: -yOffset,
+        scale: 0.9,
+        rotate: 0,
         zIndex: 10,
-        filter: 'brightness(0.55)',
+        filter: 'brightness(0.5)',
         pointerEvents: 'auto' as const
       };
     }
@@ -668,8 +709,8 @@ export default function CardsPage() {
           </div>
         </div>
 
-        {/* Overlapping CRED Card Carousel Stack */}
-        <div className="relative h-[185px] md:h-[210px] w-full max-w-[480px] mx-auto flex items-center justify-center mb-6 overflow-visible">
+        {/* Vertical wallet card stack (swipe up/down) */}
+        <div className="relative h-[290px] md:h-[330px] w-full max-w-[480px] mx-auto flex items-center justify-center mb-6 overflow-visible">
           {cards.length === 0 ? (
             <div className="text-[#555555] text-xs py-8">Loading credit cards...</div>
           ) : (
@@ -699,20 +740,21 @@ export default function CardsPage() {
               return (
                 <motion.div
                   key={card._id}
-                  style={{ touchAction: 'pan-y' }}
+                  style={{ touchAction: 'pan-x' }}
                   animate={getCardStyle(idx, cards.length)}
                   transition={{ type: 'spring', stiffness: 320, damping: 30, mass: 0.9 }}
-                  drag="x"
-                  dragConstraints={{ left: 0, right: 0 }}
+                  drag="y"
+                  dragConstraints={{ top: 0, bottom: 0 }}
                   dragElastic={0.5}
                   whileDrag={{ scale: isActive ? 1.03 : 0.88, cursor: 'grabbing' }}
                   whileTap={{ scale: isActive ? 0.98 : 0.84 }}
                   onDragEnd={(event, info) => {
                     const threshold = 45;
-                    const velocity = info.velocity.x;
-                    if (info.offset.x < -threshold || velocity < -350) {
+                    const velocity = info.velocity.y;
+                    // Swipe up → next card, swipe down → previous card
+                    if (info.offset.y < -threshold || velocity < -350) {
                       handleNextCard();
-                    } else if (info.offset.x > threshold || velocity > 350) {
+                    } else if (info.offset.y > threshold || velocity > 350) {
                       handlePrevCard();
                     }
                   }}
