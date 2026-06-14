@@ -46,6 +46,8 @@ export default function ExpenseModal({
   const [upiApp, setUpiApp] = useState('GPay');
   const [upiLinkedAccount, setUpiLinkedAccount] = useState('Yes Bank');
   const [creditCardIssuer, setCreditCardIssuer] = useState('ICICI');
+  const [petrolPrice, setPetrolPrice] = useState<number>(113.15);
+  const [priceLoading, setPriceLoading] = useState<boolean>(false);
   
   const [cards, setCards] = useState<Card[]>([]);
 
@@ -112,6 +114,7 @@ export default function ExpenseModal({
       setUpiApp(expenseToEdit.upiApp || 'GPay');
       setUpiLinkedAccount(expenseToEdit.upiLinkedAccount || 'Yes Bank');
       setCreditCardIssuer(expenseToEdit.creditCardIssuer || 'ICICI');
+      setPetrolPrice(expenseToEdit.petrolPrice || 113.15);
     } else {
       setTitle('');
       setAmount('');
@@ -129,6 +132,7 @@ export default function ExpenseModal({
       setUpiApp('GPay');
       setUpiLinkedAccount('Yes Bank');
       setCreditCardIssuer('ICICI');
+      setPetrolPrice(113.15);
     }
     setError(null);
   }, [expenseToEdit, isOpen, persons]);
@@ -163,6 +167,42 @@ export default function ExpenseModal({
       setPaymentMethod(visiblePaymentMethods[0] || 'UPI');
     }
   }, [visiblePaymentMethods, paymentMethod]);
+
+  // Fetch petrol price for target date
+  useEffect(() => {
+    if (category !== 'Petrol' || !date) return;
+    
+    let isMounted = true;
+    const fetchPrice = async () => {
+      setPriceLoading(true);
+      try {
+        const res = await fetch(`/api/petrol-price?date=${date}`);
+        if (res.ok && isMounted) {
+          const data = await res.json();
+          if (data.price) {
+            setPetrolPrice(data.price);
+          }
+        }
+      } catch (e) {
+        console.error('Failed to fetch petrol price:', e);
+      } finally {
+        if (isMounted) {
+          setPriceLoading(false);
+        }
+      }
+    };
+
+    fetchPrice();
+    return () => {
+      isMounted = false;
+    };
+  }, [category, date]);
+
+  // Calculate litres dynamically
+  const litres = useMemo(() => {
+    if (category !== 'Petrol' || !amount || isNaN(Number(amount)) || !petrolPrice) return 0;
+    return Number(amount) / petrolPrice;
+  }, [category, amount, petrolPrice]);
 
   // Prevent background scroll when modal is open
   useEffect(() => {
@@ -225,6 +265,8 @@ export default function ExpenseModal({
         upiApp: paymentMethod === 'UPI' ? upiApp : undefined,
         upiLinkedAccount: (paymentMethod === 'UPI' && upiApp && transactionType !== 'borrowed' && sourceAccount !== 'Salary Account') ? upiLinkedAccount : undefined,
         creditCardIssuer: paymentMethod === 'Credit Card' ? creditCardIssuer : undefined,
+        litres: category === 'Petrol' ? litres : undefined,
+        petrolPrice: category === 'Petrol' ? petrolPrice : undefined,
       };
 
       if (!navigator.onLine) {
@@ -423,6 +465,15 @@ export default function ExpenseModal({
                     <option value="Jupiter 125">Jupiter 125</option>
                     <option value="Maestro Edge">Maestro Edge</option>
                   </select>
+                  {amount && Number(amount) > 0 && (
+                    <div className="text-xs text-[#4ADE80] font-semibold mt-2 px-1">
+                      {priceLoading ? (
+                        <span>Fetching Jaipur petrol rate...</span>
+                      ) : (
+                        <span>Jaipur Petrol Rate: ₹{petrolPrice.toFixed(2)}/Ltr | Calculated: {litres.toFixed(2)} Litres</span>
+                      )}
+                    </div>
+                  )}
                 </motion.div>
               )}
 

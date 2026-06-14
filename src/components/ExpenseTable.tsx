@@ -288,6 +288,11 @@ export default function ExpenseTable({
                               {exp.vehicle}
                             </span>
                           )}
+                          {exp.litres && (
+                            <span className="px-1.5 py-0.5 rounded-md text-[9px] bg-[#4ADE80]/10 text-[#4ADE80] border border-[#4ADE80]/20 font-bold">
+                              {exp.litres.toFixed(2)} L
+                            </span>
+                          )}
                           {exp.transactionType === 'lent' && (
                             <span className="px-1.5 py-0.5 rounded-md text-[9px] bg-[#4ADE80]/10 text-[#4ADE80] border border-[#4ADE80]/20 font-bold uppercase tracking-wider">
                               Lent
@@ -364,6 +369,11 @@ export default function ExpenseTable({
                       {exp.vehicle && (
                         <span className="px-1.5 py-0.5 rounded-md text-[9px] bg-white/[0.04] text-[#8A8A8A] border border-white/[0.08] font-bold uppercase tracking-wider">
                           {exp.vehicle}
+                        </span>
+                      )}
+                      {exp.litres && (
+                        <span className="px-1.5 py-0.5 rounded-md text-[9px] bg-[#4ADE80]/10 text-[#4ADE80] border border-[#4ADE80]/20 font-bold">
+                          {exp.litres.toFixed(2)} L
                         </span>
                       )}
                       {exp.transactionType === 'lent' && (

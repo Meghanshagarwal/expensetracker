@@ -36,6 +36,8 @@ export interface Expense {
   isCardPaid?: boolean;
   cardPaidDate?: string;
   cardPaidFrom?: string;
+  litres?: number;
+  petrolPrice?: number;
 }
 
 export interface DashboardStats {

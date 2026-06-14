@@ -89,6 +89,12 @@ const ExpenseSchema = new Schema({
   cardPaidFrom: {
     type: String,
   },
+  litres: {
+    type: Number,
+  },
+  petrolPrice: {
+    type: Number,
+  },
   repayments: [
     {
       amount: { type: Number, required: true },
