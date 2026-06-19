@@ -16,6 +16,7 @@ interface ExpenseModalProps {
   paymentMethods: string[];
   addExpenseOffline: (expense: any) => Promise<any>;
   addPersonOffline: (name: string) => Promise<any>;
+  expenses?: Expense[];
 }
 
 export default function ExpenseModal({
@@ -28,6 +29,7 @@ export default function ExpenseModal({
   paymentMethods,
   addExpenseOffline,
   addPersonOffline,
+  expenses = [],
 }: ExpenseModalProps) {
   const [title, setTitle] = useState('');
   const [amount, setAmount] = useState('');
@@ -48,8 +50,28 @@ export default function ExpenseModal({
   const [creditCardIssuer, setCreditCardIssuer] = useState('ICICI');
   const [petrolPrice, setPetrolPrice] = useState<number>(113.15);
   const [priceLoading, setPriceLoading] = useState<boolean>(false);
+  const [currentKm, setCurrentKm] = useState('');
   
   const [cards, setCards] = useState<Card[]>([]);
+
+  // Calculate litres dynamically
+  const litres = useMemo(() => {
+    if (category !== 'Petrol' || !amount || isNaN(Number(amount)) || !petrolPrice) return 0;
+    return Number(amount) / petrolPrice;
+  }, [category, amount, petrolPrice]);
+
+  const lastPetrolTx = useMemo(() => {
+    if (category !== 'Petrol' || !vehicle) return null;
+    return expenses
+      .filter(e => e.category === 'Petrol' && e.vehicle === vehicle && e.km && (!expenseToEdit || e._id !== expenseToEdit._id))
+      .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())[0];
+  }, [expenses, category, vehicle, expenseToEdit]);
+
+  const calculatedMileage = useMemo(() => {
+    if (!lastPetrolTx || !currentKm || isNaN(Number(currentKm)) || !litres) return null;
+    const diff = Number(currentKm) - lastPetrolTx.km!;
+    return diff > 0 ? diff / litres : null;
+  }, [lastPetrolTx, currentKm, litres]);
 
   useEffect(() => {
     const loadCards = async () => {
@@ -129,6 +151,7 @@ export default function ExpenseModal({
       setUpiLinkedAccount(expenseToEdit.upiLinkedAccount || 'Yes Bank');
       setCreditCardIssuer(expenseToEdit.creditCardIssuer || 'ICICI');
       setPetrolPrice(expenseToEdit.petrolPrice || 113.15);
+      setCurrentKm(expenseToEdit.km ? expenseToEdit.km.toString() : '');
     } else {
       setTitle('');
       setAmount('');
@@ -147,6 +170,7 @@ export default function ExpenseModal({
       setUpiLinkedAccount('Yes Bank');
       setCreditCardIssuer('ICICI');
       setPetrolPrice(113.15);
+      setCurrentKm('');
     }
     setError(null);
   }, [expenseToEdit, isOpen, persons]);
@@ -212,12 +236,6 @@ export default function ExpenseModal({
     };
   }, [category, date]);
 
-  // Calculate litres dynamically
-  const litres = useMemo(() => {
-    if (category !== 'Petrol' || !amount || isNaN(Number(amount)) || !petrolPrice) return 0;
-    return Number(amount) / petrolPrice;
-  }, [category, amount, petrolPrice]);
-
   // Prevent background scroll when modal is open
   useEffect(() => {
     if (isOpen) {
@@ -281,6 +299,8 @@ export default function ExpenseModal({
         creditCardIssuer: paymentMethod === 'Credit Card' ? creditCardIssuer : undefined,
         litres: category === 'Petrol' ? litres : undefined,
         petrolPrice: category === 'Petrol' ? petrolPrice : undefined,
+        km: (category === 'Petrol' && currentKm) ? parseInt(currentKm, 10) : undefined,
+        mileage: (category === 'Petrol' && calculatedMileage !== null) ? calculatedMileage : undefined,
       };
 
       if (!navigator.onLine) {
@@ -465,26 +485,56 @@ export default function ExpenseModal({
                   initial={{ opacity: 0, height: 0 }}
                   animate={{ opacity: 1, height: 'auto' }}
                   exit={{ opacity: 0, height: 0 }}
-                  className="bg-white/[0.03] border border-white/[0.06] p-3.5 rounded-xl space-y-2"
+                  className="bg-white/[0.03] border border-white/[0.06] p-3.5 rounded-xl space-y-3"
                 >
-                  <label className="block text-xs font-normal uppercase tracking-wider text-gold-400">
-                    Vehicle Type
-                  </label>
-                  <select
-                    value={vehicle}
-                    onChange={(e) => setVehicle(e.target.value)}
-                    className={inputClass}
-                  >
-                    <option value="Car">Car</option>
-                    <option value="Jupiter 125">Jupiter 125</option>
-                    <option value="Maestro Edge">Maestro Edge</option>
-                  </select>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-xs font-normal uppercase tracking-wider text-gold-400 mb-1">
+                        Vehicle Type
+                      </label>
+                      <select
+                        value={vehicle}
+                        onChange={(e) => setVehicle(e.target.value)}
+                        className={inputClass}
+                      >
+                        <option value="Car">Car</option>
+                        <option value="Jupiter 125">Jupiter 125</option>
+                        <option value="Maestro Edge">Maestro Edge</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-xs font-normal uppercase tracking-wider text-gold-400 mb-1">
+                        Current KM
+                      </label>
+                      <input
+                        type="number"
+                        placeholder="Odometer reading"
+                        value={currentKm}
+                        onChange={(e) => setCurrentKm(e.target.value)}
+                        className={inputClass}
+                      />
+                    </div>
+                  </div>
                   {amount && Number(amount) > 0 && (
-                    <div className="text-xs text-[#4ADE80] font-semibold mt-2 px-1">
+                    <div className="text-xs text-[#4ADE80] font-semibold mt-2 px-1 space-y-1">
                       {priceLoading ? (
-                        <span>Fetching Jaipur petrol rate...</span>
+                        <div>Fetching Jaipur petrol rate...</div>
                       ) : (
-                        <span>Jaipur Petrol Rate: ₹{petrolPrice.toFixed(2)}/Ltr | Calculated: {litres.toFixed(2)} Litres</span>
+                        <>
+                          <div>
+                            Jaipur Petrol Rate: ₹{petrolPrice.toFixed(2)}/Ltr | Calculated: {litres.toFixed(2)} Litres
+                          </div>
+                          {lastPetrolTx && (
+                            <div className="text-[#8A8A8A] font-light text-[11px]">
+                              Prev Odo: {lastPetrolTx.km} km ({new Date(lastPetrolTx.date).toLocaleDateString()})
+                            </div>
+                          )}
+                          {calculatedMileage !== null && (
+                            <div className="text-gold-400 font-bold mt-1">
+                              Expected Mileage: {calculatedMileage.toFixed(1)} km/l
+                            </div>
+                          )}
+                        </>
                       )}
                     </div>
                   )}

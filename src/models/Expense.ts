@@ -95,6 +95,12 @@ const ExpenseSchema = new Schema({
   petrolPrice: {
     type: Number,
   },
+  km: {
+    type: Number,
+  },
+  mileage: {
+    type: Number,
+  },
   repayments: [
     {
       amount: { type: Number, required: true },

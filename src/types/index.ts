@@ -38,6 +38,8 @@ export interface Expense {
   cardPaidFrom?: string;
   litres?: number;
   petrolPrice?: number;
+  km?: number;
+  mileage?: number;
 }
 
 export interface DashboardStats {

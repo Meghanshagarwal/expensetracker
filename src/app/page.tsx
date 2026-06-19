@@ -571,6 +571,7 @@ export default function DashboardPage() {
         paymentMethods={PAYMENT_METHODS}
         addExpenseOffline={addExpenseOffline}
         addPersonOffline={addPersonOffline}
+        expenses={expenses}
       />
 
       {/* Floating Action Button — Gold */}

@@ -285,12 +285,17 @@ export default function ExpenseTable({
                           )}
                           {exp.vehicle && (
                             <span className="px-1.5 py-0.5 rounded-md text-[9px] bg-white/[0.04] text-[#8A8A8A] border border-white/[0.08] font-bold uppercase tracking-wider">
-                              {exp.vehicle}
+                              {exp.vehicle}{exp.km ? ` (${exp.km} km)` : ''}
                             </span>
                           )}
                           {exp.litres && (
                             <span className="px-1.5 py-0.5 rounded-md text-[9px] bg-[#4ADE80]/10 text-[#4ADE80] border border-[#4ADE80]/20 font-bold">
                               {exp.litres.toFixed(2)} L
+                            </span>
+                          )}
+                          {exp.mileage && (
+                            <span className="px-1.5 py-0.5 rounded-md text-[9px] bg-gold-400/10 text-gold-400 border border-gold-400/20 font-bold ml-1">
+                              {exp.mileage.toFixed(1)} km/l
                             </span>
                           )}
                           {exp.transactionType === 'lent' && (
@@ -368,12 +373,17 @@ export default function ExpenseTable({
                       )}
                       {exp.vehicle && (
                         <span className="px-1.5 py-0.5 rounded-md text-[9px] bg-white/[0.04] text-[#8A8A8A] border border-white/[0.08] font-bold uppercase tracking-wider">
-                          {exp.vehicle}
+                          {exp.vehicle}{exp.km ? ` (${exp.km} km)` : ''}
                         </span>
                       )}
                       {exp.litres && (
                         <span className="px-1.5 py-0.5 rounded-md text-[9px] bg-[#4ADE80]/10 text-[#4ADE80] border border-[#4ADE80]/20 font-bold">
                           {exp.litres.toFixed(2)} L
+                        </span>
+                      )}
+                      {exp.mileage && (
+                        <span className="px-1.5 py-0.5 rounded-md text-[9px] bg-gold-400/10 text-gold-400 border border-gold-400/20 font-bold ml-1">
+                          {exp.mileage.toFixed(1)} km/l
                         </span>
                       )}
                       {exp.transactionType === 'lent' && (
