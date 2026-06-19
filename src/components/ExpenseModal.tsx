@@ -46,7 +46,7 @@ export default function ExpenseModal({
   const [vehicle, setVehicle] = useState('Car');
   const [sourceAccount, setSourceAccount] = useState('Self Account');
   const [upiApp, setUpiApp] = useState('GPay');
-  const [upiLinkedAccount, setUpiLinkedAccount] = useState('Yes Bank');
+  const [upiLinkedAccount, setUpiLinkedAccount] = useState('');
   const [creditCardIssuer, setCreditCardIssuer] = useState('ICICI');
   const [petrolPrice, setPetrolPrice] = useState<number>(113.15);
   const [priceLoading, setPriceLoading] = useState<boolean>(false);
@@ -117,12 +117,11 @@ export default function ExpenseModal({
     return cards.map(c => c.name);
   }, [cards]);
 
-  // UPI Linked Account dropdown = base bank account + RuPay cards (these can be UPI-linked)
+  // UPI Linked Account dropdown = RuPay cards (these can be UPI-linked)
   const linkedAccountOptions = useMemo(() => {
-    const rupayCards = cards
+    return cards
       .filter(c => (c.cardNetwork || '').toLowerCase() === 'rupay')
       .map(c => `${c.name} Credit Card`);
-    return ['Yes Bank', ...rupayCards];
   }, [cards]);
 
   // Default the credit-card selection to the first available Visa/Mastercard card
@@ -148,7 +147,7 @@ export default function ExpenseModal({
       setVehicle(expenseToEdit.vehicle || 'Car');
       setSourceAccount(expenseToEdit.sourceAccount || 'Self Account');
       setUpiApp(expenseToEdit.upiApp || 'GPay');
-      setUpiLinkedAccount(expenseToEdit.upiLinkedAccount || 'Yes Bank');
+      setUpiLinkedAccount(expenseToEdit.upiLinkedAccount || '');
       setCreditCardIssuer(expenseToEdit.creditCardIssuer || 'ICICI');
       setPetrolPrice(expenseToEdit.petrolPrice || 113.15);
       setCurrentKm(expenseToEdit.km ? expenseToEdit.km.toString() : '');
@@ -167,13 +166,20 @@ export default function ExpenseModal({
       setVehicle('Car');
       setSourceAccount('Self Account');
       setUpiApp('GPay');
-      setUpiLinkedAccount('Yes Bank');
+      setUpiLinkedAccount('');
       setCreditCardIssuer('ICICI');
       setPetrolPrice(113.15);
       setCurrentKm('');
     }
     setError(null);
   }, [expenseToEdit, isOpen, persons]);
+
+  // Default the linked account selection to the first available RuPay card if none is set
+  useEffect(() => {
+    if (linkedAccountOptions.length > 0 && !upiLinkedAccount) {
+      setUpiLinkedAccount(linkedAccountOptions[0]);
+    }
+  }, [linkedAccountOptions, upiLinkedAccount]);
 
   // Effect to handle Salary Account selection constraints
   useEffect(() => {
@@ -662,9 +668,6 @@ export default function ExpenseModal({
                           {linkedAccountOptions.map(acc => (
                             <option key={acc} value={acc}>{acc}</option>
                           ))}
-                          {upiLinkedAccount && !linkedAccountOptions.includes(upiLinkedAccount) && (
-                            <option value={upiLinkedAccount}>{upiLinkedAccount}</option>
-                          )}
                         </select>
                       </div>
                     )}
