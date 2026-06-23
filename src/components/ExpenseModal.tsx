@@ -668,6 +668,9 @@ export default function ExpenseModal({
                           {linkedAccountOptions.map(acc => (
                             <option key={acc} value={acc}>{acc}</option>
                           ))}
+                          {upiLinkedAccount && !linkedAccountOptions.includes(upiLinkedAccount) && (
+                            <option value={upiLinkedAccount}>{upiLinkedAccount}</option>
+                          )}
                         </select>
                       </div>
                     )}
