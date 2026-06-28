@@ -15,6 +15,8 @@ interface ExpenseTableProps {
   paymentMethods: string[];
   onEdit: (expense: Expense) => void;
   onDelete: (id: string) => void;
+  selectedCategory?: string;
+  onSelectedCategoryChange?: (category: string) => void;
 }
 
 type SortField = 'date' | 'amount';
@@ -27,9 +29,21 @@ export default function ExpenseTable({
   paymentMethods,
   onEdit,
   onDelete,
+  selectedCategory: controlledCategory,
+  onSelectedCategoryChange: setControlledCategory,
 }: ExpenseTableProps) {
   const [search, setSearch] = useState('');
-  const [selectedCategory, setSelectedCategory] = useState('');
+  const [localSelectedCategory, setLocalSelectedCategory] = useState('');
+
+  const selectedCategory = controlledCategory !== undefined ? controlledCategory : localSelectedCategory;
+  const setSelectedCategory = (value: string) => {
+    if (setControlledCategory) {
+      setControlledCategory(value);
+    } else {
+      setLocalSelectedCategory(value);
+    }
+    setCurrentPage(1);
+  };
   const [selectedPerson, setSelectedPerson] = useState('');
   const [selectedMethod, setSelectedMethod] = useState('');
   const [selectedType, setSelectedType] = useState('');

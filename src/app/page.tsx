@@ -29,6 +29,7 @@ export default function DashboardPage() {
   const [persons, setPersons] = useState<Person[]>([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingExpense, setEditingExpense] = useState<Expense | null>(null);
+  const [selectedCategory, setSelectedCategory] = useState<string>('');
   
   const {
     isOnline,
@@ -420,8 +421,18 @@ export default function DashboardPage() {
 
       {/* Category Spending — Minimal Row */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-        <div className="flex items-center gap-3 bg-[#111111] rounded-xl p-3.5 border border-white/[0.06]">
-          <div className="h-9 w-9 rounded-lg bg-gold-400/8 flex items-center justify-center">
+        {/* Petrol */}
+        <div 
+          onClick={() => setSelectedCategory(prev => prev === 'Petrol' ? '' : 'Petrol')}
+          className={`flex items-center gap-3 bg-[#111111] rounded-xl p-3.5 border transition-all cursor-pointer select-none ${
+            selectedCategory === 'Petrol' 
+              ? 'border-gold-400/40 bg-gold-400/[0.02]' 
+              : 'border-white/[0.06] hover:border-white/[0.12]'
+          }`}
+        >
+          <div className={`h-9 w-9 rounded-lg flex items-center justify-center transition-all ${
+            selectedCategory === 'Petrol' ? 'bg-gold-400/15' : 'bg-gold-400/8'
+          }`}>
             <Fuel className="h-4 w-4 text-gold-400" strokeWidth={1.5} />
           </div>
           <div>
@@ -430,9 +441,19 @@ export default function DashboardPage() {
           </div>
         </div>
 
-        <div className="flex items-center gap-3 bg-[#111111] rounded-xl p-3.5 border border-white/[0.06]">
-          <div className="h-9 w-9 rounded-lg bg-white/[0.04] flex items-center justify-center">
-            <Utensils className="h-4 w-4 text-[#8A8A8A]" strokeWidth={1.5} />
+        {/* Food */}
+        <div 
+          onClick={() => setSelectedCategory(prev => prev === 'Food' ? '' : 'Food')}
+          className={`flex items-center gap-3 bg-[#111111] rounded-xl p-3.5 border transition-all cursor-pointer select-none ${
+            selectedCategory === 'Food' 
+              ? 'border-gold-400/40 bg-gold-400/[0.02]' 
+              : 'border-white/[0.06] hover:border-white/[0.12]'
+          }`}
+        >
+          <div className={`h-9 w-9 rounded-lg flex items-center justify-center transition-all ${
+            selectedCategory === 'Food' ? 'bg-gold-400/15 text-gold-400' : 'bg-white/[0.04] text-[#8A8A8A]'
+          }`}>
+            <Utensils className="h-4 w-4" strokeWidth={1.5} />
           </div>
           <div>
             <p className="text-[9px] text-[#555555] uppercase tracking-luxury-wide">Food</p>
@@ -440,9 +461,19 @@ export default function DashboardPage() {
           </div>
         </div>
 
-        <div className="flex items-center gap-3 bg-[#111111] rounded-xl p-3.5 border border-white/[0.06]">
-          <div className="h-9 w-9 rounded-lg bg-white/[0.04] flex items-center justify-center">
-            <Plane className="h-4 w-4 text-[#8A8A8A]" strokeWidth={1.5} />
+        {/* Travel */}
+        <div 
+          onClick={() => setSelectedCategory(prev => prev === 'Travel' ? '' : 'Travel')}
+          className={`flex items-center gap-3 bg-[#111111] rounded-xl p-3.5 border transition-all cursor-pointer select-none ${
+            selectedCategory === 'Travel' 
+              ? 'border-gold-400/40 bg-gold-400/[0.02]' 
+              : 'border-white/[0.06] hover:border-white/[0.12]'
+          }`}
+        >
+          <div className={`h-9 w-9 rounded-lg flex items-center justify-center transition-all ${
+            selectedCategory === 'Travel' ? 'bg-gold-400/15 text-gold-400' : 'bg-white/[0.04] text-[#8A8A8A]'
+          }`}>
+            <Plane className="h-4 w-4" strokeWidth={1.5} />
           </div>
           <div>
             <p className="text-[9px] text-[#555555] uppercase tracking-luxury-wide">Travel</p>
@@ -450,7 +481,7 @@ export default function DashboardPage() {
           </div>
         </div>
 
-        <div className="flex items-center gap-3 bg-[#111111] rounded-xl p-3.5 border border-white/[0.06]">
+        <div className="flex items-center gap-3 bg-[#111111] rounded-xl p-3.5 border border-white/[0.06] select-none">
           <div className="h-9 w-9 rounded-lg bg-white/[0.04] flex items-center justify-center">
             <Calendar className="h-4 w-4 text-[#8A8A8A]" strokeWidth={1.5} />
           </div>
@@ -483,6 +514,8 @@ export default function DashboardPage() {
           paymentMethods={PAYMENT_METHODS}
           onEdit={handleEdit}
           onDelete={handleDelete}
+          selectedCategory={selectedCategory}
+          onSelectedCategoryChange={setSelectedCategory}
         />
       </div>
 
@@ -573,18 +606,6 @@ export default function DashboardPage() {
         addPersonOffline={addPersonOffline}
         expenses={expenses}
       />
-
-      {/* Floating Action Button — Gold */}
-      <button
-        onClick={() => {
-          setEditingExpense(null);
-          setIsModalOpen(true);
-        }}
-        className="fixed bottom-24 md:bottom-8 right-6 z-30 flex h-14 w-14 items-center justify-center rounded-full bg-gold-400 hover:bg-gold-500 text-black shadow-gold-glow hover:shadow-gold-glow-lg hover:scale-105 active:scale-95 transition-all"
-        title="Add Expense"
-      >
-        <Plus className="h-6 w-6" strokeWidth={2} />
-      </button>
     </div>
   );
 }
