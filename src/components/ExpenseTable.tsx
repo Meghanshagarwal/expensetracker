@@ -276,35 +276,35 @@ export default function ExpenseTable({
                     <td className="py-3.5 px-4 text-[#8A8A8A] font-medium">{formatDate(exp.date)}</td>
                     <td className="py-3.5 px-4">
                       <div>
-                        <div className="font-medium text-white flex items-center gap-1.5">
+                        <div className="font-medium text-white flex flex-wrap items-center gap-1.5">
                           {exp.title}
                           {exp.isPendingSync && (
-                            <span className="px-1.5 py-0.5 rounded-full text-[9px] bg-gold-400/15 text-gold-400 border border-gold-400/25 font-semibold">
+                            <span className="px-1.5 py-0.5 rounded-full text-[9px] bg-gold-400/15 text-gold-400 border border-gold-400/25 font-semibold whitespace-nowrap">
                               Sync Pending
                             </span>
                           )}
                           {exp.vehicle && (
-                            <span className="px-1.5 py-0.5 rounded-md text-[9px] bg-white/[0.04] text-[#8A8A8A] border border-white/[0.08] font-bold uppercase tracking-wider">
+                            <span className="px-1.5 py-0.5 rounded-md text-[9px] bg-white/[0.04] text-[#8A8A8A] border border-white/[0.08] font-bold uppercase tracking-wider whitespace-nowrap">
                               {exp.vehicle}{exp.km ? ` (${exp.km} km)` : ''}
                             </span>
                           )}
                           {exp.litres && (
-                            <span className="px-1.5 py-0.5 rounded-md text-[9px] bg-[#4ADE80]/10 text-[#4ADE80] border border-[#4ADE80]/20 font-bold">
+                            <span className="px-1.5 py-0.5 rounded-md text-[9px] bg-[#4ADE80]/10 text-[#4ADE80] border border-[#4ADE80]/20 font-bold whitespace-nowrap">
                               {exp.litres.toFixed(2)} L
                             </span>
                           )}
                           {exp.mileage && (
-                            <span className="px-1.5 py-0.5 rounded-md text-[9px] bg-gold-400/10 text-gold-400 border border-gold-400/20 font-bold ml-1">
+                            <span className="px-1.5 py-0.5 rounded-md text-[9px] bg-gold-400/10 text-gold-400 border border-gold-400/20 font-bold ml-1 whitespace-nowrap">
                               {exp.mileage.toFixed(1)} km/l
                             </span>
                           )}
                           {exp.transactionType === 'lent' && (
-                            <span className="px-1.5 py-0.5 rounded-md text-[9px] bg-[#4ADE80]/10 text-[#4ADE80] border border-[#4ADE80]/20 font-bold uppercase tracking-wider">
+                            <span className="px-1.5 py-0.5 rounded-md text-[9px] bg-[#4ADE80]/10 text-[#4ADE80] border border-[#4ADE80]/20 font-bold uppercase tracking-wider whitespace-nowrap">
                               Lent
                             </span>
                           )}
                           {exp.transactionType === 'borrowed' && (
-                            <span className="px-1.5 py-0.5 rounded-md text-[9px] bg-[#FF5A5F]/10 text-[#FF5A5F] border border-[#FF5A5F]/20 font-bold uppercase tracking-wider">
+                            <span className="px-1.5 py-0.5 rounded-md text-[9px] bg-[#FF5A5F]/10 text-[#FF5A5F] border border-[#FF5A5F]/20 font-bold uppercase tracking-wider whitespace-nowrap">
                               Borrowed
                             </span>
                           )}
@@ -367,32 +367,32 @@ export default function ExpenseTable({
                     <div className="font-medium text-white flex flex-wrap items-center gap-1.5">
                       {exp.title}
                       {exp.isPendingSync && (
-                        <span className="px-1.5 py-0.5 rounded-full text-[9px] bg-gold-400/15 text-gold-400 border border-gold-400/25">
+                        <span className="px-1.5 py-0.5 rounded-full text-[9px] bg-gold-400/15 text-gold-400 border border-gold-400/25 whitespace-nowrap">
                           Pending
                         </span>
                       )}
                       {exp.vehicle && (
-                        <span className="px-1.5 py-0.5 rounded-md text-[9px] bg-white/[0.04] text-[#8A8A8A] border border-white/[0.08] font-bold uppercase tracking-wider">
+                        <span className="px-1.5 py-0.5 rounded-md text-[9px] bg-white/[0.04] text-[#8A8A8A] border border-white/[0.08] font-bold uppercase tracking-wider whitespace-nowrap">
                           {exp.vehicle}{exp.km ? ` (${exp.km} km)` : ''}
                         </span>
                       )}
                       {exp.litres && (
-                        <span className="px-1.5 py-0.5 rounded-md text-[9px] bg-[#4ADE80]/10 text-[#4ADE80] border border-[#4ADE80]/20 font-bold">
+                        <span className="px-1.5 py-0.5 rounded-md text-[9px] bg-[#4ADE80]/10 text-[#4ADE80] border border-[#4ADE80]/20 font-bold whitespace-nowrap">
                           {exp.litres.toFixed(2)} L
                         </span>
                       )}
                       {exp.mileage && (
-                        <span className="px-1.5 py-0.5 rounded-md text-[9px] bg-gold-400/10 text-gold-400 border border-gold-400/20 font-bold ml-1">
+                        <span className="px-1.5 py-0.5 rounded-md text-[9px] bg-gold-400/10 text-gold-400 border border-gold-400/20 font-bold ml-1 whitespace-nowrap">
                           {exp.mileage.toFixed(1)} km/l
                         </span>
                       )}
                       {exp.transactionType === 'lent' && (
-                        <span className="px-1.5 py-0.5 rounded-md text-[9px] bg-[#4ADE80]/10 text-[#4ADE80] border border-[#4ADE80]/20 font-bold uppercase tracking-wider">
+                        <span className="px-1.5 py-0.5 rounded-md text-[9px] bg-[#4ADE80]/10 text-[#4ADE80] border border-[#4ADE80]/20 font-bold uppercase tracking-wider whitespace-nowrap">
                           Lent
                         </span>
                       )}
                       {exp.transactionType === 'borrowed' && (
-                        <span className="px-1.5 py-0.5 rounded-md text-[9px] bg-[#FF5A5F]/10 text-[#FF5A5F] border border-[#FF5A5F]/20 font-bold uppercase tracking-wider">
+                        <span className="px-1.5 py-0.5 rounded-md text-[9px] bg-[#FF5A5F]/10 text-[#FF5A5F] border border-[#FF5A5F]/20 font-bold uppercase tracking-wider whitespace-nowrap">
                           Borrowed
                         </span>
                       )}
