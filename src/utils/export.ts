@@ -20,7 +20,7 @@ const formatCurrency = (amount: number) => {
 
 export const exportToCSV = (expenses: Expense[], persons: Person[]) => {
   const personMap = new Map(persons.map(p => [p._id, p.name]));
-  const headers = ['Date', 'Title', 'Type', 'Category', 'Amount (Rs)', 'Person', 'Payment Method', 'Source Account', 'Vehicle', 'UPI App', 'Notes'];
+  const headers = ['Date', 'Title', 'Type', 'Category', 'Amount (Rs)', 'Person', 'Payment Method', 'Source Account', 'Vehicle', 'KM', 'Litres', 'Mileage (km/l)', 'UPI App', 'Notes'];
   
   const rows = expenses.map(exp => [
     formatDate(exp.date),
@@ -32,6 +32,9 @@ export const exportToCSV = (expenses: Expense[], persons: Person[]) => {
     exp.paymentMethod,
     exp.sourceAccount || '',
     exp.vehicle || '',
+    exp.km || '',
+    exp.litres ? exp.litres.toFixed(2) : '',
+    exp.mileage ? exp.mileage.toFixed(1) : '',
     exp.upiApp || '',
     exp.notes || '',
   ]);
@@ -63,6 +66,9 @@ export const exportToExcel = (expenses: Expense[], persons: Person[]) => {
     'Payment Method': exp.paymentMethod,
     'Source Account': exp.sourceAccount || '',
     Vehicle: exp.vehicle || '',
+    'KM': exp.km || '',
+    'Litres': exp.litres ? exp.litres.toFixed(2) : '',
+    'Mileage (km/l)': exp.mileage ? exp.mileage.toFixed(1) : '',
     'UPI App': exp.upiApp || '',
     Notes: exp.notes || '',
   }));

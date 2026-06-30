@@ -45,20 +45,45 @@ export async function PUT(request: Request) {
     if (!id) {
       return NextResponse.json({ error: 'ID is required' }, { status: 400 });
     }
+
+    // Identify conditional fields that should be $unset when undefined
+    // (e.g., petrol fields when category changes away from Petrol)
+    const conditionalFields = [
+      'vehicle', 'litres', 'petrolPrice', 'km', 'mileage',
+      'upiApp', 'upiLinkedAccount', 'creditCardIssuer',
+    ];
+    const fieldsToUnset: Record<string, 1> = {};
+    for (const field of conditionalFields) {
+      if (field in updateData && (updateData[field] === undefined || updateData[field] === null)) {
+        fieldsToUnset[field] = 1;
+        delete updateData[field];
+      }
+    }
+
     if (isMockMode) {
       const data = getMockData();
       const idx = data.expenses.findIndex((e: any) => e._id === id);
       if (idx === -1) {
         return NextResponse.json({ error: 'Expense not found' }, { status: 404 });
       }
+      // Apply updates and remove unset fields
       data.expenses[idx] = { ...data.expenses[idx], ...updateData };
+      for (const field of Object.keys(fieldsToUnset)) {
+        delete data.expenses[idx][field];
+      }
       saveMockData(data);
       return NextResponse.json(data.expenses[idx]);
     }
     await dbConnect();
+
+    const mongoUpdate: Record<string, any> = { $set: updateData };
+    if (Object.keys(fieldsToUnset).length > 0) {
+      mongoUpdate.$unset = fieldsToUnset;
+    }
+
     const updatedExpense = await Expense.findByIdAndUpdate(
       id,
-      updateData,
+      mongoUpdate,
       { new: true, runValidators: true }
     );
     if (!updatedExpense) {
