@@ -4,6 +4,7 @@ const ContributionSchema = new Schema({
   from: { type: String, required: true, trim: true },
   amount: { type: Number, required: true, min: 0 },
   date: { type: Date, default: Date.now },
+  returnDate: { type: Date },
 });
 
 const IpoSchema = new Schema({
@@ -11,6 +12,11 @@ const IpoSchema = new Schema({
     type: String,
     required: [true, "IPO name is required."],
     trim: true,
+  },
+  lots: {
+    type: Number,
+    default: 1,
+    min: 1,
   },
   amount: {
     type: Number,
@@ -39,6 +45,9 @@ const IpoSchema = new Schema({
     type: Number,
     default: 0,
     min: 0,
+  },
+  returnDate: {
+    type: Date,
   },
   notes: {
     type: String,

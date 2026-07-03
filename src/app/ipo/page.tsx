@@ -28,12 +28,15 @@ const todayStr = () => new Date().toISOString().split('T')[0];
 const emptyForm = () => ({
   ipoName: '',
   presetKey: '',
+  lots: 1,
+  perLotAmount: 0, // base 1-lot amount; amount = lots × perLotAmount
   amount: '' as string | number,
   appliedFrom: 'Me',
   status: 'Applied' as (typeof STATUSES)[number],
   applyDate: todayStr(),
-  contributions: [] as { from: string; amount: string | number; date: string }[],
+  contributions: [] as { from: string; amount: string | number; date: string; returnDate: string }[],
   returnAmount: '' as string | number,
+  returnDate: '',
   notes: '',
 });
 
@@ -113,9 +116,12 @@ export default function IpoPage() {
   const openEdit = (ipo: Ipo) => {
     setEditingId(ipo._id);
     const preset = presetIpos.find(p => p.name === ipo.ipoName);
+    const lots = ipo.lots && ipo.lots > 0 ? ipo.lots : 1;
     setForm({
       ipoName: ipo.ipoName,
       presetKey: preset ? ipo.ipoName : '__custom__',
+      lots,
+      perLotAmount: preset ? preset.amount : Math.round((ipo.amount || 0) / lots),
       amount: ipo.amount,
       appliedFrom: ipo.appliedFrom || 'Me',
       status: ipo.status,
@@ -124,8 +130,10 @@ export default function IpoPage() {
         from: c.from,
         amount: c.amount,
         date: c.date ? c.date.split('T')[0] : todayStr(),
+        returnDate: c.returnDate ? c.returnDate.split('T')[0] : '',
       })),
       returnAmount: ipo.returnAmount || '',
+      returnDate: ipo.returnDate ? ipo.returnDate.split('T')[0] : '',
       notes: ipo.notes || '',
     });
     setError(null);
@@ -135,19 +143,38 @@ export default function IpoPage() {
   // Selecting a preset IPO auto-fills its name + amount
   const handlePresetChange = (val: string) => {
     if (val === '__custom__') {
-      setForm(f => ({ ...f, presetKey: val, ipoName: '', amount: '' }));
+      setForm(f => ({ ...f, presetKey: val, ipoName: '', perLotAmount: 0, amount: '' }));
       return;
     }
     const preset = presetIpos.find(p => p.name === val);
     if (preset) {
-      setForm(f => ({ ...f, presetKey: val, ipoName: preset.name, amount: preset.amount }));
+      setForm(f => ({
+        ...f,
+        presetKey: val,
+        ipoName: preset.name,
+        perLotAmount: preset.amount,
+        amount: preset.amount * f.lots, // lots × per-lot
+      }));
     }
   };
 
-  const addContribution = () =>
-    setForm(f => ({ ...f, contributions: [...f.contributions, { from: 'Mummy', amount: '', date: todayStr() }] }));
+  // Changing the number of lots recomputes the amount from the per-lot base.
+  const handleLotsChange = (val: string) => {
+    const lots = Math.max(1, Math.floor(Number(val) || 1));
+    setForm(f => ({
+      ...f,
+      lots,
+      amount: f.perLotAmount > 0 ? f.perLotAmount * lots : f.amount,
+    }));
+  };
 
-  const updateContribution = (idx: number, key: 'from' | 'amount' | 'date', value: string) =>
+  const addContribution = () =>
+    setForm(f => ({
+      ...f,
+      contributions: [...f.contributions, { from: 'Mummy', amount: '', date: todayStr(), returnDate: '' }],
+    }));
+
+  const updateContribution = (idx: number, key: 'from' | 'amount' | 'date' | 'returnDate', value: string) =>
     setForm(f => ({
       ...f,
       contributions: f.contributions.map((c, i) => (i === idx ? { ...c, [key]: value } : c)),
@@ -167,6 +194,7 @@ export default function IpoPage() {
 
     const payload = {
       ipoName: form.ipoName.trim(),
+      lots: Math.max(1, Math.floor(Number(form.lots) || 1)),
       amount: Number(form.amount) || 0,
       appliedFrom: form.appliedFrom,
       status: form.status,
@@ -177,8 +205,10 @@ export default function IpoPage() {
           from: c.from,
           amount: Number(c.amount) || 0,
           date: new Date(c.date).toISOString(),
+          returnDate: c.returnDate ? new Date(c.returnDate).toISOString() : undefined,
         })),
       returnAmount: Number(form.returnAmount) || 0,
+      returnDate: form.returnDate ? new Date(form.returnDate).toISOString() : undefined,
       notes: form.notes.trim(),
     };
 
@@ -343,6 +373,9 @@ export default function IpoPage() {
                               <span className="text-gold-400 font-medium">{c.from}</span>{' '}
                               {formatRupee(c.amount)}
                               <span className="text-[#555555]"> · {formatDate(c.date)}</span>
+                              {c.returnDate && (
+                                <span className="text-green-400/80"> · return {formatDate(c.returnDate)}</span>
+                              )}
                             </span>
                           ))}
                           {takenTotal > 0 && (
@@ -360,13 +393,20 @@ export default function IpoPage() {
 
                     <div className="flex sm:flex-col items-end justify-between sm:justify-start gap-3 shrink-0">
                       <div className="text-right">
-                        <span className="text-[9px] uppercase tracking-wider text-[#8A8A8A] block">Applied</span>
+                        <span className="text-[9px] uppercase tracking-wider text-[#8A8A8A] block">
+                          Applied{ipo.lots > 1 ? ` · ${ipo.lots} lots` : ''}
+                        </span>
                         <span className="text-lg font-bold font-mono tabular-nums text-white">
                           {formatRupee(ipo.amount)}
                         </span>
                         {ipo.returnAmount > 0 && (
                           <span className="block text-[11px] font-mono text-green-400 mt-0.5">
                             + {formatRupee(ipo.returnAmount)} returned
+                          </span>
+                        )}
+                        {ipo.returnDate && (
+                          <span className="block text-[10px] text-[#8A8A8A] mt-0.5">
+                            by {formatDate(ipo.returnDate)}
                           </span>
                         )}
                       </div>
@@ -507,8 +547,23 @@ export default function IpoPage() {
                   </div>
                 )}
 
-                <div className="grid grid-cols-2 gap-3">
-                  {/* Amount (auto-filled) */}
+                <div className="grid grid-cols-3 gap-3">
+                  {/* Lots (default 1) */}
+                  <div>
+                    <label className="block text-[10px] text-[#8A8A8A] uppercase tracking-wider mb-1.5 font-medium">
+                      Lots
+                    </label>
+                    <select
+                      value={form.lots}
+                      onChange={e => handleLotsChange(e.target.value)}
+                      className="w-full rounded-xl bg-black border border-white/[0.08] px-3 py-2.5 text-sm text-white focus:border-gold-400/40 focus:outline-none"
+                    >
+                      {Array.from({ length: 20 }, (_, i) => i + 1).map(n => (
+                        <option key={n} value={n}>{n}</option>
+                      ))}
+                    </select>
+                  </div>
+                  {/* Amount (auto = lots × per-lot) */}
                   <div>
                     <label className="block text-[10px] text-[#8A8A8A] uppercase tracking-wider mb-1.5 font-medium">
                       Amount (₹)
@@ -519,7 +574,7 @@ export default function IpoPage() {
                       placeholder="Auto"
                       value={form.amount}
                       onChange={e => setForm(f => ({ ...f, amount: e.target.value }))}
-                      className="w-full rounded-xl bg-black border border-white/[0.08] px-3.5 py-2.5 text-sm text-white font-mono placeholder:text-[#555555] focus:border-gold-400/40 focus:outline-none"
+                      className="w-full rounded-xl bg-black border border-white/[0.08] px-3 py-2.5 text-sm text-white font-mono placeholder:text-[#555555] focus:border-gold-400/40 focus:outline-none"
                     />
                   </div>
                   {/* Applied From */}
@@ -530,7 +585,7 @@ export default function IpoPage() {
                     <select
                       value={form.appliedFrom}
                       onChange={e => setForm(f => ({ ...f, appliedFrom: e.target.value }))}
-                      className="w-full rounded-xl bg-black border border-white/[0.08] px-3.5 py-2.5 text-sm text-white focus:border-gold-400/40 focus:outline-none"
+                      className="w-full rounded-xl bg-black border border-white/[0.08] px-3 py-2.5 text-sm text-white focus:border-gold-400/40 focus:outline-none"
                     >
                       {APPLIED_FROM.map(a => (
                         <option key={a} value={a}>{a}</option>
@@ -538,6 +593,11 @@ export default function IpoPage() {
                     </select>
                   </div>
                 </div>
+                {form.perLotAmount > 0 && (
+                  <p className="-mt-2 text-[10px] text-[#8A8A8A]">
+                    {form.lots} lot{form.lots > 1 ? 's' : ''} × {formatRupee(form.perLotAmount)} = {formatRupee(form.perLotAmount * form.lots)}
+                  </p>
+                )}
 
                 <div className="grid grid-cols-2 gap-3">
                   {/* Status */}
@@ -587,58 +647,91 @@ export default function IpoPage() {
                   {form.contributions.length === 0 ? (
                     <p className="text-[11px] text-[#555555]">No one added. Add if money was taken from someone.</p>
                   ) : (
-                    <div className="space-y-2.5">
+                    <div className="space-y-3">
                       {form.contributions.map((c, idx) => (
-                        <div key={idx} className="grid grid-cols-12 gap-2 items-center">
-                          <select
-                            value={c.from}
-                            onChange={e => updateContribution(idx, 'from', e.target.value)}
-                            className="col-span-4 rounded-lg bg-black border border-white/[0.08] px-2 py-2 text-xs text-white focus:border-gold-400/40 focus:outline-none"
-                          >
-                            {['Me', 'Mummy', 'Papa', 'Other'].map(p => (
-                              <option key={p} value={p}>{p}</option>
-                            ))}
-                          </select>
-                          <input
-                            type="number"
-                            min="0"
-                            placeholder="Amount"
-                            value={c.amount}
-                            onChange={e => updateContribution(idx, 'amount', e.target.value)}
-                            className="col-span-3 rounded-lg bg-black border border-white/[0.08] px-2 py-2 text-xs text-white font-mono placeholder:text-[#555555] focus:border-gold-400/40 focus:outline-none"
-                          />
-                          <input
-                            type="date"
-                            value={c.date}
-                            onChange={e => updateContribution(idx, 'date', e.target.value)}
-                            className="col-span-4 rounded-lg bg-black border border-white/[0.08] px-1.5 py-2 text-[11px] text-white focus:border-gold-400/40 focus:outline-none"
-                          />
+                        <div key={idx} className="rounded-lg border border-white/[0.06] bg-black/50 p-2.5 relative">
                           <button
                             type="button"
                             onClick={() => removeContribution(idx)}
-                            className="col-span-1 flex justify-center text-[#555555] hover:text-[#FF5A5F]"
+                            className="absolute top-2 right-2 text-[#555555] hover:text-[#FF5A5F]"
                           >
                             <X className="h-3.5 w-3.5" />
                           </button>
+                          <div className="grid grid-cols-2 gap-2 pr-5">
+                            <div>
+                              <label className="block text-[9px] text-[#8A8A8A] uppercase tracking-wide mb-1">From</label>
+                              <select
+                                value={c.from}
+                                onChange={e => updateContribution(idx, 'from', e.target.value)}
+                                className="w-full rounded-lg bg-black border border-white/[0.08] px-2 py-1.5 text-xs text-white focus:border-gold-400/40 focus:outline-none"
+                              >
+                                {['Me', 'Mummy', 'Papa', 'Other'].map(p => (
+                                  <option key={p} value={p}>{p}</option>
+                                ))}
+                              </select>
+                            </div>
+                            <div>
+                              <label className="block text-[9px] text-[#8A8A8A] uppercase tracking-wide mb-1">Amount ₹</label>
+                              <input
+                                type="number"
+                                min="0"
+                                placeholder="Amount"
+                                value={c.amount}
+                                onChange={e => updateContribution(idx, 'amount', e.target.value)}
+                                className="w-full rounded-lg bg-black border border-white/[0.08] px-2 py-1.5 text-xs text-white font-mono placeholder:text-[#555555] focus:border-gold-400/40 focus:outline-none"
+                              />
+                            </div>
+                            <div>
+                              <label className="block text-[9px] text-[#8A8A8A] uppercase tracking-wide mb-1">Taken On</label>
+                              <input
+                                type="date"
+                                value={c.date}
+                                onChange={e => updateContribution(idx, 'date', e.target.value)}
+                                className="w-full rounded-lg bg-black border border-white/[0.08] px-1.5 py-1.5 text-[11px] text-white focus:border-gold-400/40 focus:outline-none"
+                              />
+                            </div>
+                            <div>
+                              <label className="block text-[9px] text-[#8A8A8A] uppercase tracking-wide mb-1">Return By</label>
+                              <input
+                                type="date"
+                                value={c.returnDate}
+                                onChange={e => updateContribution(idx, 'returnDate', e.target.value)}
+                                className="w-full rounded-lg bg-black border border-white/[0.08] px-1.5 py-1.5 text-[11px] text-white focus:border-gold-400/40 focus:outline-none"
+                              />
+                            </div>
+                          </div>
                         </div>
                       ))}
                     </div>
                   )}
                 </div>
 
-                {/* Return amount */}
-                <div>
-                  <label className="block text-[10px] text-[#8A8A8A] uppercase tracking-wider mb-1.5 font-medium">
-                    Return Amount (₹)
-                  </label>
-                  <input
-                    type="number"
-                    min="0"
-                    placeholder="Refund / amount returned"
-                    value={form.returnAmount}
-                    onChange={e => setForm(f => ({ ...f, returnAmount: e.target.value }))}
-                    className="w-full rounded-xl bg-black border border-white/[0.08] px-3.5 py-2.5 text-sm text-white font-mono placeholder:text-[#555555] focus:border-gold-400/40 focus:outline-none"
-                  />
+                {/* Return amount + return date */}
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-[10px] text-[#8A8A8A] uppercase tracking-wider mb-1.5 font-medium">
+                      Return Amount (₹)
+                    </label>
+                    <input
+                      type="number"
+                      min="0"
+                      placeholder="Refund / returned"
+                      value={form.returnAmount}
+                      onChange={e => setForm(f => ({ ...f, returnAmount: e.target.value }))}
+                      className="w-full rounded-xl bg-black border border-white/[0.08] px-3 py-2.5 text-sm text-white font-mono placeholder:text-[#555555] focus:border-gold-400/40 focus:outline-none"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[10px] text-[#8A8A8A] uppercase tracking-wider mb-1.5 font-medium">
+                      Return Date
+                    </label>
+                    <input
+                      type="date"
+                      value={form.returnDate}
+                      onChange={e => setForm(f => ({ ...f, returnDate: e.target.value }))}
+                      className="w-full rounded-xl bg-black border border-white/[0.08] px-3 py-2.5 text-sm text-white focus:border-gold-400/40 focus:outline-none"
+                    />
+                  </div>
                 </div>
 
                 {/* Notes */}

@@ -11,18 +11,21 @@ function sanitizeContributions(list: any): any[] {
       from: String(c.from || 'Me').trim(),
       amount: Math.max(0, Number(c.amount) || 0),
       date: c.date ? new Date(c.date).toISOString() : new Date().toISOString(),
+      returnDate: c.returnDate ? new Date(c.returnDate).toISOString() : undefined,
     }));
 }
 
 function buildPayload(body: any) {
   return {
     ipoName: String(body.ipoName || '').trim(),
+    lots: Math.max(1, Math.floor(Number(body.lots) || 1)),
     amount: Math.max(0, Number(body.amount) || 0),
     appliedFrom: String(body.appliedFrom || 'Me').trim(),
     status: ['Applied', 'Allotted', 'Not Allotted'].includes(body.status) ? body.status : 'Applied',
     applyDate: body.applyDate ? new Date(body.applyDate).toISOString() : new Date().toISOString(),
     contributions: sanitizeContributions(body.contributions),
     returnAmount: Math.max(0, Number(body.returnAmount) || 0),
+    returnDate: body.returnDate ? new Date(body.returnDate).toISOString() : undefined,
     notes: body.notes ? String(body.notes).trim() : '',
   };
 }

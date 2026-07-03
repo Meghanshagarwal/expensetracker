@@ -44,20 +44,23 @@ export interface Expense {
 
 export interface IpoContribution {
   _id?: string;
-  from: string;        // Whose money — 'Me' | 'Mummy' | 'Papa' | custom
-  amount: number;      // Amount taken from that person
-  date: string;        // Date the amount was taken
+  from: string;         // Whose money — 'Me' | 'Mummy' | 'Papa' | custom
+  amount: number;       // Amount taken from that person
+  date: string;         // Date the amount was taken
+  returnDate?: string;  // Date the money was / will be returned to them
 }
 
 export interface Ipo {
   _id: string;
   ipoName: string;
-  amount: number;                    // Total application amount (auto-filled on select, editable)
+  lots: number;                      // Number of lots applied (default 1)
+  amount: number;                    // Total application amount = lots × per-lot (editable)
   appliedFrom: string;               // Applied from account/person — 'Me' | 'Mummy' | 'Papa' | custom
   status: 'Applied' | 'Allotted' | 'Not Allotted';
   applyDate: string;                 // Date of application
   contributions: IpoContribution[];  // Money taken from people
   returnAmount: number;              // Amount returned (refund / after listing)
+  returnDate?: string;               // Date the amount was / will be returned
   notes?: string;
   createdAt: string;
   isPendingSync?: boolean;
