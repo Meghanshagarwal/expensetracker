@@ -42,6 +42,27 @@ export interface Expense {
   mileage?: number;
 }
 
+export interface IpoContribution {
+  _id?: string;
+  from: string;        // Whose money — 'Me' | 'Mummy' | 'Papa' | custom
+  amount: number;      // Amount taken from that person
+  date: string;        // Date the amount was taken
+}
+
+export interface Ipo {
+  _id: string;
+  ipoName: string;
+  amount: number;                    // Total application amount (auto-filled on select, editable)
+  appliedFrom: string;               // Applied from account/person — 'Me' | 'Mummy' | 'Papa' | custom
+  status: 'Applied' | 'Allotted' | 'Not Allotted';
+  applyDate: string;                 // Date of application
+  contributions: IpoContribution[];  // Money taken from people
+  returnAmount: number;              // Amount returned (refund / after listing)
+  notes?: string;
+  createdAt: string;
+  isPendingSync?: boolean;
+}
+
 export interface DashboardStats {
   totalMonth: number;
   totalYear: number;
