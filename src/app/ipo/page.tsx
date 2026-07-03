@@ -8,25 +8,17 @@ import {
 } from 'lucide-react';
 import { Ipo, IpoContribution } from '@/types';
 
-// Preset IPO shape. Live list is loaded from /api/ipo-list (NSE-backed);
-// this small static set is only the initial fallback before that resolves.
+// Preset IPO shape. The list is loaded live from /api/ipo-list (NSE-backed) —
+// only real, currently open/upcoming IPOs. No hardcoded names.
 type PresetIpo = {
   name: string;
   amount: number;
   priceBand?: string;
   openDate?: string;
   closeDate?: string;
+  board?: string;
   source?: string;
 };
-
-const FALLBACK_PRESETS: PresetIpo[] = [
-  { name: 'Tata Technologies', amount: 15000 },
-  { name: 'Swiggy', amount: 14820 },
-  { name: 'Hyundai Motor India', amount: 14970 },
-  { name: 'Bajaj Housing Finance', amount: 14980 },
-  { name: 'LIC of India', amount: 14805 },
-  { name: 'Zomato', amount: 14820 },
-];
 
 const APPLIED_FROM = ['Me', 'Mummy', 'Papa'];
 const STATUSES = ['Applied', 'Allotted', 'Not Allotted'] as const;
@@ -47,8 +39,8 @@ const emptyForm = () => ({
 
 export default function IpoPage() {
   const [ipos, setIpos] = useState<Ipo[]>([]);
-  const [presetIpos, setPresetIpos] = useState<PresetIpo[]>(FALLBACK_PRESETS);
-  const [presetSource, setPresetSource] = useState<'live' | 'static'>('static');
+  const [presetIpos, setPresetIpos] = useState<PresetIpo[]>([]);
+  const [presetSource, setPresetSource] = useState<'live' | 'empty' | 'unavailable' | 'loading'>('loading');
   const [loading, setLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -75,13 +67,14 @@ export default function IpoPage() {
       const res = await fetch('/api/ipo-list');
       if (res.ok) {
         const data = await res.json();
-        if (Array.isArray(data.ipos) && data.ipos.length) {
-          setPresetIpos(data.ipos);
-          setPresetSource(data.source === 'live' ? 'live' : 'static');
-        }
+        setPresetIpos(Array.isArray(data.ipos) ? data.ipos : []);
+        setPresetSource(data.source === 'live' ? 'live' : data.source === 'empty' ? 'empty' : 'unavailable');
+      } else {
+        setPresetSource('unavailable');
       }
     } catch (e) {
       console.error('Failed to load IPO list', e);
+      setPresetSource('unavailable');
     }
   }, []);
 
@@ -449,10 +442,19 @@ export default function IpoPage() {
                     <span className={`text-[9px] font-semibold px-1.5 py-0.5 rounded border flex items-center gap-1 ${
                       presetSource === 'live'
                         ? 'text-green-400 bg-green-500/10 border-green-500/25'
-                        : 'text-[#8A8A8A] bg-white/[0.04] border-white/[0.08]'
+                        : presetSource === 'loading'
+                        ? 'text-[#8A8A8A] bg-white/[0.04] border-white/[0.08]'
+                        : 'text-gold-400 bg-gold-400/10 border-gold-400/25'
                     }`}>
-                      <span className={`h-1.5 w-1.5 rounded-full ${presetSource === 'live' ? 'bg-green-400 animate-pulse' : 'bg-[#555555]'}`} />
-                      {presetSource === 'live' ? 'LIVE (NSE)' : 'OFFLINE LIST'}
+                      <span className={`h-1.5 w-1.5 rounded-full ${
+                        presetSource === 'live' ? 'bg-green-400 animate-pulse'
+                        : presetSource === 'loading' ? 'bg-[#555555] animate-pulse'
+                        : 'bg-gold-400'
+                      }`} />
+                      {presetSource === 'live' ? `LIVE · NSE (${presetIpos.length})`
+                        : presetSource === 'loading' ? 'LOADING…'
+                        : presetSource === 'empty' ? 'NO OPEN IPO'
+                        : 'LIVE UNAVAILABLE'}
                     </span>
                   </div>
                   <select
@@ -460,14 +462,23 @@ export default function IpoPage() {
                     onChange={e => handlePresetChange(e.target.value)}
                     className="w-full rounded-xl bg-black border border-white/[0.08] px-3.5 py-2.5 text-sm text-white focus:border-gold-400/40 focus:outline-none"
                   >
-                    <option value="">— Choose an IPO —</option>
+                    <option value="">
+                      {presetSource === 'live' ? '— Choose a live IPO —' : '— Add manually below —'}
+                    </option>
                     {presetIpos.map(p => (
                       <option key={p.name} value={p.name}>
-                        {p.name}{p.priceBand ? ` (${p.priceBand})` : ''}
+                        {p.name}{p.board === 'SME' ? ' [SME]' : ''}{p.priceBand ? ` · ${p.priceBand}` : ''}
                       </option>
                     ))}
                     <option value="__custom__">Other (type manually)</option>
                   </select>
+                  {presetSource !== 'live' && presetSource !== 'loading' && (
+                    <p className="mt-1.5 text-[10px] text-[#8A8A8A]">
+                      {presetSource === 'empty'
+                        ? 'No IPO open on NSE right now. Pick "Other" to add one manually.'
+                        : 'Couldn\'t load the live NSE list. Pick "Other" to add manually.'}
+                    </p>
+                  )}
                   {(() => {
                     const sel = presetIpos.find(p => p.name === form.presetKey);
                     return sel && (sel.openDate || sel.closeDate) ? (
