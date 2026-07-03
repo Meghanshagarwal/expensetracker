@@ -8,21 +8,24 @@ import {
 } from 'lucide-react';
 import { Ipo, IpoContribution } from '@/types';
 
-// Preset IPOs — selecting one auto-fills the typical retail application amount (₹).
-const PRESET_IPOS: { name: string; amount: number }[] = [
+// Preset IPO shape. Live list is loaded from /api/ipo-list (NSE-backed);
+// this small static set is only the initial fallback before that resolves.
+type PresetIpo = {
+  name: string;
+  amount: number;
+  priceBand?: string;
+  openDate?: string;
+  closeDate?: string;
+  source?: string;
+};
+
+const FALLBACK_PRESETS: PresetIpo[] = [
   { name: 'Tata Technologies', amount: 15000 },
-  { name: 'NSE (National Stock Exchange)', amount: 14985 },
   { name: 'Swiggy', amount: 14820 },
   { name: 'Hyundai Motor India', amount: 14970 },
-  { name: 'Ola Electric', amount: 14820 },
   { name: 'Bajaj Housing Finance', amount: 14980 },
-  { name: 'Waaree Energies', amount: 14850 },
-  { name: 'NTPC Green Energy', amount: 14904 },
-  { name: 'Vishal Mega Mart', amount: 14820 },
   { name: 'LIC of India', amount: 14805 },
   { name: 'Zomato', amount: 14820 },
-  { name: 'Nykaa', amount: 14964 },
-  { name: 'Paytm', amount: 14940 },
 ];
 
 const APPLIED_FROM = ['Me', 'Mummy', 'Papa'];
@@ -44,6 +47,8 @@ const emptyForm = () => ({
 
 export default function IpoPage() {
   const [ipos, setIpos] = useState<Ipo[]>([]);
+  const [presetIpos, setPresetIpos] = useState<PresetIpo[]>(FALLBACK_PRESETS);
+  const [presetSource, setPresetSource] = useState<'live' | 'static'>('static');
   const [loading, setLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -64,9 +69,26 @@ export default function IpoPage() {
     }
   }, []);
 
+  // Load the live IPO list (NSE-backed) for the dropdown.
+  const loadPresets = useCallback(async () => {
+    try {
+      const res = await fetch('/api/ipo-list');
+      if (res.ok) {
+        const data = await res.json();
+        if (Array.isArray(data.ipos) && data.ipos.length) {
+          setPresetIpos(data.ipos);
+          setPresetSource(data.source === 'live' ? 'live' : 'static');
+        }
+      }
+    } catch (e) {
+      console.error('Failed to load IPO list', e);
+    }
+  }, []);
+
   useEffect(() => {
     loadData();
-  }, [loadData]);
+    loadPresets();
+  }, [loadData, loadPresets]);
 
   const formatRupee = (num: number) =>
     new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 }).format(num || 0);
@@ -97,7 +119,7 @@ export default function IpoPage() {
 
   const openEdit = (ipo: Ipo) => {
     setEditingId(ipo._id);
-    const preset = PRESET_IPOS.find(p => p.name === ipo.ipoName);
+    const preset = presetIpos.find(p => p.name === ipo.ipoName);
     setForm({
       ipoName: ipo.ipoName,
       presetKey: preset ? ipo.ipoName : '__custom__',
@@ -123,7 +145,7 @@ export default function IpoPage() {
       setForm(f => ({ ...f, presetKey: val, ipoName: '', amount: '' }));
       return;
     }
-    const preset = PRESET_IPOS.find(p => p.name === val);
+    const preset = presetIpos.find(p => p.name === val);
     if (preset) {
       setForm(f => ({ ...f, presetKey: val, ipoName: preset.name, amount: preset.amount }));
     }
@@ -420,20 +442,42 @@ export default function IpoPage() {
               <form onSubmit={handleSubmit} className="space-y-4">
                 {/* IPO select */}
                 <div>
-                  <label className="block text-[10px] text-[#8A8A8A] uppercase tracking-wider mb-1.5 font-medium">
-                    Select IPO
-                  </label>
+                  <div className="flex items-center justify-between mb-1.5">
+                    <label className="block text-[10px] text-[#8A8A8A] uppercase tracking-wider font-medium">
+                      Select IPO
+                    </label>
+                    <span className={`text-[9px] font-semibold px-1.5 py-0.5 rounded border flex items-center gap-1 ${
+                      presetSource === 'live'
+                        ? 'text-green-400 bg-green-500/10 border-green-500/25'
+                        : 'text-[#8A8A8A] bg-white/[0.04] border-white/[0.08]'
+                    }`}>
+                      <span className={`h-1.5 w-1.5 rounded-full ${presetSource === 'live' ? 'bg-green-400 animate-pulse' : 'bg-[#555555]'}`} />
+                      {presetSource === 'live' ? 'LIVE (NSE)' : 'OFFLINE LIST'}
+                    </span>
+                  </div>
                   <select
                     value={form.presetKey}
                     onChange={e => handlePresetChange(e.target.value)}
                     className="w-full rounded-xl bg-black border border-white/[0.08] px-3.5 py-2.5 text-sm text-white focus:border-gold-400/40 focus:outline-none"
                   >
                     <option value="">— Choose an IPO —</option>
-                    {PRESET_IPOS.map(p => (
-                      <option key={p.name} value={p.name}>{p.name}</option>
+                    {presetIpos.map(p => (
+                      <option key={p.name} value={p.name}>
+                        {p.name}{p.priceBand ? ` (${p.priceBand})` : ''}
+                      </option>
                     ))}
                     <option value="__custom__">Other (type manually)</option>
                   </select>
+                  {(() => {
+                    const sel = presetIpos.find(p => p.name === form.presetKey);
+                    return sel && (sel.openDate || sel.closeDate) ? (
+                      <p className="mt-1.5 text-[10px] text-[#8A8A8A]">
+                        Open: <span className="text-white/70">{sel.openDate || '—'}</span> · Close:{' '}
+                        <span className="text-white/70">{sel.closeDate || '—'}</span>
+                        {' '}· Est. 1-lot amount auto-filled
+                      </p>
+                    ) : null;
+                  })()}
                 </div>
 
                 {/* Custom name if "Other" */}
