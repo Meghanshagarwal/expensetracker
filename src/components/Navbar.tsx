@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { LayoutDashboard, TrendingUp, Users, LogOut, CreditCard, Wallet } from 'lucide-react';
+import { LayoutDashboard, TrendingUp, Users, LogOut, CreditCard, Wallet, Settings } from 'lucide-react';
 import { motion } from 'framer-motion';
 
 export default function Navbar() {
@@ -67,6 +67,13 @@ export default function Navbar() {
             );
           })}
           <div className="w-px h-6 bg-white/[0.08] mx-3" />
+          <Link
+            href="/settings"
+            className="flex items-center justify-center p-2 rounded-lg text-[#8A8A8A] hover:text-white hover:bg-white/[0.04] transition-all"
+            title="Settings"
+          >
+            <Settings className="h-4 w-4" />
+          </Link>
           <button
             onClick={handleLogout}
             className="flex items-center gap-2 px-4 py-2 rounded-lg text-[#8A8A8A] hover:text-white hover:bg-white/[0.04] transition-all text-sm font-normal"
@@ -88,13 +95,22 @@ export default function Navbar() {
           </span>
         </div>
 
-        <button
-          onClick={handleLogout}
-          className="flex items-center justify-center h-9 w-9 rounded-xl text-[#8A8A8A] hover:text-white hover:bg-white/[0.04] active:bg-white/[0.08] transition-all"
-          title="Logout"
-        >
-          <LogOut className="h-4.5 w-4.5" />
-        </button>
+        <div className="flex items-center gap-1">
+          <Link
+            href="/settings"
+            className="flex items-center justify-center h-9 w-9 rounded-xl text-[#8A8A8A] hover:text-white hover:bg-white/[0.04] active:bg-white/[0.08] transition-all"
+            title="Settings"
+          >
+            <Settings className="h-4.5 w-4.5" />
+          </Link>
+          <button
+            onClick={handleLogout}
+            className="flex items-center justify-center h-9 w-9 rounded-xl text-[#8A8A8A] hover:text-white hover:bg-white/[0.04] active:bg-white/[0.08] transition-all"
+            title="Logout"
+          >
+            <LogOut className="h-4.5 w-4.5" />
+          </button>
+        </div>
       </header>
 
       {/* Mobile Bottom Navigation — Frosted Dark Glass */}

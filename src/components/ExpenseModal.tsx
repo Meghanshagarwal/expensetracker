@@ -52,6 +52,11 @@ export default function ExpenseModal({
   const [priceLoading, setPriceLoading] = useState<boolean>(false);
   const [currentKm, setCurrentKm] = useState('');
   
+  // Dynamic Dropdown Lists from settings
+  const [dynamicUpiApps, setDynamicUpiApps] = useState<string[]>(['GPay', 'Amazon Pay', 'Cred UPI']);
+  const [dynamicSourceAccounts, setDynamicSourceAccounts] = useState<string[]>(['Self Account', 'Salary Account']);
+  const [dynamicVehicles, setDynamicVehicles] = useState<string[]>(['Car', 'Jupiter 125', 'Maestro Edge']);
+  
   const [cards, setCards] = useState<Card[]>([]);
 
   // Calculate litres dynamically
@@ -93,6 +98,35 @@ export default function ExpenseModal({
     };
     if (isOpen) {
       loadCards();
+      
+      // Load dynamic dropdown configurations
+      const local = localStorage.getItem('app_dropdown_settings');
+      if (local) {
+        try {
+          const parsed = JSON.parse(local);
+          if (Array.isArray(parsed.upiApps)) setDynamicUpiApps(parsed.upiApps);
+          if (Array.isArray(parsed.sourceAccounts)) setDynamicSourceAccounts(parsed.sourceAccounts);
+          if (Array.isArray(parsed.vehicles)) setDynamicVehicles(parsed.vehicles);
+        } catch (e) {
+          console.error(e);
+        }
+      }
+
+      if (navigator.onLine) {
+        fetch('/api/settings')
+          .then(res => {
+            if (res.ok) return res.json();
+            throw new Error();
+          })
+          .then(data => {
+            if (data) {
+              if (Array.isArray(data.upiApps)) setDynamicUpiApps(data.upiApps);
+              if (Array.isArray(data.sourceAccounts)) setDynamicSourceAccounts(data.sourceAccounts);
+              if (Array.isArray(data.vehicles)) setDynamicVehicles(data.vehicles);
+            }
+          })
+          .catch(err => console.error('Failed to fetch settings in modal:', err));
+      }
     }
   }, [isOpen]);
 
@@ -109,8 +143,8 @@ export default function ExpenseModal({
   }, [sourceAccount, transactionType, paymentMethods]);
 
   const visibleUpiApps = useMemo(() => {
-    return sourceAccount === 'Salary Account' ? ['Cred UPI'] : ['GPay', 'Amazon Pay', 'Cred UPI'];
-  }, [sourceAccount]);
+    return sourceAccount === 'Salary Account' ? ['Cred UPI'] : dynamicUpiApps;
+  }, [sourceAccount, dynamicUpiApps]);
 
   // Credit Card dropdown = all saved cards (RuPay/Visa/Mastercard are all credit cards)
   const creditCardOptions = useMemo(() => {
@@ -163,9 +197,9 @@ export default function ExpenseModal({
       setIsCustomPersonActive(false);
       setCustomPerson('');
 
-      setVehicle('Car');
-      setSourceAccount('Self Account');
-      setUpiApp('GPay');
+      setVehicle(dynamicVehicles[0] || 'Car');
+      setSourceAccount(dynamicSourceAccounts[0] || 'Self Account');
+      setUpiApp(visibleUpiApps[0] || 'GPay');
       setUpiLinkedAccount('');
       setCreditCardIssuer('ICICI');
       setPetrolPrice(113.15);
@@ -192,9 +226,9 @@ export default function ExpenseModal({
   // Sync default options when conditional changes occur
   useEffect(() => {
     if (category === 'Petrol' && !vehicle) {
-      setVehicle('Car');
+      setVehicle(dynamicVehicles[0] || 'Car');
     }
-  }, [category, vehicle]);
+  }, [category, vehicle, dynamicVehicles]);
 
   useEffect(() => {
     if (paymentMethod === 'UPI' && !upiApp) {
@@ -503,9 +537,9 @@ export default function ExpenseModal({
                         onChange={(e) => setVehicle(e.target.value)}
                         className={inputClass}
                       >
-                        <option value="Car">Car</option>
-                        <option value="Jupiter 125">Jupiter 125</option>
-                        <option value="Maestro Edge">Maestro Edge</option>
+                        {dynamicVehicles.map(v => (
+                          <option key={v} value={v}>{v}</option>
+                        ))}
                       </select>
                     </div>
                     <div>
@@ -621,8 +655,9 @@ export default function ExpenseModal({
                     onChange={(e) => setSourceAccount(e.target.value)}
                     className={inputClass}
                   >
-                    <option value="Self Account">Self Account</option>
-                    <option value="Salary Account">Salary Account</option>
+                    {dynamicSourceAccounts.map(acc => (
+                      <option key={acc} value={acc}>{acc}</option>
+                    ))}
                   </select>
                 </div>
               </div>
@@ -670,9 +705,9 @@ export default function ExpenseModal({
                         onChange={(e) => setUpiApp(e.target.value)}
                         className={inputClass}
                       >
-                        <option value="GPay">GPay</option>
-                        <option value="Amazon Pay">Amazon Pay</option>
-                        <option value="Cred UPI">Cred UPI</option>
+                        {visibleUpiApps.map(app => (
+                          <option key={app} value={app}>{app}</option>
+                        ))}
                       </select>
                     </div>
                     {transactionType !== 'borrowed' && (

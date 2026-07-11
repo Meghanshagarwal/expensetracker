@@ -30,6 +30,7 @@ export default function DashboardPage() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingExpense, setEditingExpense] = useState<Expense | null>(null);
   const [selectedCategory, setSelectedCategory] = useState<string>('');
+  const [dynamicCategories, setDynamicCategories] = useState<string[]>(CATEGORIES);
   
   const {
     isOnline,
@@ -58,6 +59,40 @@ export default function DashboardPage() {
 
   useEffect(() => {
     loadData();
+    
+    // Load dynamic categories from localStorage first, then fetch
+    const local = localStorage.getItem('app_dropdown_settings');
+    if (local) {
+      try {
+        const parsed = JSON.parse(local);
+        if (Array.isArray(parsed.categories)) {
+          setDynamicCategories(parsed.categories);
+        }
+      } catch (e) {
+        console.error(e);
+      }
+    }
+
+    if (navigator.onLine) {
+      fetch('/api/settings')
+        .then(res => {
+          if (res.ok) return res.json();
+          throw new Error();
+        })
+        .then(data => {
+          if (data && Array.isArray(data.categories)) {
+            setDynamicCategories(data.categories);
+            // Sync to local storage
+            localStorage.setItem('app_dropdown_settings', JSON.stringify({
+              categories: data.categories,
+              upiApps: data.upiApps,
+              sourceAccounts: data.sourceAccounts,
+              vehicles: data.vehicles
+            }));
+          }
+        })
+        .catch(err => console.error('Failed to fetch categories:', err));
+    }
   }, [loadData]);
 
   const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
@@ -510,7 +545,7 @@ export default function DashboardPage() {
         <ExpenseTable
           expenses={expenses}
           persons={persons}
-          categories={CATEGORIES}
+          categories={dynamicCategories}
           paymentMethods={PAYMENT_METHODS}
           onEdit={handleEdit}
           onDelete={handleDelete}
@@ -600,7 +635,7 @@ export default function DashboardPage() {
         onSuccess={loadData}
         expenseToEdit={editingExpense}
         persons={persons}
-        categories={CATEGORIES}
+        categories={dynamicCategories}
         paymentMethods={PAYMENT_METHODS}
         addExpenseOffline={addExpenseOffline}
         addPersonOffline={addPersonOffline}

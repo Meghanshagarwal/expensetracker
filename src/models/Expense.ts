@@ -14,19 +14,6 @@ const ExpenseSchema = new Schema({
   category: {
     type: String,
     required: [true, "Please specify a category."],
-    enum: [
-      "Petrol",
-      "Food",
-      "Tea/Coffee",
-      "Travel",
-      "Shopping",
-      "Bills",
-      "Entertainment",
-      "Education",
-      "Medical",
-      "Family",
-      "Other",
-    ],
   },
   transactionType: {
     type: String,
@@ -60,16 +47,13 @@ const ExpenseSchema = new Schema({
   // Conditional Fields
   vehicle: {
     type: String,
-    enum: ["Car", "Jupiter 125", "Maestro Edge"],
   },
   sourceAccount: {
     type: String,
-    enum: ["Salary Account", "Self Account"],
     default: "Self Account",
   },
   upiApp: {
     type: String,
-    enum: ["GPay", "Amazon Pay", "Cred UPI"],
   },
   // Driven dynamically by the user's saved cards (RuPay cards linked to UPI)
   upiLinkedAccount: {
