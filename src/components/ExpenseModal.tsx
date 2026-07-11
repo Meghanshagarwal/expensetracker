@@ -521,26 +521,46 @@ export default function ExpenseModal({
                       />
                     </div>
                   </div>
-                  {amount && Number(amount) > 0 && (
-                    <div className="text-xs text-[#4ADE80] font-semibold mt-2 px-1 space-y-1">
-                      {priceLoading ? (
-                        <div>Fetching Jaipur petrol rate...</div>
-                      ) : (
-                        <>
-                          <div>
-                            Jaipur Petrol Rate: ₹{petrolPrice.toFixed(2)}/Ltr | Calculated: {litres.toFixed(2)} Litres
-                          </div>
-                          {lastPetrolTx && (
-                            <div className="text-[#8A8A8A] font-light text-[11px]">
-                              Prev Odo: {lastPetrolTx.km} km ({new Date(lastPetrolTx.date).toLocaleDateString()})
-                            </div>
-                          )}
-                          {calculatedMileage !== null && (
-                            <div className="text-gold-400 font-bold mt-1">
-                              Expected Mileage: {calculatedMileage.toFixed(1)} km/l
-                            </div>
-                          )}
-                        </>
+
+                  {/* Petrol Price (editable) + Litres (auto-calculated) */}
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-xs font-normal uppercase tracking-wider text-gold-400 mb-1">
+                        Petrol Price (₹/L)
+                        {priceLoading && <span className="ml-1 text-[#8A8A8A] normal-case tracking-normal animate-pulse">fetching…</span>}
+                      </label>
+                      <input
+                        type="number"
+                        step="0.01"
+                        min="0"
+                        placeholder="e.g. 113.15"
+                        value={petrolPrice}
+                        onChange={(e) => setPetrolPrice(Number(e.target.value) || 0)}
+                        className={inputClass}
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-normal uppercase tracking-wider text-gold-400 mb-1">
+                        Litres
+                      </label>
+                      <div className={`${inputClass} flex items-center text-[#4ADE80] font-bold cursor-default`}>
+                        {litres > 0 ? `${litres.toFixed(2)} L` : '—'}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Mileage & Previous Odo info */}
+                  {amount && Number(amount) > 0 && !priceLoading && (
+                    <div className="text-xs px-1 space-y-1">
+                      {lastPetrolTx && (
+                        <div className="text-[#8A8A8A] font-light text-[11px]">
+                          Prev Odo: {lastPetrolTx.km} km ({new Date(lastPetrolTx.date).toLocaleDateString()})
+                        </div>
+                      )}
+                      {calculatedMileage !== null && (
+                        <div className="text-gold-400 font-bold">
+                          Expected Mileage: {calculatedMileage.toFixed(1)} km/l
+                        </div>
                       )}
                     </div>
                   )}
@@ -690,9 +710,9 @@ export default function ExpenseModal({
                     Credit Card Issuer
                   </label>
                   <select
-                    value={creditCardIssuer}
-                    onChange={(e) => setCreditCardIssuer(e.target.value)}
-                    className={inputClass}
+                     value={creditCardIssuer}
+                     onChange={(e) => setCreditCardIssuer(e.target.value)}
+                     className={inputClass}
                   >
                     {creditCardOptions.map(name => (
                       <option key={name} value={name}>{name}</option>
