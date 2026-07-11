@@ -68,10 +68,10 @@ export default function ExpenseModal({
   }, [expenses, category, vehicle, expenseToEdit]);
 
   const calculatedMileage = useMemo(() => {
-    if (!lastPetrolTx || !currentKm || isNaN(Number(currentKm)) || !litres) return null;
+    if (!lastPetrolTx || !lastPetrolTx.litres || !currentKm || isNaN(Number(currentKm))) return null;
     const diff = Number(currentKm) - lastPetrolTx.km!;
-    return diff > 0 ? diff / litres : null;
-  }, [lastPetrolTx, currentKm, litres]);
+    return diff > 0 ? diff / lastPetrolTx.litres : null;
+  }, [lastPetrolTx, currentKm]);
 
   useEffect(() => {
     const loadCards = async () => {
