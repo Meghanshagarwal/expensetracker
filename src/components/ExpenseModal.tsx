@@ -151,12 +151,13 @@ export default function ExpenseModal({
     return cards.map(c => c.name);
   }, [cards]);
 
-  // UPI Linked Account dropdown = RuPay cards (these can be UPI-linked)
+  // UPI Linked Account dropdown = RuPay cards + custom Source Accounts from settings
   const linkedAccountOptions = useMemo(() => {
-    return cards
+    const rupayCards = cards
       .filter(c => (c.cardNetwork || '').toLowerCase() === 'rupay')
       .map(c => `${c.name} Credit Card`);
-  }, [cards]);
+    return [...rupayCards, ...dynamicSourceAccounts];
+  }, [cards, dynamicSourceAccounts]);
 
   // Default the credit-card selection to the first available Visa/Mastercard card
   useEffect(() => {
