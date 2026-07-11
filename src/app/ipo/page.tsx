@@ -107,6 +107,33 @@ export default function IpoPage() {
     [ipos, filter]
   );
 
+  // ---- Dynamic Account Balances (Refund Tracking) ----
+  const accountBalances = useMemo(() => {
+    const balances: Record<string, number> = { Mummy: 0, Papa: 0 };
+    
+    // Sort chronologically (oldest first) to compute running ledger
+    const sorted = [...ipos].sort((a, b) => new Date(a.applyDate).getTime() - new Date(b.applyDate).getTime());
+    
+    sorted.forEach(ipo => {
+      const applicant = ipo.appliedFrom;
+      if (applicant === 'Mummy' || applicant === 'Papa') {
+        // Calculate funding contributed by Me for this application
+        const newFunding = (ipo.contributions || [])
+          .filter(c => c.from === 'Me')
+          .reduce((sum, c) => sum + (c.amount || 0), 0);
+          
+        // The remaining amount must come from the person's existing balance
+        const usedFromBalance = Math.max(0, ipo.amount - newFunding);
+        balances[applicant] = Math.max(0, balances[applicant] - usedFromBalance);
+        
+        // Add return amount back to the balance if unallotted
+        balances[applicant] += (ipo.returnAmount || 0);
+      }
+    });
+    
+    return balances;
+  }, [ipos]);
+
   // ---- Form helpers ----
   const openAdd = () => {
     setEditingId(null);
@@ -302,6 +329,30 @@ export default function IpoPage() {
               </span>
             </div>
           ))}
+        </div>
+
+        {/* Active Account Balances (Refunds sitting in accounts) */}
+        <div className="bg-[#111111] border border-white/[0.06] rounded-2xl p-4 mb-6 shadow-luxury">
+          <h2 className="text-[10px] uppercase tracking-wider text-[#8A8A8A] font-bold mb-3 flex items-center gap-1.5">
+            <Wallet className="h-4 w-4 text-gold-400" />
+            Active Balances in Accounts (Refunds pending reuse)
+          </h2>
+          <div className="grid grid-cols-2 sm:grid-cols-2 gap-3.5">
+            {['Mummy', 'Papa'].map(acc => {
+              const bal = accountBalances[acc] || 0;
+              return (
+                <div key={acc} className="bg-white/[0.02] border border-white/[0.04] rounded-xl p-3.5 flex items-center justify-between">
+                  <div>
+                    <span className="text-xs font-semibold text-white">{acc}'s Account</span>
+                    <span className="block text-[10px] text-[#8A8A8A] mt-0.5">Available for next IPO</span>
+                  </div>
+                  <span className={`text-sm sm:text-base font-bold font-mono tabular-nums tracking-tight ${bal > 0 ? 'text-gold-400' : 'text-[#555555]'}`}>
+                    {formatRupee(bal)}
+                  </span>
+                </div>
+              );
+            })}
+          </div>
         </div>
 
         {/* Filter tabs */}
@@ -606,9 +657,14 @@ export default function IpoPage() {
                       onChange={e => setForm(f => ({ ...f, appliedFrom: e.target.value }))}
                       className="w-full rounded-xl bg-black border border-white/[0.08] px-3 py-2.5 text-sm text-white focus:border-gold-400/40 focus:outline-none"
                     >
-                      {APPLIED_FROM.map(a => (
-                        <option key={a} value={a}>{a}</option>
-                      ))}
+                      {APPLIED_FROM.map(a => {
+                        const bal = accountBalances[a] || 0;
+                        return (
+                          <option key={a} value={a}>
+                            {a}{bal > 0 ? ` (Bal: ₹${bal})` : ''}
+                          </option>
+                        );
+                      })}
                     </select>
                   </div>
                 </div>
@@ -724,6 +780,13 @@ export default function IpoPage() {
                     </div>
                   )}
                 </div>
+
+                {/* Available balance tip */}
+                {(form.appliedFrom === 'Mummy' || form.appliedFrom === 'Papa') && (accountBalances[form.appliedFrom] || 0) > 0 && (
+                  <div className="text-[10px] leading-relaxed text-gold-400/90 bg-gold-400/[0.03] border border-gold-400/10 rounded-xl p-3">
+                    💡 <strong>Refund Balance Alert:</strong> {form.appliedFrom}'s account currently holds <strong>{formatRupee(accountBalances[form.appliedFrom])}</strong> of your money from previous unallotted IPO returns. If you are reusing this existing balance for this application, <strong>do not add a new contribution from "Me"</strong>.
+                  </div>
+                )}
 
                 {/* Return amount + return date */}
                 <div className="grid grid-cols-2 gap-3">
