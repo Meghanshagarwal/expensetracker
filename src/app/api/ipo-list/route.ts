@@ -42,22 +42,90 @@ async function fetchCategory(category: 'ipo' | 'sme', cookie: string) {
   return Array.isArray(data) ? data : [];
 }
 
+async function fetchGmpHtml(): Promise<string> {
+  try {
+    const controller = new AbortController();
+    const id = setTimeout(() => controller.abort(), 6000); // 6s timeout
+    const res = await fetch('https://ipowatch.in/ipo-gmp-grey-market-premium/', {
+      headers: {
+        'User-Agent': UA,
+        Accept: 'text/html',
+      },
+      signal: controller.signal,
+      next: { revalidate: 1800 } // Cache for 30 min
+    });
+    clearTimeout(id);
+    if (res.ok) {
+      return await res.text();
+    }
+  } catch (e) {
+    console.error('Failed to fetch GMP HTML:', e);
+  }
+  return '';
+}
+
+function parseGmp(html: string): Map<string, { gmp: number; direction: 'up' | 'down' }> {
+  const gmpMap = new Map<string, { gmp: number; direction: 'up' | 'down' }>();
+  if (!html) return gmpMap;
+
+  const match = html.match(/<div class="gmp-ticker-list">([\s\S]*?)<\/div>/i);
+  if (match) {
+    const links = match[1].match(/<a[^>]*>([\s\S]*?)<\/a>/gi) || [];
+    links.forEach(l => {
+      const text = l.replace(/<[^>]*>/g, '').replace(/&amp;/g, '&').replace(/&#038;/g, '&').trim();
+      const upDownMatch = text.match(/([\s\S]+?)(▲|▼)\s*(\+|-)?₹?([\d.,]+)/i);
+      if (upDownMatch) {
+        const name = upDownMatch[1].trim();
+        const direction = upDownMatch[2] === '▲' ? 'up' : 'down';
+        const value = parseFloat(upDownMatch[4].replace(/,/g, ''));
+        gmpMap.set(name.toLowerCase(), { gmp: value, direction });
+      }
+    });
+  }
+  return gmpMap;
+}
+
+function normalizeName(name: string): string {
+  return name
+    .toLowerCase()
+    .replace(/\s+limited$/i, '')
+    .replace(/\s+ltd$/i, '')
+    .replace(/\s+sme$/i, '')
+    .replace(/[^a-z0-9]/g, '');
+}
+
 export async function GET() {
   try {
     const cookie = await nseCookie();
-    // Pull both mainboard IPOs and SME issues that are open / upcoming on NSE.
-    const [main, sme] = await Promise.all([
+    // Pull both mainboard IPOs, SME issues from NSE, and live GMP data from IPO Watch
+    const [main, sme, gmpHtml] = await Promise.all([
       fetchCategory('ipo', cookie).catch(() => []),
       fetchCategory('sme', cookie).catch(() => []),
+      fetchGmpHtml().catch(() => ''),
     ]);
+
+    const gmpMap = parseGmp(gmpHtml);
+    const getGmpForCompany = (companyName: string) => {
+      const normCompany = normalizeName(companyName);
+      for (const [gmpName, data] of gmpMap.entries()) {
+        const normGmp = normalizeName(gmpName);
+        if (normCompany.includes(normGmp) || normGmp.includes(normCompany)) {
+          return data;
+        }
+      }
+      return null;
+    };
 
     const map = (rows: any[], board: string) =>
       rows
         .filter((i: any) => i.companyName)
         .map((i: any) => {
           const band = i.issuePrice || '';
+          const name = String(i.companyName).replace(/\s+Limited$/i, '').trim();
+          const gmpInfo = getGmpForCompany(name);
+
           return {
-            name: String(i.companyName).replace(/\s+Limited$/i, '').trim(),
+            name,
             amount: estimateAmount(band),
             priceBand: band,
             openDate: i.issueStartDate || '',
@@ -66,6 +134,8 @@ export async function GET() {
             board,
             symbol: i.symbol || '',
             source: 'live',
+            gmp: gmpInfo ? gmpInfo.gmp : undefined,
+            gmpDirection: gmpInfo ? gmpInfo.direction : undefined,
           };
         });
 

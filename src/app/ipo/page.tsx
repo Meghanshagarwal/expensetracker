@@ -18,6 +18,8 @@ type PresetIpo = {
   closeDate?: string;
   board?: string;
   source?: string;
+  gmp?: number;
+  gmpDirection?: 'up' | 'down';
 };
 
 const APPLIED_FROM = ['Me', 'Mummy', 'Papa'];
@@ -337,6 +339,11 @@ export default function IpoPage() {
             {filteredIpos.map(ipo => {
               const { cls, Icon } = statusStyle(ipo.status);
               const takenTotal = (ipo.contributions || []).reduce((s, c) => s + (c.amount || 0), 0);
+              const preset = presetIpos.find(p => {
+                const n1 = p.name.toLowerCase().replace(/[^a-z0-9]/g, '');
+                const n2 = ipo.ipoName.toLowerCase().replace(/[^a-z0-9]/g, '');
+                return n1.includes(n2) || n2.includes(n1);
+              });
               return (
                 <div
                   key={ipo._id}
@@ -350,6 +357,15 @@ export default function IpoPage() {
                           <Icon className="h-3 w-3" />
                           {ipo.status}
                         </span>
+                        {preset && preset.gmp !== undefined && (
+                          <span className={`text-[10px] font-semibold px-2.5 py-0.5 rounded-md border flex items-center gap-0.5 ${
+                            preset.gmpDirection === 'up'
+                              ? 'text-[#4ADE80] bg-[#4ADE80]/10 border-[#4ADE80]/20'
+                              : 'text-[#FF5A5F] bg-[#FF5A5F]/10 border-[#FF5A5F]/20'
+                          }`}>
+                            GMP: {preset.gmpDirection === 'up' ? '▲' : '▼'} ₹{preset.gmp}
+                          </span>
+                        )}
                       </div>
                       <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-[#8A8A8A] mt-2">
                         <span className="flex items-center gap-1">
@@ -507,7 +523,10 @@ export default function IpoPage() {
                     </option>
                     {presetIpos.map(p => (
                       <option key={p.name} value={p.name}>
-                        {p.name}{p.board === 'SME' ? ' [SME]' : ''}{p.priceBand ? ` · ${p.priceBand}` : ''}
+                        {p.name}
+                        {p.board === 'SME' ? ' [SME]' : ''}
+                        {p.priceBand ? ` · ${p.priceBand}` : ''}
+                        {p.gmp !== undefined ? ` · GMP: ${p.gmpDirection === 'up' ? '+' : '-'}₹${p.gmp}` : ''}
                       </option>
                     ))}
                     <option value="__custom__">Other (type manually)</option>
