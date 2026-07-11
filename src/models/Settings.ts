@@ -22,6 +22,10 @@ const SettingsSchema = new Schema({
     type: [String],
     default: ["Self Account", "Salary Account"],
   },
+  upiAccounts: {
+    type: [String],
+    default: ["SBI Bank", "ICICI Bank"],
+  },
   vehicles: {
     type: [String],
     default: ["Car", "Jupiter 125", "Maestro Edge"],

@@ -9,6 +9,7 @@ const DEFAULT_SETTINGS = {
   ],
   upiApps: ["GPay", "Amazon Pay", "Cred UPI"],
   sourceAccounts: ["Self Account", "Salary Account"],
+  upiAccounts: ["SBI Bank", "ICICI Bank"],
   vehicles: ["Car", "Jupiter 125", "Maestro Edge"]
 };
 
@@ -36,12 +37,13 @@ export async function GET() {
 export async function PUT(request: Request) {
   try {
     const body = await request.json();
-    const { categories, upiApps, sourceAccounts, vehicles } = body;
+    const { categories, upiApps, sourceAccounts, upiAccounts, vehicles } = body;
 
     const updatePayload = {
       categories: Array.isArray(categories) ? categories.filter(Boolean).map((s: string) => s.trim()) : undefined,
       upiApps: Array.isArray(upiApps) ? upiApps.filter(Boolean).map((s: string) => s.trim()) : undefined,
       sourceAccounts: Array.isArray(sourceAccounts) ? sourceAccounts.filter(Boolean).map((s: string) => s.trim()) : undefined,
+      upiAccounts: Array.isArray(upiAccounts) ? upiAccounts.filter(Boolean).map((s: string) => s.trim()) : undefined,
       vehicles: Array.isArray(vehicles) ? vehicles.filter(Boolean).map((s: string) => s.trim()) : undefined,
     };
 

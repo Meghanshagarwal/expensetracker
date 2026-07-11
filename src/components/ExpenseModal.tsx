@@ -55,6 +55,7 @@ export default function ExpenseModal({
   // Dynamic Dropdown Lists from settings
   const [dynamicUpiApps, setDynamicUpiApps] = useState<string[]>(['GPay', 'Amazon Pay', 'Cred UPI']);
   const [dynamicSourceAccounts, setDynamicSourceAccounts] = useState<string[]>(['Self Account', 'Salary Account']);
+  const [dynamicUpiAccounts, setDynamicUpiAccounts] = useState<string[]>(['SBI Bank', 'ICICI Bank']);
   const [dynamicVehicles, setDynamicVehicles] = useState<string[]>(['Car', 'Jupiter 125', 'Maestro Edge']);
   
   const [cards, setCards] = useState<Card[]>([]);
@@ -106,6 +107,7 @@ export default function ExpenseModal({
           const parsed = JSON.parse(local);
           if (Array.isArray(parsed.upiApps)) setDynamicUpiApps(parsed.upiApps);
           if (Array.isArray(parsed.sourceAccounts)) setDynamicSourceAccounts(parsed.sourceAccounts);
+          if (Array.isArray(parsed.upiAccounts)) setDynamicUpiAccounts(parsed.upiAccounts);
           if (Array.isArray(parsed.vehicles)) setDynamicVehicles(parsed.vehicles);
         } catch (e) {
           console.error(e);
@@ -122,6 +124,7 @@ export default function ExpenseModal({
             if (data) {
               if (Array.isArray(data.upiApps)) setDynamicUpiApps(data.upiApps);
               if (Array.isArray(data.sourceAccounts)) setDynamicSourceAccounts(data.sourceAccounts);
+              if (Array.isArray(data.upiAccounts)) setDynamicUpiAccounts(data.upiAccounts);
               if (Array.isArray(data.vehicles)) setDynamicVehicles(data.vehicles);
             }
           })
@@ -151,13 +154,19 @@ export default function ExpenseModal({
     return cards.map(c => c.name);
   }, [cards]);
 
-  // UPI Linked Account dropdown = RuPay cards + custom Source Accounts from settings
+  // UPI Linked Account dropdown = RuPay cards + custom UPI Bank Accounts from settings
   const linkedAccountOptions = useMemo(() => {
     const rupayCards = cards
       .filter(c => (c.cardNetwork || '').toLowerCase() === 'rupay')
-      .map(c => `${c.name} Credit Card`);
-    return [...rupayCards, ...dynamicSourceAccounts];
-  }, [cards, dynamicSourceAccounts]);
+      .map(c => {
+        // Only append "Credit Card" if name doesn't already contain it
+        if (c.name.toLowerCase().endsWith('credit card')) {
+          return c.name;
+        }
+        return `${c.name} Credit Card`;
+      });
+    return [...rupayCards, ...dynamicUpiAccounts];
+  }, [cards, dynamicUpiAccounts]);
 
   // Default the credit-card selection to the first available Visa/Mastercard card
   useEffect(() => {

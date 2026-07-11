@@ -15,12 +15,14 @@ export default function SettingsPage() {
   const [categories, setCategories] = useState<string[]>([]);
   const [upiApps, setUpiApps] = useState<string[]>([]);
   const [sourceAccounts, setSourceAccounts] = useState<string[]>([]);
+  const [upiAccounts, setUpiAccounts] = useState<string[]>([]);
   const [vehicles, setVehicles] = useState<string[]>([]);
 
   // Input states for adding new options
   const [newCategory, setNewCategory] = useState('');
   const [newUpiApp, setNewUpiApp] = useState('');
   const [newSourceAccount, setNewSourceAccount] = useState('');
+  const [newUpiAccount, setNewUpiAccount] = useState('');
   const [newVehicle, setNewVehicle] = useState('');
 
   // Editing state
@@ -37,6 +39,7 @@ export default function SettingsPage() {
           setCategories(parsed.categories || []);
           setUpiApps(parsed.upiApps || []);
           setSourceAccounts(parsed.sourceAccounts || []);
+          setUpiAccounts(parsed.upiAccounts || []);
           setVehicles(parsed.vehicles || []);
         }
 
@@ -47,6 +50,7 @@ export default function SettingsPage() {
           setCategories(data.categories || []);
           setUpiApps(data.upiApps || []);
           setSourceAccounts(data.sourceAccounts || []);
+          setUpiAccounts(data.upiAccounts || []);
           setVehicles(data.vehicles || []);
           
           // Save to local storage for offline use
@@ -54,6 +58,7 @@ export default function SettingsPage() {
             categories: data.categories,
             upiApps: data.upiApps,
             sourceAccounts: data.sourceAccounts,
+            upiAccounts: data.upiAccounts,
             vehicles: data.vehicles
           }));
         }
@@ -77,6 +82,7 @@ export default function SettingsPage() {
       categories,
       upiApps,
       sourceAccounts,
+      upiAccounts,
       vehicles
     };
 
@@ -283,6 +289,7 @@ export default function SettingsPage() {
         {renderSection('Categories', categories, setCategories, newCategory, setNewCategory, 'categories')}
         {renderSection('UPI Apps', upiApps, setUpiApps, newUpiApp, setNewUpiApp, 'upiApps')}
         {renderSection('Source Accounts', sourceAccounts, setSourceAccounts, newSourceAccount, setNewSourceAccount, 'sourceAccounts')}
+        {renderSection('UPI Bank Accounts (Linked)', upiAccounts, setUpiAccounts, newUpiAccount, setNewUpiAccount, 'upiAccounts')}
         {renderSection('Vehicles', vehicles, setVehicles, newVehicle, setNewVehicle, 'vehicles')}
       </div>
     </div>
