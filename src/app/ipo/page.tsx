@@ -569,31 +569,57 @@ export default function IpoPage() {
             />
 
             <motion.div
-              initial={{ scale: 0.95, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              exit={{ scale: 0.95, opacity: 0 }}
-              className="relative w-full max-w-lg max-h-[90vh] overflow-y-auto rounded-2xl bg-[#111111] border border-white/[0.06] p-6 text-white shadow-luxury z-10"
+              initial={{ scale: 0.94, opacity: 0, y: 12 }}
+              animate={{ scale: 1, opacity: 1, y: 0 }}
+              exit={{ scale: 0.96, opacity: 0, y: 8 }}
+              transition={{ type: 'spring', stiffness: 320, damping: 28 }}
+              className="relative w-full max-w-lg max-h-[90vh] overflow-y-auto rounded-3xl bg-[#111111] border border-white/[0.08] text-white shadow-luxury z-10"
             >
-              <div className="flex items-center justify-between mb-5">
-                <h3 className="text-lg font-bold flex items-center gap-2">
-                  <TrendingUp className="h-5 w-5 text-gold-400" />
-                  {editingId ? 'Edit IPO' : 'Add IPO'}
-                </h3>
+              {/* Sticky header */}
+              <div className="sticky top-0 z-10 flex items-center justify-between px-6 py-4 bg-[#111111]/95 backdrop-blur-xl border-b border-white/[0.06]">
+                <div className="flex items-center gap-2.5">
+                  <div className="h-9 w-9 rounded-xl bg-gold-400/10 border border-gold-400/25 flex items-center justify-center shrink-0">
+                    <TrendingUp className="h-4.5 w-4.5 text-gold-400" />
+                  </div>
+                  <div>
+                    <h3 className="text-base font-bold leading-tight">
+                      {editingId ? 'Edit IPO' : 'Add IPO'}
+                    </h3>
+                    <p className="text-[10px] text-[#8A8A8A] leading-tight mt-0.5">
+                      {editingId ? 'Update the result whenever it comes out' : 'Fill this in now, update the result later'}
+                    </p>
+                  </div>
+                </div>
                 <button
                   onClick={() => setIsModalOpen(false)}
-                  className="p-1.5 rounded-lg text-[#8A8A8A] hover:text-white hover:bg-white/[0.05]"
+                  className="p-2 rounded-xl text-[#8A8A8A] hover:text-white hover:bg-white/[0.06] transition-colors shrink-0"
                 >
                   <X className="h-4 w-4" />
                 </button>
               </div>
 
-              {error && (
-                <div className="mb-4 rounded-xl bg-[#FF5A5F]/10 border border-[#FF5A5F]/20 p-2.5 text-xs text-[#FF5A5F]">
-                  {error}
-                </div>
-              )}
+              <div className="p-6 pt-5">
+                <AnimatePresence>
+                  {error && (
+                    <motion.div
+                      initial={{ opacity: 0, height: 0, marginBottom: 0 }}
+                      animate={{ opacity: 1, height: 'auto', marginBottom: 16 }}
+                      exit={{ opacity: 0, height: 0, marginBottom: 0 }}
+                      className="rounded-xl bg-[#FF5A5F]/10 border border-[#FF5A5F]/20 p-2.5 text-xs text-[#FF5A5F] overflow-hidden"
+                    >
+                      {error}
+                    </motion.div>
+                  )}
+                </AnimatePresence>
 
               <form onSubmit={handleSubmit} className="space-y-4">
+                {/* Step 1 — Application */}
+                <div className="rounded-2xl border border-white/[0.06] bg-white/[0.015] p-4 space-y-3.5">
+                  <div className="flex items-center gap-2">
+                    <span className="h-5 w-5 shrink-0 rounded-full bg-gold-400/15 border border-gold-400/30 text-gold-400 text-[10px] font-bold flex items-center justify-center">1</span>
+                    <span className="text-[11px] font-semibold text-white/90 uppercase tracking-wider">Application</span>
+                  </div>
+
                 {/* IPO select */}
                 <div>
                   <div className="flex items-center justify-between mb-1.5">
@@ -734,7 +760,7 @@ export default function IpoPage() {
                     <label className="block text-[10px] text-[#8A8A8A] uppercase tracking-wider mb-1.5 font-medium">
                       Applied
                     </label>
-                    <div className="w-full rounded-xl bg-black/60 border border-white/[0.06] px-3.5 py-2.5 text-sm text-green-400 flex items-center gap-1.5">
+                    <div className="w-full rounded-xl bg-green-500/[0.06] border border-green-500/20 px-3.5 py-2.5 text-sm text-green-400 flex items-center gap-1.5">
                       <CheckCircle2 className="h-3.5 w-3.5" /> Yes
                     </div>
                   </div>
@@ -751,6 +777,14 @@ export default function IpoPage() {
                     />
                   </div>
                 </div>
+                </div>
+
+                {/* Step 2 — Funding */}
+                <div className="rounded-2xl border border-white/[0.06] bg-white/[0.015] p-4 space-y-3">
+                  <div className="flex items-center gap-2">
+                    <span className="h-5 w-5 shrink-0 rounded-full bg-gold-400/15 border border-gold-400/30 text-gold-400 text-[10px] font-bold flex items-center justify-center">2</span>
+                    <span className="text-[11px] font-semibold text-white/90 uppercase tracking-wider">Funding</span>
+                  </div>
 
                 {/* Contributions — amount taken from */}
                 <div className="rounded-xl border border-white/[0.06] bg-black/40 p-3.5">
@@ -758,25 +792,34 @@ export default function IpoPage() {
                     <label className="text-[10px] text-[#8A8A8A] uppercase tracking-wider font-medium">
                       Amount Taken From
                     </label>
-                    <button
+                    <motion.button
+                      whileTap={{ scale: 0.95 }}
                       type="button"
                       onClick={addContribution}
                       className="flex items-center gap-1 text-[11px] font-semibold text-gold-400 hover:text-gold-500"
                     >
                       <Plus className="h-3 w-3" /> Add person
-                    </button>
+                    </motion.button>
                   </div>
 
                   {form.contributions.length === 0 ? (
                     <p className="text-[11px] text-[#555555]">No one added. Add if money was taken from someone.</p>
                   ) : (
                     <div className="space-y-3">
+                      <AnimatePresence initial={false}>
                       {form.contributions.map((c, idx) => (
-                        <div key={idx} className="rounded-lg border border-white/[0.06] bg-black/50 p-2.5 relative">
+                        <motion.div
+                          key={idx}
+                          initial={{ opacity: 0, height: 0, marginBottom: 0 }}
+                          animate={{ opacity: 1, height: 'auto', marginBottom: 0 }}
+                          exit={{ opacity: 0, height: 0, marginBottom: 0 }}
+                          transition={{ duration: 0.18 }}
+                          className="rounded-lg border border-white/[0.06] bg-black/50 p-2.5 relative overflow-hidden"
+                        >
                           <button
                             type="button"
                             onClick={() => removeContribution(idx)}
-                            className="absolute top-2 right-2 text-[#555555] hover:text-[#FF5A5F]"
+                            className="absolute top-2 right-2 text-[#555555] hover:text-[#FF5A5F] transition-colors"
                           >
                             <X className="h-3.5 w-3.5" />
                           </button>
@@ -823,27 +866,46 @@ export default function IpoPage() {
                               />
                             </div>
                           </div>
-                        </div>
+                        </motion.div>
                       ))}
+                      </AnimatePresence>
                     </div>
                   )}
                 </div>
 
                 {/* Available balance tip */}
-                {(form.appliedFrom === 'Mummy' || form.appliedFrom === 'Papa' || form.appliedFrom === 'Anshshikha') && (accountBalances[form.appliedFrom] || 0) > 0 && (
-                  <div className="text-[10px] leading-relaxed text-gold-400/90 bg-gold-400/[0.03] border border-gold-400/10 rounded-xl p-3">
-                    💡 <strong>Refund Balance Alert:</strong> {form.appliedFrom}'s account currently holds <strong>{formatRupee(accountBalances[form.appliedFrom])}</strong> of your money from previous unallotted IPO returns. If you are reusing this existing balance for this application, <strong>don't add a new "Amount Taken From" entry</strong> — it's already sitting there.
+                <AnimatePresence>
+                  {(form.appliedFrom === 'Mummy' || form.appliedFrom === 'Papa' || form.appliedFrom === 'Anshshikha') && (accountBalances[form.appliedFrom] || 0) > 0 && (
+                    <motion.div
+                      initial={{ opacity: 0, height: 0 }}
+                      animate={{ opacity: 1, height: 'auto' }}
+                      exit={{ opacity: 0, height: 0 }}
+                      className="overflow-hidden"
+                    >
+                      <div className="text-[10px] leading-relaxed text-gold-400/90 bg-gold-400/[0.03] border border-gold-400/10 rounded-xl p-3">
+                        💡 <strong>Refund Balance Alert:</strong> {form.appliedFrom}'s account currently holds <strong>{formatRupee(accountBalances[form.appliedFrom])}</strong> of your money from previous unallotted IPO returns. If you are reusing this existing balance for this application, <strong>don't add a new "Amount Taken From" entry</strong> — it's already sitting there.
+                      </div>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+                </div>
+
+                {/* Step 3 — Result */}
+                <div className="rounded-2xl border border-white/[0.06] bg-white/[0.015] p-4 space-y-3.5">
+                  <div className="flex items-center gap-2">
+                    <span className="h-5 w-5 shrink-0 rounded-full bg-gold-400/15 border border-gold-400/30 text-gold-400 text-[10px] font-bold flex items-center justify-center">3</span>
+                    <span className="text-[11px] font-semibold text-white/90 uppercase tracking-wider">Result</span>
                   </div>
-                )}
 
                 {/* Allotment result — only relevant once the IPO application already exists */}
-                {editingId && (
+                {editingId ? (
                   <div>
                     <label className="block text-[10px] text-[#8A8A8A] uppercase tracking-wider mb-1.5 font-medium">
                       Allotment
                     </label>
                     <div className="grid grid-cols-3 gap-2">
-                      <button
+                      <motion.button
+                        whileTap={{ scale: 0.96 }}
                         type="button"
                         onClick={() => setForm(f => ({ ...f, status: 'Applied' }))}
                         className={`px-3 py-2.5 rounded-xl text-xs font-semibold border transition-all ${
@@ -853,8 +915,9 @@ export default function IpoPage() {
                         }`}
                       >
                         Pending
-                      </button>
-                      <button
+                      </motion.button>
+                      <motion.button
+                        whileTap={{ scale: 0.96 }}
                         type="button"
                         onClick={() => setAllotment('Allotted')}
                         className={`px-3 py-2.5 rounded-xl text-xs font-semibold border transition-all ${
@@ -864,8 +927,9 @@ export default function IpoPage() {
                         }`}
                       >
                         Allotted: Yes
-                      </button>
-                      <button
+                      </motion.button>
+                      <motion.button
+                        whileTap={{ scale: 0.96 }}
                         type="button"
                         onClick={() => setAllotment('Not Allotted')}
                         className={`px-3 py-2.5 rounded-xl text-xs font-semibold border transition-all ${
@@ -875,16 +939,28 @@ export default function IpoPage() {
                         }`}
                       >
                         Allotted: No
-                      </button>
+                      </motion.button>
                     </div>
+                  </div>
+                ) : (
+                  <div className="rounded-xl border border-dashed border-white/[0.1] bg-black/30 p-3.5 text-center">
+                    <Clock className="h-4 w-4 text-[#555555] mx-auto mb-1.5" />
+                    <p className="text-[11px] text-[#8A8A8A]">Result pending. Come back and hit <span className="text-white/80 font-medium">Edit</span> once allotment is out.</p>
                   </div>
                 )}
 
+                <AnimatePresence mode="wait">
                 {/* Not Allotted → refund tracking (skipped when the money never left the applicant's own pocket) */}
                 {form.status === 'Not Allotted' && !isSelfFunded && (
-                  <div className="grid grid-cols-2 gap-3 rounded-xl border border-[#FF5A5F]/15 bg-[#FF5A5F]/[0.03] p-3.5">
-                    <div className="col-span-2 text-[10px] text-[#FF5A5F]/90 font-semibold uppercase tracking-wider -mb-1">
-                      Refund
+                  <motion.div
+                    key="refund"
+                    initial={{ opacity: 0, y: -6 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -6 }}
+                    className="grid grid-cols-2 gap-3 rounded-xl border border-[#FF5A5F]/15 bg-[#FF5A5F]/[0.03] p-3.5"
+                  >
+                    <div className="col-span-2 text-[10px] text-[#FF5A5F]/90 font-semibold uppercase tracking-wider -mb-1 flex items-center gap-1">
+                      <XCircle className="h-3 w-3" /> Refund
                     </div>
                     <div>
                       <label className="block text-[10px] text-[#8A8A8A] uppercase tracking-wider mb-1.5 font-medium">
@@ -910,22 +986,30 @@ export default function IpoPage() {
                         className="w-full rounded-xl bg-black border border-white/[0.08] px-3 py-2.5 text-sm text-white focus:border-gold-400/40 focus:outline-none"
                       />
                     </div>
-                    <button
+                    <motion.button
+                      whileHover={{ scale: 1.01 }}
+                      whileTap={{ scale: 0.97 }}
                       type="button"
                       onClick={() => setForm(f => ({ ...f, returnDate: todayStr() }))}
                       className="col-span-2 flex items-center justify-center gap-1.5 py-2 rounded-lg text-[11px] font-semibold bg-[#FF5A5F]/10 border border-[#FF5A5F]/25 text-[#FF5A5F] hover:bg-[#FF5A5F]/20 transition-all"
                     >
                       {form.returnDate ? <CheckCircle2 className="h-3.5 w-3.5" /> : null}
                       {form.returnDate ? `Marked Returned · ${form.returnDate}` : 'Mark as Returned'}
-                    </button>
-                  </div>
+                    </motion.button>
+                  </motion.div>
                 )}
 
                 {/* Allotted → listing profit tracking */}
                 {form.status === 'Allotted' && (
-                  <div className="grid grid-cols-2 gap-3 rounded-xl border border-green-500/15 bg-green-500/[0.03] p-3.5">
-                    <div className="col-span-2 text-[10px] text-green-400/90 font-semibold uppercase tracking-wider -mb-1">
-                      Listing
+                  <motion.div
+                    key="listing"
+                    initial={{ opacity: 0, y: -6 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -6 }}
+                    className="grid grid-cols-2 gap-3 rounded-xl border border-green-500/15 bg-green-500/[0.03] p-3.5"
+                  >
+                    <div className="col-span-2 text-[10px] text-green-400/90 font-semibold uppercase tracking-wider -mb-1 flex items-center gap-1">
+                      <CheckCircle2 className="h-3 w-3" /> Listing
                     </div>
                     <div>
                       <label className="block text-[10px] text-[#8A8A8A] uppercase tracking-wider mb-1.5 font-medium">
@@ -950,13 +1034,15 @@ export default function IpoPage() {
                         className="w-full rounded-xl bg-black border border-white/[0.08] px-3 py-2.5 text-sm text-white focus:border-gold-400/40 focus:outline-none"
                       />
                     </div>
-                  </div>
+                  </motion.div>
                 )}
+                </AnimatePresence>
+                </div>
 
                 {/* Notes */}
                 <div>
                   <label className="block text-[10px] text-[#8A8A8A] uppercase tracking-wider mb-1.5 font-medium">
-                    Notes
+                    Notes <span className="normal-case text-[#555555]">(optional)</span>
                   </label>
                   <textarea
                     rows={2}
@@ -967,24 +1053,28 @@ export default function IpoPage() {
                   />
                 </div>
 
-                <div className="flex gap-2 justify-end pt-1">
-                  <button
+                <div className="flex gap-2 justify-end pt-2 sticky bottom-0 -mx-6 -mb-6 px-6 py-4 bg-gradient-to-t from-[#111111] via-[#111111]/95 to-transparent">
+                  <motion.button
+                    whileTap={{ scale: 0.96 }}
                     type="button"
                     onClick={() => setIsModalOpen(false)}
-                    className="px-4 py-2.5 rounded-xl text-xs font-medium text-[#8A8A8A] hover:text-white"
+                    className="px-4 py-2.5 rounded-xl text-xs font-medium text-[#8A8A8A] hover:text-white hover:bg-white/[0.04] transition-colors"
                   >
                     Cancel
-                  </button>
-                  <button
+                  </motion.button>
+                  <motion.button
+                    whileHover={{ scale: 1.02 }}
+                    whileTap={{ scale: 0.97 }}
                     type="submit"
                     disabled={saving}
-                    className="px-5 py-2.5 rounded-xl text-xs font-semibold bg-gold-400 text-black hover:bg-gold-500 flex items-center gap-1.5 disabled:opacity-50"
+                    className="px-5 py-2.5 rounded-xl text-xs font-semibold bg-gold-400 text-black hover:bg-gold-500 flex items-center gap-1.5 disabled:opacity-50 shadow-[0_0_20px_-4px_rgba(250,204,21,0.4)]"
                   >
                     {saving && <Loader2 className="h-3 w-3 animate-spin" />}
                     {editingId ? 'Save Changes' : 'Add IPO'}
-                  </button>
+                  </motion.button>
                 </div>
               </form>
+              </div>
             </motion.div>
           </div>
         )}
