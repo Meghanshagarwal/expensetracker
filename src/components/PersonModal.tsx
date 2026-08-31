@@ -158,22 +158,25 @@ export default function PersonModal({
               </div>
 
               <div className="flex justify-end gap-3 mt-8 pt-4 border-t border-white/[0.06]">
-                <button
+                <motion.button
+                  whileTap={{ scale: 0.96 }}
                   type="button"
                   onClick={onClose}
                   className="px-5 py-2.5 rounded-xl text-xs font-normal bg-[#171717] border border-white/[0.06] hover:bg-[#1c1c1c] text-[#8A8A8A] hover:text-white transition-colors"
                   disabled={loading}
                 >
                   Cancel
-                </button>
-                <button
+                </motion.button>
+                <motion.button
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.97 }}
                   type="submit"
                   disabled={loading}
-                  className="flex items-center justify-center gap-2 px-6 py-2.5 rounded-xl text-xs font-medium bg-gold-400 hover:bg-gold-500 text-black transition-all disabled:opacity-50"
+                  className="flex items-center justify-center gap-2 px-6 py-2.5 rounded-xl text-xs font-medium bg-gold-400 hover:bg-gold-500 text-black transition-all disabled:opacity-50 shadow-[0_0_20px_-4px_rgba(250,204,21,0.4)]"
                 >
                   {loading && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
                   {personToEdit ? 'Save Changes' : 'Create'}
-                </button>
+                </motion.button>
               </div>
             </form>
           </motion.div>

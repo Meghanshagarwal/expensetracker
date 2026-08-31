@@ -418,31 +418,48 @@ export default function ExpenseModal({
             animate={{ y: 0, opacity: 1 }}
             exit={{ y: '100%', opacity: 0.5 }}
             transition={{ type: 'spring', damping: 28, stiffness: 350 }}
-            className="relative w-full md:max-w-lg rounded-t-2xl md:rounded-2xl bg-[#111111] border-t md:border border-white/[0.06] p-6 pb-12 md:pb-6 text-white shadow-luxury z-10 max-h-[92vh] md:max-h-[90vh] overflow-y-auto"
+            className="relative w-full md:max-w-lg rounded-t-3xl md:rounded-3xl bg-[#111111] border-t md:border border-white/[0.08] text-white shadow-luxury z-10 max-h-[92vh] md:max-h-[90vh] overflow-y-auto"
           >
             {/* Mobile Sheet Handle */}
-            <div className="w-12 h-1.5 bg-white/[0.12] rounded-full mx-auto mb-4 md:hidden" />
+            <div className="w-12 h-1.5 bg-white/[0.12] rounded-full mx-auto mt-3 mb-1 md:hidden" />
 
-            {/* Header */}
-            <div className="flex items-center justify-between mb-6">
-              <h2 className="text-xl font-bold flex items-center gap-2.5 text-white">
-                <CreditCard className="h-5 w-5 text-gold-400" />
-                {expenseToEdit ? 'Edit Transaction' : 'Quick Add Expense'}
-              </h2>
+            {/* Sticky Header */}
+            <div className="sticky top-0 z-10 flex items-center justify-between px-6 py-4 bg-[#111111]/95 backdrop-blur-xl border-b border-white/[0.06]">
+              <div className="flex items-center gap-2.5">
+                <div className="h-9 w-9 rounded-xl bg-gold-400/10 border border-gold-400/25 flex items-center justify-center shrink-0">
+                  <CreditCard className="h-4.5 w-4.5 text-gold-400" />
+                </div>
+                <div>
+                  <h2 className="text-base font-bold leading-tight text-white">
+                    {expenseToEdit ? 'Edit Transaction' : 'Quick Add Expense'}
+                  </h2>
+                  <p className="text-[10px] text-[#8A8A8A] leading-tight mt-0.5">
+                    {expenseToEdit ? 'Update the details below' : 'A few taps and you\'re done'}
+                  </p>
+                </div>
+              </div>
               <button
                 onClick={onClose}
-                className="rounded-lg p-1.5 text-[#8A8A8A] hover:text-white hover:bg-white/[0.06] transition-colors"
+                className="rounded-xl p-2 text-[#8A8A8A] hover:text-white hover:bg-white/[0.06] transition-colors shrink-0"
               >
-                <X className="h-5 w-5" />
+                <X className="h-4 w-4" />
               </button>
             </div>
 
+            <div className="px-6 pb-12 pt-5 md:pb-6">
             {/* Error Banner */}
-            {error && (
-              <div className="mb-4 rounded-xl bg-[#FF5A5F]/10 border border-[#FF5A5F]/20 p-3 text-sm text-[#FF5A5F]">
-                {error}
-              </div>
-            )}
+            <AnimatePresence>
+              {error && (
+                <motion.div
+                  initial={{ opacity: 0, height: 0, marginBottom: 0 }}
+                  animate={{ opacity: 1, height: 'auto', marginBottom: 16 }}
+                  exit={{ opacity: 0, height: 0, marginBottom: 0 }}
+                  className="rounded-xl bg-[#FF5A5F]/10 border border-[#FF5A5F]/20 p-3 text-sm text-[#FF5A5F] overflow-hidden"
+                >
+                  {error}
+                </motion.div>
+              )}
+            </AnimatePresence>
 
             <form onSubmit={handleSubmit} className="space-y-4">
               {/* Transaction Type Selector */}
@@ -452,8 +469,9 @@ export default function ExpenseModal({
                 </label>
                 <div className="grid grid-cols-3 gap-2">
                   {(['expense', 'lent', 'borrowed'] as const).map((type) => (
-                    <button
+                    <motion.button
                       key={type}
+                      whileTap={{ scale: 0.95 }}
                       type="button"
                       onClick={() => setTransactionType(type)}
                       className={`py-2 px-3 rounded-xl border text-xs font-medium capitalize transition-all ${
@@ -463,7 +481,7 @@ export default function ExpenseModal({
                       }`}
                     >
                       {type === 'expense' ? 'Expense' : type === 'lent' ? 'Lent' : 'Borrowed'}
-                    </button>
+                    </motion.button>
                   ))}
                 </div>
               </div>
@@ -680,8 +698,9 @@ export default function ExpenseModal({
                   </label>
                   <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
                     {visiblePaymentMethods.map(method => (
-                      <button
+                      <motion.button
                         key={method}
+                        whileTap={{ scale: 0.95 }}
                         type="button"
                         onClick={() => setPaymentMethod(method)}
                         className={`py-2 px-3 rounded-xl border text-xs font-medium transition-all ${
@@ -691,7 +710,7 @@ export default function ExpenseModal({
                         }`}
                       >
                         {method}
-                      </button>
+                      </motion.button>
                     ))}
                   </div>
                 </div>
@@ -785,24 +804,28 @@ export default function ExpenseModal({
 
               {/* Footer */}
               <div className="flex flex-col gap-3 mt-6 pt-4 border-t border-white/[0.06]">
-                <button
+                <motion.button
+                  whileHover={{ scale: 1.01 }}
+                  whileTap={{ scale: 0.98 }}
                   type="submit"
                   disabled={loading}
-                  className="flex items-center justify-center gap-2 w-full py-3 rounded-xl text-sm font-medium bg-gold-400 text-black hover:bg-gold-500 transition-all disabled:opacity-50"
+                  className="flex items-center justify-center gap-2 w-full py-3 rounded-xl text-sm font-semibold bg-gold-400 text-black hover:bg-gold-500 transition-all disabled:opacity-50 shadow-[0_0_24px_-6px_rgba(250,204,21,0.45)]"
                 >
                   {loading && <Loader2 className="h-4 w-4 animate-spin" />}
                   {expenseToEdit ? 'Save Changes' : 'Create Expense'}
-                </button>
-                <button
+                </motion.button>
+                <motion.button
+                  whileTap={{ scale: 0.98 }}
                   type="button"
                   onClick={onClose}
-                  className="w-full py-2.5 rounded-xl text-sm font-normal text-[#8A8A8A] hover:text-white transition-colors"
+                  className="w-full py-2.5 rounded-xl text-sm font-normal text-[#8A8A8A] hover:text-white hover:bg-white/[0.03] transition-colors"
                   disabled={loading}
                 >
                   Cancel
-                </button>
+                </motion.button>
               </div>
             </form>
+            </div>
           </motion.div>
         </div>
       )}
