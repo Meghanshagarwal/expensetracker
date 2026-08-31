@@ -120,17 +120,19 @@ export default function IpoPage() {
 
   // ---- Dynamic Account Balances (Refund Tracking) ----
   const accountBalances = useMemo(() => {
-    const balances: Record<string, number> = { Mummy: 0, Papa: 0 };
+    const balances: Record<string, number> = { Mummy: 0, Papa: 0, Anshshikha: 0 };
     
     // Sort chronologically (oldest first) to compute running ledger
     const sorted = [...ipos].sort((a, b) => new Date(a.applyDate).getTime() - new Date(b.applyDate).getTime());
     
     sorted.forEach(ipo => {
       const applicant = ipo.appliedFrom;
-      if (applicant === 'Mummy' || applicant === 'Papa') {
-        // Calculate funding contributed by Me for this application
+      if (applicant === 'Mummy' || applicant === 'Papa' || applicant === 'Anshshikha') {
+        // Funding that did NOT come from the applicant's own pending balance
+        // (i.e. fresh money — self-funded or from someone else) reduces how much of
+        // their existing balance this application actually used up.
         const newFunding = (ipo.contributions || [])
-          .filter(c => c.from === 'Me')
+          .filter(c => normalizePerson(c.from) !== normalizePerson(applicant))
           .reduce((sum, c) => sum + (c.amount || 0), 0);
           
         // The remaining amount must come from the person's existing balance
@@ -374,8 +376,8 @@ export default function IpoPage() {
             <Wallet className="h-4 w-4 text-gold-400" />
             Active Balances in Accounts (Refunds pending reuse)
           </h2>
-          <div className="grid grid-cols-2 sm:grid-cols-2 gap-3.5">
-            {['Mummy', 'Papa'].map(acc => {
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-3.5">
+            {['Mummy', 'Papa', 'Anshshikha'].map(acc => {
               const bal = accountBalances[acc] || 0;
               return (
                 <div key={acc} className="bg-white/[0.02] border border-white/[0.04] rounded-xl p-3.5 flex items-center justify-between">
@@ -811,21 +813,12 @@ export default function IpoPage() {
                                 className="w-full rounded-lg bg-black border border-white/[0.08] px-2 py-1.5 text-xs text-white font-mono placeholder:text-[#555555] focus:border-gold-400/40 focus:outline-none"
                               />
                             </div>
-                            <div>
+                            <div className="col-span-2">
                               <label className="block text-[9px] text-[#8A8A8A] uppercase tracking-wide mb-1">Taken On</label>
                               <input
                                 type="date"
                                 value={c.date}
                                 onChange={e => updateContribution(idx, 'date', e.target.value)}
-                                className="w-full rounded-lg bg-black border border-white/[0.08] px-1.5 py-1.5 text-[11px] text-white focus:border-gold-400/40 focus:outline-none"
-                              />
-                            </div>
-                            <div>
-                              <label className="block text-[9px] text-[#8A8A8A] uppercase tracking-wide mb-1">Return By</label>
-                              <input
-                                type="date"
-                                value={c.returnDate}
-                                onChange={e => updateContribution(idx, 'returnDate', e.target.value)}
                                 className="w-full rounded-lg bg-black border border-white/[0.08] px-1.5 py-1.5 text-[11px] text-white focus:border-gold-400/40 focus:outline-none"
                               />
                             </div>
@@ -837,9 +830,9 @@ export default function IpoPage() {
                 </div>
 
                 {/* Available balance tip */}
-                {(form.appliedFrom === 'Mummy' || form.appliedFrom === 'Papa') && (accountBalances[form.appliedFrom] || 0) > 0 && (
+                {(form.appliedFrom === 'Mummy' || form.appliedFrom === 'Papa' || form.appliedFrom === 'Anshshikha') && (accountBalances[form.appliedFrom] || 0) > 0 && (
                   <div className="text-[10px] leading-relaxed text-gold-400/90 bg-gold-400/[0.03] border border-gold-400/10 rounded-xl p-3">
-                    💡 <strong>Refund Balance Alert:</strong> {form.appliedFrom}'s account currently holds <strong>{formatRupee(accountBalances[form.appliedFrom])}</strong> of your money from previous unallotted IPO returns. If you are reusing this existing balance for this application, <strong>do not add a new contribution from "Me"</strong>.
+                    💡 <strong>Refund Balance Alert:</strong> {form.appliedFrom}'s account currently holds <strong>{formatRupee(accountBalances[form.appliedFrom])}</strong> of your money from previous unallotted IPO returns. If you are reusing this existing balance for this application, <strong>don't add a new "Amount Taken From" entry</strong> — it's already sitting there.
                   </div>
                 )}
 
