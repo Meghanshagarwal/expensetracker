@@ -22,8 +22,14 @@ type PresetIpo = {
   gmpDirection?: 'up' | 'down';
 };
 
-const APPLIED_FROM = ['Me', 'Mummy', 'Papa'];
+const APPLIED_FROM = ['Me', 'Mummy', 'Papa', 'Anshshikha'];
+const TAKEN_FROM_OPTIONS = ['Mummy', 'Papa', 'Anshshikha', 'My Salaried Account', 'Other'];
 const STATUSES = ['Applied', 'Allotted', 'Not Allotted'] as const;
+
+// 'My Salaried Account' funding and 'Me' as the applicant both mean "self" —
+// used to decide whether a refund needs to be tracked at all.
+const normalizePerson = (name: string) =>
+  name === 'My Salaried Account' ? 'me' : name.trim().toLowerCase();
 
 const todayStr = () => new Date().toISOString().split('T')[0];
 
@@ -131,8 +137,10 @@ export default function IpoPage() {
         const usedFromBalance = Math.max(0, ipo.amount - newFunding);
         balances[applicant] = Math.max(0, balances[applicant] - usedFromBalance);
         
-        // Add return amount back to the balance if unallotted
-        balances[applicant] += (ipo.returnAmount || 0);
+        // Refund keeps showing as an available balance until it's explicitly marked as returned
+        if (!ipo.returnDate) {
+          balances[applicant] += (ipo.returnAmount || 0);
+        }
       }
     });
     
@@ -249,8 +257,8 @@ export default function IpoPage() {
           date: new Date(c.date).toISOString(),
           returnDate: c.returnDate ? new Date(c.returnDate).toISOString() : undefined,
         })),
-      returnAmount: form.status === 'Not Allotted' ? Number(form.returnAmount) || 0 : 0,
-      returnDate: form.status === 'Not Allotted' && form.returnDate ? new Date(form.returnDate).toISOString() : undefined,
+      returnAmount: form.status === 'Not Allotted' && !isSelfFunded ? Number(form.returnAmount) || 0 : 0,
+      returnDate: form.status === 'Not Allotted' && !isSelfFunded && form.returnDate ? new Date(form.returnDate).toISOString() : undefined,
       listingDate: form.status === 'Allotted' && form.listingDate ? new Date(form.listingDate).toISOString() : undefined,
       profitAmount: form.status === 'Allotted' ? Number(form.profitAmount) || 0 : 0,
       notes: form.notes.trim(),
@@ -290,6 +298,20 @@ export default function IpoPage() {
       console.error(err);
       alert('Error deleting IPO');
     }
+  };
+
+  // No refund to track when the money never actually left the applicant's own pocket —
+  // i.e. every contribution's source is the same person as who the IPO was applied from.
+  const isSelfFunded =
+    form.contributions.length === 0 ||
+    form.contributions.every(c => normalizePerson(c.from) === normalizePerson(form.appliedFrom));
+
+  const setAllotment = (result: 'Allotted' | 'Not Allotted') => {
+    setForm(f => ({
+      ...f,
+      status: result,
+      returnAmount: result === 'Not Allotted' && !f.returnAmount ? f.amount : f.returnAmount,
+    }));
   };
 
   const statusStyle = (status: string) => {
@@ -708,24 +730,11 @@ export default function IpoPage() {
                   {/* Status — result (Allotted/Not Allotted) can only be set once the IPO already exists, via Edit */}
                   <div>
                     <label className="block text-[10px] text-[#8A8A8A] uppercase tracking-wider mb-1.5 font-medium">
-                      Status
+                      Applied
                     </label>
-                    {editingId ? (
-                      <select
-                        value={form.status}
-                        onChange={e => setForm(f => ({ ...f, status: e.target.value as (typeof STATUSES)[number] }))}
-                        className="w-full rounded-xl bg-black border border-white/[0.08] px-3.5 py-2.5 text-sm text-white focus:border-gold-400/40 focus:outline-none"
-                      >
-                        {STATUSES.map(s => (
-                          <option key={s} value={s}>{s}</option>
-                        ))}
-                      </select>
-                    ) : (
-                      <div className="w-full rounded-xl bg-black/60 border border-white/[0.06] px-3.5 py-2.5 text-sm text-[#8A8A8A]">
-                        Applied
-                        <span className="block text-[9px] text-[#555555] mt-0.5 normal-case">Update to Allotted / Not Allotted after result via Edit</span>
-                      </div>
-                    )}
+                    <div className="w-full rounded-xl bg-black/60 border border-white/[0.06] px-3.5 py-2.5 text-sm text-green-400 flex items-center gap-1.5">
+                      <CheckCircle2 className="h-3.5 w-3.5" /> Yes
+                    </div>
                   </div>
                   {/* Apply date */}
                   <div>
@@ -773,14 +782,23 @@ export default function IpoPage() {
                             <div>
                               <label className="block text-[9px] text-[#8A8A8A] uppercase tracking-wide mb-1">From</label>
                               <select
-                                value={c.from}
-                                onChange={e => updateContribution(idx, 'from', e.target.value)}
+                                value={TAKEN_FROM_OPTIONS.includes(c.from) ? c.from : 'Other'}
+                                onChange={e => updateContribution(idx, 'from', e.target.value === 'Other' ? '' : e.target.value)}
                                 className="w-full rounded-lg bg-black border border-white/[0.08] px-2 py-1.5 text-xs text-white focus:border-gold-400/40 focus:outline-none"
                               >
-                                {['Me', 'Mummy', 'Papa', 'Other'].map(p => (
+                                {TAKEN_FROM_OPTIONS.map(p => (
                                   <option key={p} value={p}>{p}</option>
                                 ))}
                               </select>
+                              {!TAKEN_FROM_OPTIONS.includes(c.from) && (
+                                <input
+                                  type="text"
+                                  placeholder="Enter name"
+                                  value={c.from}
+                                  onChange={e => updateContribution(idx, 'from', e.target.value)}
+                                  className="w-full mt-1.5 rounded-lg bg-black border border-white/[0.08] px-2 py-1.5 text-xs text-white placeholder:text-[#555555] focus:border-gold-400/40 focus:outline-none"
+                                />
+                              )}
                             </div>
                             <div>
                               <label className="block text-[9px] text-[#8A8A8A] uppercase tracking-wide mb-1">Amount ₹</label>
@@ -825,8 +843,52 @@ export default function IpoPage() {
                   </div>
                 )}
 
-                {/* Not Allotted → refund tracking */}
-                {form.status === 'Not Allotted' && (
+                {/* Allotment result — only relevant once the IPO application already exists */}
+                {editingId && (
+                  <div>
+                    <label className="block text-[10px] text-[#8A8A8A] uppercase tracking-wider mb-1.5 font-medium">
+                      Allotment
+                    </label>
+                    <div className="grid grid-cols-3 gap-2">
+                      <button
+                        type="button"
+                        onClick={() => setForm(f => ({ ...f, status: 'Applied' }))}
+                        className={`px-3 py-2.5 rounded-xl text-xs font-semibold border transition-all ${
+                          form.status === 'Applied'
+                            ? 'bg-gold-400/10 border-gold-400/30 text-gold-400'
+                            : 'bg-black border-white/[0.08] text-[#8A8A8A] hover:text-white'
+                        }`}
+                      >
+                        Pending
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setAllotment('Allotted')}
+                        className={`px-3 py-2.5 rounded-xl text-xs font-semibold border transition-all ${
+                          form.status === 'Allotted'
+                            ? 'bg-green-500/10 border-green-500/30 text-green-400'
+                            : 'bg-black border-white/[0.08] text-[#8A8A8A] hover:text-white'
+                        }`}
+                      >
+                        Allotted: Yes
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setAllotment('Not Allotted')}
+                        className={`px-3 py-2.5 rounded-xl text-xs font-semibold border transition-all ${
+                          form.status === 'Not Allotted'
+                            ? 'bg-[#FF5A5F]/10 border-[#FF5A5F]/30 text-[#FF5A5F]'
+                            : 'bg-black border-white/[0.08] text-[#8A8A8A] hover:text-white'
+                        }`}
+                      >
+                        Allotted: No
+                      </button>
+                    </div>
+                  </div>
+                )}
+
+                {/* Not Allotted → refund tracking (skipped when the money never left the applicant's own pocket) */}
+                {form.status === 'Not Allotted' && !isSelfFunded && (
                   <div className="grid grid-cols-2 gap-3 rounded-xl border border-[#FF5A5F]/15 bg-[#FF5A5F]/[0.03] p-3.5">
                     <div className="col-span-2 text-[10px] text-[#FF5A5F]/90 font-semibold uppercase tracking-wider -mb-1">
                       Refund
@@ -855,6 +917,14 @@ export default function IpoPage() {
                         className="w-full rounded-xl bg-black border border-white/[0.08] px-3 py-2.5 text-sm text-white focus:border-gold-400/40 focus:outline-none"
                       />
                     </div>
+                    <button
+                      type="button"
+                      onClick={() => setForm(f => ({ ...f, returnDate: todayStr() }))}
+                      className="col-span-2 flex items-center justify-center gap-1.5 py-2 rounded-lg text-[11px] font-semibold bg-[#FF5A5F]/10 border border-[#FF5A5F]/25 text-[#FF5A5F] hover:bg-[#FF5A5F]/20 transition-all"
+                    >
+                      {form.returnDate ? <CheckCircle2 className="h-3.5 w-3.5" /> : null}
+                      {form.returnDate ? `Marked Returned · ${form.returnDate}` : 'Mark as Returned'}
+                    </button>
                   </div>
                 )}
 
