@@ -23,9 +23,13 @@ function buildPayload(body: any) {
     appliedFrom: String(body.appliedFrom || 'Me').trim(),
     status: ['Applied', 'Allotted', 'Not Allotted'].includes(body.status) ? body.status : 'Applied',
     applyDate: body.applyDate ? new Date(body.applyDate).toISOString() : new Date().toISOString(),
+    openDate: body.openDate ? String(body.openDate).trim() : undefined,
+    closeDate: body.closeDate ? String(body.closeDate).trim() : undefined,
     contributions: sanitizeContributions(body.contributions),
     returnAmount: Math.max(0, Number(body.returnAmount) || 0),
     returnDate: body.returnDate ? new Date(body.returnDate).toISOString() : undefined,
+    listingDate: body.listingDate ? new Date(body.listingDate).toISOString() : undefined,
+    profitAmount: Number(body.profitAmount) || 0,
     notes: body.notes ? String(body.notes).trim() : '',
   };
 }

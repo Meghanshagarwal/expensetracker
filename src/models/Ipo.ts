@@ -37,10 +37,20 @@ const IpoSchema = new Schema({
     type: Date,
     default: Date.now,
   },
+  // Stored as free-text (source format varies, e.g. "12-Sep-2026") rather than Date
+  openDate: {
+    type: String,
+    trim: true,
+  },
+  closeDate: {
+    type: String,
+    trim: true,
+  },
   contributions: {
     type: [ContributionSchema],
     default: [],
   },
+  // Refund amount — used when status is "Not Allotted"
   returnAmount: {
     type: Number,
     default: 0,
@@ -48,6 +58,15 @@ const IpoSchema = new Schema({
   },
   returnDate: {
     type: Date,
+  },
+  // Listing date — used when status is "Allotted"
+  listingDate: {
+    type: Date,
+  },
+  // Profit/loss booked on listing — used when status is "Allotted" (can be negative)
+  profitAmount: {
+    type: Number,
+    default: 0,
   },
   notes: {
     type: String,

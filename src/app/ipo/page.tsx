@@ -36,9 +36,13 @@ const emptyForm = () => ({
   appliedFrom: 'Me',
   status: 'Applied' as (typeof STATUSES)[number],
   applyDate: todayStr(),
+  openDate: '',
+  closeDate: '',
   contributions: [] as { from: string; amount: string | number; date: string; returnDate: string }[],
   returnAmount: '' as string | number,
   returnDate: '',
+  listingDate: '',
+  profitAmount: '' as string | number,
   notes: '',
 });
 
@@ -98,8 +102,9 @@ export default function IpoPage() {
   const summary = useMemo(() => {
     const invested = ipos.reduce((s, i) => s + (i.amount || 0), 0);
     const returned = ipos.reduce((s, i) => s + (i.returnAmount || 0), 0);
+    const profit = ipos.reduce((s, i) => s + (i.profitAmount || 0), 0);
     const allotted = ipos.filter(i => i.status === 'Allotted').length;
-    return { invested, returned, count: ipos.length, allotted };
+    return { invested, returned, profit, count: ipos.length, allotted };
   }, [ipos]);
 
   const filteredIpos = useMemo(
@@ -155,6 +160,8 @@ export default function IpoPage() {
       appliedFrom: ipo.appliedFrom || 'Me',
       status: ipo.status,
       applyDate: ipo.applyDate ? ipo.applyDate.split('T')[0] : todayStr(),
+      openDate: ipo.openDate || '',
+      closeDate: ipo.closeDate || '',
       contributions: (ipo.contributions || []).map(c => ({
         from: c.from,
         amount: c.amount,
@@ -163,6 +170,8 @@ export default function IpoPage() {
       })),
       returnAmount: ipo.returnAmount || '',
       returnDate: ipo.returnDate ? ipo.returnDate.split('T')[0] : '',
+      listingDate: ipo.listingDate ? ipo.listingDate.split('T')[0] : '',
+      profitAmount: ipo.profitAmount || '',
       notes: ipo.notes || '',
     });
     setError(null);
@@ -172,7 +181,7 @@ export default function IpoPage() {
   // Selecting a preset IPO auto-fills its name + amount
   const handlePresetChange = (val: string) => {
     if (val === '__custom__') {
-      setForm(f => ({ ...f, presetKey: val, ipoName: '', perLotAmount: 0, amount: '' }));
+      setForm(f => ({ ...f, presetKey: val, ipoName: '', perLotAmount: 0, amount: '', openDate: '', closeDate: '' }));
       return;
     }
     const preset = presetIpos.find(p => p.name === val);
@@ -183,6 +192,8 @@ export default function IpoPage() {
         ipoName: preset.name,
         perLotAmount: preset.amount,
         amount: preset.amount * f.lots, // lots × per-lot
+        openDate: preset.openDate || '',
+        closeDate: preset.closeDate || '',
       }));
     }
   };
@@ -228,6 +239,8 @@ export default function IpoPage() {
       appliedFrom: form.appliedFrom,
       status: form.status,
       applyDate: new Date(form.applyDate).toISOString(),
+      openDate: form.openDate || undefined,
+      closeDate: form.closeDate || undefined,
       contributions: form.contributions
         .filter(c => c.from && Number(c.amount) > 0)
         .map(c => ({
@@ -236,8 +249,10 @@ export default function IpoPage() {
           date: new Date(c.date).toISOString(),
           returnDate: c.returnDate ? new Date(c.returnDate).toISOString() : undefined,
         })),
-      returnAmount: Number(form.returnAmount) || 0,
-      returnDate: form.returnDate ? new Date(form.returnDate).toISOString() : undefined,
+      returnAmount: form.status === 'Not Allotted' ? Number(form.returnAmount) || 0 : 0,
+      returnDate: form.status === 'Not Allotted' && form.returnDate ? new Date(form.returnDate).toISOString() : undefined,
+      listingDate: form.status === 'Allotted' && form.listingDate ? new Date(form.listingDate).toISOString() : undefined,
+      profitAmount: form.status === 'Allotted' ? Number(form.profitAmount) || 0 : 0,
       notes: form.notes.trim(),
     };
 
@@ -315,8 +330,8 @@ export default function IpoPage() {
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 mb-6">
           {[
             { label: 'Total Applied', value: formatRupee(summary.invested), Icon: Wallet, accent: 'text-white' },
-            { label: 'Total Returned', value: formatRupee(summary.returned), Icon: ArrowDownLeft, accent: 'text-green-400' },
-            { label: 'IPOs', value: String(summary.count), Icon: TrendingUp, accent: 'text-gold-400' },
+            { label: 'Total Profit', value: formatRupee(summary.profit), Icon: TrendingUp, accent: summary.profit >= 0 ? 'text-green-400' : 'text-[#FF5A5F]' },
+            { label: 'Total Refunded', value: formatRupee(summary.returned), Icon: ArrowDownLeft, accent: 'text-gold-400' },
             { label: 'Allotted', value: String(summary.allotted), Icon: CheckCircle2, accent: 'text-green-400' },
           ].map(card => (
             <div key={card.label} className="bg-[#111111] border border-white/[0.06] rounded-2xl p-4 shadow-luxury">
@@ -427,6 +442,11 @@ export default function IpoPage() {
                           <User className="h-3.5 w-3.5" />
                           Applied from <span className="text-white/80 font-medium">{ipo.appliedFrom}</span>
                         </span>
+                        {(ipo.openDate || ipo.closeDate) && (
+                          <span className="flex items-center gap-1">
+                            Open/Close: <span className="text-white/70">{ipo.openDate || '—'} → {ipo.closeDate || '—'}</span>
+                          </span>
+                        )}
                       </div>
 
                       {/* Contributions */}
@@ -466,14 +486,24 @@ export default function IpoPage() {
                         <span className="text-lg font-bold font-mono tabular-nums text-white">
                           {formatRupee(ipo.amount)}
                         </span>
-                        {ipo.returnAmount > 0 && (
-                          <span className="block text-[11px] font-mono text-green-400 mt-0.5">
-                            + {formatRupee(ipo.returnAmount)} returned
+                        {ipo.status === 'Not Allotted' && ipo.returnAmount > 0 && (
+                          <span className="block text-[11px] font-mono text-gold-400 mt-0.5">
+                            + {formatRupee(ipo.returnAmount)} refunded
                           </span>
                         )}
-                        {ipo.returnDate && (
+                        {ipo.status === 'Not Allotted' && ipo.returnDate && (
                           <span className="block text-[10px] text-[#8A8A8A] mt-0.5">
                             by {formatDate(ipo.returnDate)}
+                          </span>
+                        )}
+                        {ipo.status === 'Allotted' && !!ipo.profitAmount && (
+                          <span className={`block text-[11px] font-mono mt-0.5 ${ipo.profitAmount >= 0 ? 'text-green-400' : 'text-[#FF5A5F]'}`}>
+                            {ipo.profitAmount >= 0 ? '+' : ''}{formatRupee(ipo.profitAmount)} profit
+                          </span>
+                        )}
+                        {ipo.status === 'Allotted' && ipo.listingDate && (
+                          <span className="block text-[10px] text-[#8A8A8A] mt-0.5">
+                            listed {formatDate(ipo.listingDate)}
                           </span>
                         )}
                       </div>
@@ -788,33 +818,70 @@ export default function IpoPage() {
                   </div>
                 )}
 
-                {/* Return amount + return date */}
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <label className="block text-[10px] text-[#8A8A8A] uppercase tracking-wider mb-1.5 font-medium">
-                      Return Amount (₹)
-                    </label>
-                    <input
-                      type="number"
-                      min="0"
-                      placeholder="Refund / returned"
-                      value={form.returnAmount}
-                      onChange={e => setForm(f => ({ ...f, returnAmount: e.target.value }))}
-                      className="w-full rounded-xl bg-black border border-white/[0.08] px-3 py-2.5 text-sm text-white font-mono placeholder:text-[#555555] focus:border-gold-400/40 focus:outline-none"
-                    />
+                {/* Not Allotted → refund tracking */}
+                {form.status === 'Not Allotted' && (
+                  <div className="grid grid-cols-2 gap-3 rounded-xl border border-[#FF5A5F]/15 bg-[#FF5A5F]/[0.03] p-3.5">
+                    <div className="col-span-2 text-[10px] text-[#FF5A5F]/90 font-semibold uppercase tracking-wider -mb-1">
+                      Refund
+                    </div>
+                    <div>
+                      <label className="block text-[10px] text-[#8A8A8A] uppercase tracking-wider mb-1.5 font-medium">
+                        Return Amount (₹)
+                      </label>
+                      <input
+                        type="number"
+                        min="0"
+                        placeholder="Refund amount"
+                        value={form.returnAmount}
+                        onChange={e => setForm(f => ({ ...f, returnAmount: e.target.value }))}
+                        className="w-full rounded-xl bg-black border border-white/[0.08] px-3 py-2.5 text-sm text-white font-mono placeholder:text-[#555555] focus:border-gold-400/40 focus:outline-none"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-[10px] text-[#8A8A8A] uppercase tracking-wider mb-1.5 font-medium">
+                        Return Date
+                      </label>
+                      <input
+                        type="date"
+                        value={form.returnDate}
+                        onChange={e => setForm(f => ({ ...f, returnDate: e.target.value }))}
+                        className="w-full rounded-xl bg-black border border-white/[0.08] px-3 py-2.5 text-sm text-white focus:border-gold-400/40 focus:outline-none"
+                      />
+                    </div>
                   </div>
-                  <div>
-                    <label className="block text-[10px] text-[#8A8A8A] uppercase tracking-wider mb-1.5 font-medium">
-                      Return Date
-                    </label>
-                    <input
-                      type="date"
-                      value={form.returnDate}
-                      onChange={e => setForm(f => ({ ...f, returnDate: e.target.value }))}
-                      className="w-full rounded-xl bg-black border border-white/[0.08] px-3 py-2.5 text-sm text-white focus:border-gold-400/40 focus:outline-none"
-                    />
+                )}
+
+                {/* Allotted → listing profit tracking */}
+                {form.status === 'Allotted' && (
+                  <div className="grid grid-cols-2 gap-3 rounded-xl border border-green-500/15 bg-green-500/[0.03] p-3.5">
+                    <div className="col-span-2 text-[10px] text-green-400/90 font-semibold uppercase tracking-wider -mb-1">
+                      Listing
+                    </div>
+                    <div>
+                      <label className="block text-[10px] text-[#8A8A8A] uppercase tracking-wider mb-1.5 font-medium">
+                        Profit Amount (₹)
+                      </label>
+                      <input
+                        type="number"
+                        placeholder="Profit (or negative for loss)"
+                        value={form.profitAmount}
+                        onChange={e => setForm(f => ({ ...f, profitAmount: e.target.value }))}
+                        className="w-full rounded-xl bg-black border border-white/[0.08] px-3 py-2.5 text-sm text-white font-mono placeholder:text-[#555555] focus:border-gold-400/40 focus:outline-none"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-[10px] text-[#8A8A8A] uppercase tracking-wider mb-1.5 font-medium">
+                        Listing Date
+                      </label>
+                      <input
+                        type="date"
+                        value={form.listingDate}
+                        onChange={e => setForm(f => ({ ...f, listingDate: e.target.value }))}
+                        className="w-full rounded-xl bg-black border border-white/[0.08] px-3 py-2.5 text-sm text-white focus:border-gold-400/40 focus:outline-none"
+                      />
+                    </div>
                   </div>
-                </div>
+                )}
 
                 {/* Notes */}
                 <div>

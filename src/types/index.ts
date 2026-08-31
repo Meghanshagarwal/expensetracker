@@ -58,9 +58,13 @@ export interface Ipo {
   appliedFrom: string;               // Applied from account/person — 'Me' | 'Mummy' | 'Papa' | custom
   status: 'Applied' | 'Allotted' | 'Not Allotted';
   applyDate: string;                 // Date of application
+  openDate?: string;                 // IPO subscription open date
+  closeDate?: string;                // IPO subscription close date
   contributions: IpoContribution[];  // Money taken from people
-  returnAmount: number;              // Amount returned (refund / after listing)
-  returnDate?: string;               // Date the amount was / will be returned
+  returnAmount: number;              // Refund amount — used when status is 'Not Allotted'
+  returnDate?: string;               // Date the refund was / will be credited back
+  listingDate?: string;              // Listing date — used when status is 'Allotted'
+  profitAmount: number;              // Profit/loss booked on listing — used when status is 'Allotted'
   notes?: string;
   createdAt: string;
   isPendingSync?: boolean;
