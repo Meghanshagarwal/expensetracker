@@ -135,9 +135,9 @@ export async function POST(request: Request) {
     const personIdMap = new Map<string, string>();
 
     for (const item of items) {
-      if (item.type === 'person') {
-        const { action, data: pData, tempId } = item;
-
+      if (item.type !== 'person') continue;
+      const { action, data: pData, tempId } = item;
+      try {
         if (action === 'create') {
           let existingPerson = await Person.findOne({ name: pData.name });
           if (!existingPerson) {
@@ -147,15 +147,18 @@ export async function POST(request: Request) {
         } else if (action === 'update') {
           const id = pData._id.startsWith('temp_') ? personIdMap.get(pData._id) : pData._id;
           if (id) {
-            await Person.findByIdAndUpdate(id, { name: pData.name });
+            await Person.findByIdAndUpdate(id, { name: pData.name }, { runValidators: true });
           }
         }
+      } catch (err) {
+        console.error('Sync: failed to process person item', tempId, err);
       }
     }
 
     for (const item of items) {
-      if (item.type === 'card') {
-        const { action, data: cData } = item;
+      if (item.type !== 'card') continue;
+      const { action, data: cData } = item;
+      try {
         if (action === 'create') {
           let existingCard = await Card.findOne({ name: cData.name });
           if (!existingCard) {
@@ -178,9 +181,9 @@ export async function POST(request: Request) {
             dueDate: cData.dueDate,
           };
           if (cData._id && !String(cData._id).startsWith('temp_')) {
-            await Card.findByIdAndUpdate(cData._id, fields);
+            await Card.findByIdAndUpdate(cData._id, fields, { runValidators: true });
           } else {
-            await Card.findOneAndUpdate({ name: cData.name }, fields);
+            await Card.findOneAndUpdate({ name: cData.name }, fields, { runValidators: true });
           }
         } else if (action === 'delete') {
           if (cData._id && !String(cData._id).startsWith('temp_')) {
@@ -189,13 +192,18 @@ export async function POST(request: Request) {
             await Card.findOneAndDelete({ name: cData.name });
           }
         }
+      } catch (err) {
+        console.error('Sync: failed to process card item', cData?._id || cData?.name, err);
       }
     }
 
-    for (const item of items) {
-      if (item.type === 'expense') {
-        const { action, data: eData } = item;
+    const results: { tempId: string; type: string; status: string; reason?: string }[] = [];
 
+    for (const item of items) {
+      if (item.type !== 'expense') continue;
+      const { action, data: eData, tempId, timestamp } = item;
+
+      try {
         let resolvedPersonId = eData.personId;
         if (eData.personId.startsWith('temp_')) {
           resolvedPersonId = personIdMap.get(eData.personId);
@@ -214,19 +222,37 @@ export async function POST(request: Request) {
             ...expenseToCreate,
             personId: resolvedPersonId,
           });
+          results.push({ tempId, type: 'expense', status: 'created' });
         } else if (action === 'update') {
           const { _id, isPendingSync, personId, ...expenseToUpdate } = eData;
-          await Expense.findByIdAndUpdate(_id, {
-            ...expenseToUpdate,
-            personId: resolvedPersonId,
-          });
+          const current = await Expense.findById(_id);
+          if (!current) {
+            results.push({ tempId, type: 'expense', status: 'skipped', reason: 'not_found' });
+            continue;
+          }
+          // Conflict guard: if the server copy was modified after this offline
+          // edit was queued, the newer server state wins instead of being
+          // silently overwritten by a stale offline write.
+          if (timestamp && current.updatedAt && current.updatedAt.getTime() > timestamp) {
+            results.push({ tempId, type: 'expense', status: 'skipped', reason: 'server_newer' });
+            continue;
+          }
+          await Expense.findByIdAndUpdate(
+            _id,
+            { ...expenseToUpdate, personId: resolvedPersonId },
+            { runValidators: true }
+          );
+          results.push({ tempId, type: 'expense', status: 'updated' });
         } else if (action === 'delete') {
           await Expense.findByIdAndDelete(eData._id);
+          results.push({ tempId, type: 'expense', status: 'deleted' });
         }
+      } catch (err: any) {
+        results.push({ tempId, type: 'expense', status: 'error', reason: err.message });
       }
     }
 
-    return NextResponse.json({ success: true });
+    return NextResponse.json({ success: true, results });
   } catch (error: any) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }

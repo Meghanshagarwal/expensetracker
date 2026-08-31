@@ -10,6 +10,7 @@ import { getLocalPersons, getLocalExpenses } from '@/lib/offlineDb';
 import { useOfflineSync } from '@/hooks/useOfflineSync';
 import { Person, Expense } from '@/types';
 import PersonModal from '@/components/PersonModal';
+import { isSelfPerson } from '@/utils/person';
 
 export default function PeoplePage() {
   const [persons, setPersons] = useState<Person[]>([]);
@@ -310,7 +311,7 @@ export default function PeoplePage() {
       current.count++;
       const type = exp.transactionType || 'expense';
       const personName = personMap.get(exp.personId) || '';
-      const isSelf = personName.toLowerCase() === 'self' || personName.toLowerCase() === 'my self';
+      const isSelf = isSelfPerson(personName);
 
       if (type === 'expense') {
         current.totalExpenses += exp.amount;
@@ -721,7 +722,7 @@ export default function PeoplePage() {
                     personLedgerExpenses.map(exp => {
                       const type = exp.transactionType || 'expense';
                       const personName = currentPersonForLedger.name;
-                      const isSelf = personName.toLowerCase() === 'self' || personName.toLowerCase() === 'my self';
+                      const isSelf = isSelfPerson(personName);
                       
                       const isLentFlow = type === 'lent' || type === 'received' || (type === 'expense' && !isSelf);
                       const isOutflow = type === 'lent' || type === 'repaid' || (type === 'expense' && !isSelf);

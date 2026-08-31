@@ -10,6 +10,7 @@ import { getLocalExpenses, getLocalPersons } from '@/lib/offlineDb';
 import { Expense, Person, DashboardStats } from '@/types';
 import ExpenseModal from '@/components/ExpenseModal';
 import ExpenseTable from '@/components/ExpenseTable';
+import { isSelfPerson } from '@/utils/person';
 
 const CATEGORIES = [
   'Petrol', 'Food', 'Tea/Coffee', 'Travel', 'Shopping', 
@@ -198,7 +199,7 @@ export default function DashboardPage() {
 
       if (originalType === 'expense') {
         const personName = personMap.get(exp.personId) || '';
-        const isSelf = personName.toLowerCase() === 'self' || personName.toLowerCase() === 'my self';
+        const isSelf = isSelfPerson(personName);
         if (!isSelf) {
           loanType = 'lent';
         }

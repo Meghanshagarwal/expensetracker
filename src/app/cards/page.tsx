@@ -11,6 +11,7 @@ import { getLocalExpenses, getLocalPersons, getLocalCards, saveLocalExpenses, sa
 import { useOfflineSync } from '@/hooks/useOfflineSync';
 import { isPushSupported, getPushSubscribed, enablePush, disablePush } from '@/lib/push';
 import { Expense, Person, Card } from '@/types';
+import { isSelfPerson } from '@/utils/person';
 
 type CardType = 'ICICI' | 'OneCard' | 'Yes Bank';
 
@@ -97,10 +98,7 @@ export default function CardsPage() {
     return p ? p.name : 'Self';
   }, [persons]);
 
-  const isPersonSelf = useCallback((name: string) => {
-    const lowerName = name.toLowerCase();
-    return lowerName === 'self' || lowerName === 'my self' || lowerName === 'myself';
-  }, []);
+  const isPersonSelf = useCallback((name: string) => isSelfPerson(name), []);
 
   // Reset inputs when selected transaction expands
   useEffect(() => {

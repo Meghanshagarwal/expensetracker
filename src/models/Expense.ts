@@ -24,6 +24,7 @@ const ExpenseSchema = new Schema({
     type: Schema.Types.ObjectId,
     ref: "Person",
     required: [true, "Please assign this expense to a person."],
+    index: true,
   },
   paymentMethod: {
     type: String,
@@ -34,6 +35,7 @@ const ExpenseSchema = new Schema({
     type: Date,
     required: [true, "Please select the expense date."],
     default: Date.now,
+    index: true,
   },
   notes: {
     type: String,
@@ -94,6 +96,6 @@ const ExpenseSchema = new Schema({
       notes: { type: String, trim: true }
     }
   ],
-});
+}, { timestamps: true });
 
 export default models.Expense || model("Expense", ExpenseSchema);

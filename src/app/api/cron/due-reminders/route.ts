@@ -48,13 +48,15 @@ const formatRupee = (n: number) =>
   new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 }).format(n);
 
 export async function GET(request: Request) {
-  // Protect the endpoint when a CRON_SECRET is configured (Vercel Cron sends it).
+  // Fail closed: without a configured CRON_SECRET there's no way to authenticate
+  // the caller, so refuse rather than leaving the endpoint wide open.
   const secret = process.env.CRON_SECRET;
-  if (secret) {
-    const auth = request.headers.get('authorization');
-    if (auth !== `Bearer ${secret}`) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
+  if (!secret) {
+    return NextResponse.json({ error: 'CRON_SECRET is not configured' }, { status: 503 });
+  }
+  const auth = request.headers.get('authorization');
+  if (auth !== `Bearer ${secret}`) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
   if (!isPushConfigured) {

@@ -1,6 +1,39 @@
 import { NextResponse } from 'next/server';
 import dbConnect, { isMockMode, getMockData, saveMockData } from '@/lib/mongodb';
 import Card from '@/models/Card';
+import Expense from '@/models/Expense';
+
+// Expenses store the card by name (creditCardIssuer / upiLinkedAccount), not by ID,
+// so a rename has to cascade into every expense that referenced the old name.
+async function cascadeCardRename(oldName: string, newName: string) {
+  if (!oldName || oldName.toLowerCase() === newName.toLowerCase()) return;
+  const oldLinked = `${oldName} Credit Card`;
+  const newLinked = `${newName} Credit Card`;
+  await Expense.updateMany(
+    { creditCardIssuer: new RegExp(`^${oldName}$`, 'i') },
+    { $set: { creditCardIssuer: newName } }
+  );
+  await Expense.updateMany(
+    { upiLinkedAccount: new RegExp(`^${oldLinked}$`, 'i') },
+    { $set: { upiLinkedAccount: newLinked } }
+  );
+  await Expense.updateMany(
+    { upiLinkedAccount: new RegExp(`^${oldName}$`, 'i') },
+    { $set: { upiLinkedAccount: newName } }
+  );
+}
+
+async function cardHasExpenses(name: string) {
+  const linked = `${name} Credit Card`;
+  const count = await Expense.countDocuments({
+    $or: [
+      { creditCardIssuer: new RegExp(`^${name}$`, 'i') },
+      { upiLinkedAccount: new RegExp(`^${linked}$`, 'i') },
+      { upiLinkedAccount: new RegExp(`^${name}$`, 'i') },
+    ],
+  });
+  return count > 0;
+}
 
 const defaultCards = [
   { _id: 'card_onecard', name: 'OneCard', cardNetwork: 'Visa', last4: '1001', colorTheme: 'charcoal', statementDate: 5, dueDate: 22, createdAt: new Date(2026, 0, 1).toISOString() },
@@ -132,10 +165,16 @@ export async function PUT(request: Request) {
     if (clash) {
       return NextResponse.json({ error: 'Card with this name already exists' }, { status: 400 });
     }
+    const existing = await Card.findById(id);
+    if (!existing) {
+      return NextResponse.json({ error: 'Card not found' }, { status: 404 });
+    }
+    const oldName = existing.name;
     const updated = await Card.findByIdAndUpdate(id, updates, { new: true, runValidators: true });
     if (!updated) {
       return NextResponse.json({ error: 'Card not found' }, { status: 404 });
     }
+    await cascadeCardRename(oldName, updates.name);
     return NextResponse.json(updated);
   } catch (error: any) {
     return NextResponse.json({ error: error.message }, { status: 500 });
@@ -163,10 +202,17 @@ export async function DELETE(request: Request) {
     }
 
     await dbConnect();
-    const deleted = await Card.findByIdAndDelete(id);
-    if (!deleted) {
+    const existing = await Card.findById(id);
+    if (!existing) {
       return NextResponse.json({ error: 'Card not found' }, { status: 404 });
     }
+    if (await cardHasExpenses(existing.name)) {
+      return NextResponse.json(
+        { error: `Can't delete "${existing.name}" — it still has expenses linked to it. Reassign or delete those first.` },
+        { status: 400 }
+      );
+    }
+    await Card.findByIdAndDelete(id);
     return NextResponse.json({ success: true });
   } catch (error: any) {
     return NextResponse.json({ error: error.message }, { status: 500 });

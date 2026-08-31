@@ -36,6 +36,6 @@ const CardSchema = new Schema({
     type: Date,
     default: Date.now,
   }
-});
+}, { timestamps: { createdAt: false, updatedAt: true } });
 
 export default models.Card || model("Card", CardSchema);
