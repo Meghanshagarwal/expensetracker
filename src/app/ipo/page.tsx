@@ -705,20 +705,27 @@ export default function IpoPage() {
                 )}
 
                 <div className="grid grid-cols-2 gap-3">
-                  {/* Status */}
+                  {/* Status — result (Allotted/Not Allotted) can only be set once the IPO already exists, via Edit */}
                   <div>
                     <label className="block text-[10px] text-[#8A8A8A] uppercase tracking-wider mb-1.5 font-medium">
                       Status
                     </label>
-                    <select
-                      value={form.status}
-                      onChange={e => setForm(f => ({ ...f, status: e.target.value as (typeof STATUSES)[number] }))}
-                      className="w-full rounded-xl bg-black border border-white/[0.08] px-3.5 py-2.5 text-sm text-white focus:border-gold-400/40 focus:outline-none"
-                    >
-                      {STATUSES.map(s => (
-                        <option key={s} value={s}>{s}</option>
-                      ))}
-                    </select>
+                    {editingId ? (
+                      <select
+                        value={form.status}
+                        onChange={e => setForm(f => ({ ...f, status: e.target.value as (typeof STATUSES)[number] }))}
+                        className="w-full rounded-xl bg-black border border-white/[0.08] px-3.5 py-2.5 text-sm text-white focus:border-gold-400/40 focus:outline-none"
+                      >
+                        {STATUSES.map(s => (
+                          <option key={s} value={s}>{s}</option>
+                        ))}
+                      </select>
+                    ) : (
+                      <div className="w-full rounded-xl bg-black/60 border border-white/[0.06] px-3.5 py-2.5 text-sm text-[#8A8A8A]">
+                        Applied
+                        <span className="block text-[9px] text-[#555555] mt-0.5 normal-case">Update to Allotted / Not Allotted after result via Edit</span>
+                      </div>
+                    )}
                   </div>
                   {/* Apply date */}
                   <div>
