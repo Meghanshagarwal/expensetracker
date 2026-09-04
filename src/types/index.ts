@@ -77,7 +77,7 @@ export interface DashboardStats {
   avgDaily: number;
   petrolExpenses: number;
   foodExpenses: number;
-  travelExpenses: number;
+  avgMileage: number;
   thisMonthExpenses: number;
   lastMonthExpenses: number;
   highestExpense: {

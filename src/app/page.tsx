@@ -3,7 +3,7 @@
 import { useEffect, useState, useCallback, useMemo } from 'react';
 import { 
   Plus, Wifi, WifiOff, RefreshCw, Upload, Download, 
-  Fuel, Utensils, Plane, TrendingUp, Calendar, ArrowUpRight, ArrowDownRight 
+  Fuel, Utensils, Gauge, TrendingUp, Calendar, ArrowUpRight, ArrowDownRight
 } from 'lucide-react';
 import { useOfflineSync } from '@/hooks/useOfflineSync';
 import { getLocalExpenses, getLocalPersons } from '@/lib/offlineDb';
@@ -179,7 +179,6 @@ export default function DashboardPage() {
     
     let petrolExpenses = 0;
     let foodExpenses = 0;
-    let travelExpenses = 0;
 
     let thisMonthExpenses = 0;
     let lastMonthExpenses = 0;
@@ -238,7 +237,6 @@ export default function DashboardPage() {
 
           if (exp.category === 'Petrol') petrolExpenses += exp.amount;
           if (exp.category === 'Food') foodExpenses += exp.amount;
-          if (exp.category === 'Travel') travelExpenses += exp.amount;
 
           if (!highestExpense || exp.amount > highestExpense.amount) {
             highestExpense = {
@@ -280,6 +278,31 @@ export default function DashboardPage() {
 
     const avgDaily = totalMonth / daysInMonthSoFar;
 
+    // Long-running average mileage (km/l), per vehicle then combined,
+    // so occasional reserve-run noise averages out over many fills
+    const vehicleFills = new Map<string, { km: number; litres: number }[]>();
+    expenses.forEach(exp => {
+      if (exp.category === 'Petrol' && exp.vehicle && typeof exp.km === 'number' && exp.litres) {
+        if (!vehicleFills.has(exp.vehicle)) vehicleFills.set(exp.vehicle, []);
+        vehicleFills.get(exp.vehicle)!.push({ km: exp.km, litres: exp.litres });
+      }
+    });
+
+    let totalDistance = 0;
+    let totalLitresUsed = 0;
+    vehicleFills.forEach(fills => {
+      const sorted = [...fills].sort((a, b) => a.km - b.km);
+      for (let i = 1; i < sorted.length; i++) {
+        const diff = sorted[i].km - sorted[i - 1].km;
+        if (diff > 0 && sorted[i - 1].litres > 0) {
+          totalDistance += diff;
+          totalLitresUsed += sorted[i - 1].litres;
+        }
+      }
+    });
+
+    const avgMileage = totalLitresUsed > 0 ? totalDistance / totalLitresUsed : 0;
+
     return {
       totalMonth,
       totalYear,
@@ -287,7 +310,7 @@ export default function DashboardPage() {
       avgDaily,
       petrolExpenses,
       foodExpenses,
-      travelExpenses,
+      avgMileage,
       thisMonthExpenses,
       lastMonthExpenses,
       highestExpense,
@@ -497,23 +520,14 @@ export default function DashboardPage() {
           </div>
         </div>
 
-        {/* Travel */}
-        <div 
-          onClick={() => setSelectedCategory(prev => prev === 'Travel' ? '' : 'Travel')}
-          className={`flex items-center gap-3 bg-[#111111] rounded-xl p-3.5 border transition-all cursor-pointer select-none ${
-            selectedCategory === 'Travel' 
-              ? 'border-gold-400/40 bg-gold-400/[0.02]' 
-              : 'border-white/[0.06] hover:border-white/[0.12]'
-          }`}
-        >
-          <div className={`h-9 w-9 rounded-lg flex items-center justify-center transition-all ${
-            selectedCategory === 'Travel' ? 'bg-gold-400/15 text-gold-400' : 'bg-white/[0.04] text-[#8A8A8A]'
-          }`}>
-            <Plane className="h-4 w-4" strokeWidth={1.5} />
+        {/* Average Mileage */}
+        <div className="flex items-center gap-3 bg-[#111111] rounded-xl p-3.5 border border-white/[0.06] select-none">
+          <div className="h-9 w-9 rounded-lg bg-white/[0.04] text-[#8A8A8A] flex items-center justify-center">
+            <Gauge className="h-4 w-4" strokeWidth={1.5} />
           </div>
           <div>
-            <p className="text-[9px] text-[#555555] uppercase tracking-luxury-wide">Travel</p>
-            <p className="text-sm font-medium text-white">₹{stats.travelExpenses.toLocaleString('en-IN', { maximumFractionDigits: 0 })}</p>
+            <p className="text-[9px] text-[#555555] uppercase tracking-luxury-wide">Avg Mileage</p>
+            <p className="text-sm font-medium text-white">{stats.avgMileage > 0 ? `${stats.avgMileage.toFixed(1)} km/l` : '—'}</p>
           </div>
         </div>
 
