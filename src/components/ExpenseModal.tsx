@@ -1,5 +1,7 @@
 'use client';
 
+import style from '@/components/LedgerSurfaces.module.css';
+
 import { useState, useEffect, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, Loader2, CreditCard } from 'lucide-react';
@@ -418,35 +420,35 @@ export default function ExpenseModal({
             animate={{ y: 0, opacity: 1 }}
             exit={{ y: '100%', opacity: 0.5 }}
             transition={{ type: 'spring', damping: 28, stiffness: 350 }}
-            className="relative w-full md:max-w-lg rounded-t-3xl md:rounded-3xl bg-[#111111] border-t md:border border-white/[0.08] text-white shadow-luxury z-10 max-h-[92vh] md:max-h-[90vh] overflow-y-auto"
+            role="dialog" aria-modal="true" aria-labelledby="expense-dialog-title"
+            onKeyDown={event => { if (event.key === 'Escape') onClose(); }}
+            className={`${style.sheet} relative w-full md:max-w-lg rounded-t-3xl md:rounded-3xl border-t md:border text-white z-10 max-h-[92dvh] md:max-h-[90dvh] overflow-y-auto`}
           >
             {/* Mobile Sheet Handle */}
             <div className="w-12 h-1.5 bg-white/[0.12] rounded-full mx-auto mt-3 mb-1 md:hidden" />
 
             {/* Sticky Header */}
-            <div className="sticky top-0 z-10 flex items-center justify-between px-6 py-4 bg-[#111111]/95 backdrop-blur-xl border-b border-white/[0.06]">
+            <div className={`${style.sheetHead} sticky top-0 z-10 flex items-center justify-between px-5 py-4 backdrop-blur-xl border-b border-white/[0.08]`}>
               <div className="flex items-center gap-2.5">
                 <div className="h-9 w-9 rounded-xl bg-gold-400/10 border border-gold-400/25 flex items-center justify-center shrink-0">
                   <CreditCard className="h-4.5 w-4.5 text-gold-400" />
                 </div>
                 <div>
-                  <h2 className="text-base font-bold leading-tight text-white">
-                    {expenseToEdit ? 'Edit Transaction' : 'Quick Add Expense'}
+                  <h2 id="expense-dialog-title" className="text-xl font-semibold tracking-tight">
+                    {expenseToEdit ? 'Edit transaction' : 'New transaction'}
                   </h2>
-                  <p className="text-[10px] text-[#8A8A8A] leading-tight mt-0.5">
-                    {expenseToEdit ? 'Update the details below' : 'A few taps and you\'re done'}
-                  </p>
                 </div>
               </div>
               <button
                 onClick={onClose}
+                autoFocus aria-label="Close transaction form"
                 className="rounded-xl p-2 text-[#8A8A8A] hover:text-white hover:bg-white/[0.06] transition-colors shrink-0"
               >
                 <X className="h-4 w-4" />
               </button>
             </div>
 
-            <div className="px-6 pb-12 pt-5 md:pb-6">
+            <div className="px-5 pb-8 pt-5 md:p-6">
             {/* Error Banner */}
             <AnimatePresence>
               {error && (
@@ -462,6 +464,15 @@ export default function ExpenseModal({
             </AnimatePresence>
 
             <form onSubmit={handleSubmit} className="space-y-4">
+              <div className="rounded-2xl border border-[#425443] bg-[#243128] p-4">
+                <label htmlFor="expense-amount" className="text-sm font-medium text-[#c8d5c4]">Amount</label>
+                <div className="mt-1.5 flex items-baseline gap-2">
+                  <span aria-hidden="true" className="text-3xl text-gold-400">₹</span>
+                  <input id="expense-amount" type="number" inputMode="decimal" min="0.01" step="0.01" required
+                    placeholder="0.00" value={amount} onChange={e => setAmount(e.target.value)}
+                    className="min-w-0 w-full bg-transparent border-0 text-4xl font-semibold tracking-tight tabular-nums placeholder:text-[#8a9f8b] focus:outline-none" />
+                </div>
+              </div>
               {/* Transaction Type Selector */}
               <div>
                 <label className={labelClass}>
@@ -473,6 +484,7 @@ export default function ExpenseModal({
                       key={type}
                       whileTap={{ scale: 0.95 }}
                       type="button"
+                      aria-pressed={transactionType === type}
                       onClick={() => setTransactionType(type)}
                       className={`py-2 px-3 rounded-xl border text-xs font-medium capitalize transition-all ${
                         transactionType === type
@@ -486,35 +498,10 @@ export default function ExpenseModal({
                 </div>
               </div>
 
-              {/* Title & Amount */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <label className={labelClass}>
-                    {transactionType === 'borrowed' ? 'Title' : 'Title / Item'}
-                  </label>
-                  <input
-                    type="text"
-                    required
-                    placeholder="e.g. Petrol, Groceries, Dinner"
-                    value={title}
-                    onChange={(e) => setTitle(e.target.value)}
-                    className={inputClass}
-                  />
-                </div>
-                <div>
-                  <label className={labelClass}>
-                    Amount (₹)
-                  </label>
-                  <input
-                    type="number"
-                    step="0.01"
-                    required
-                    placeholder="0.00"
-                    value={amount}
-                    onChange={(e) => setAmount(e.target.value)}
-                    className={inputClass}
-                  />
-                </div>
+              <div>
+                <label htmlFor="expense-title" className={labelClass}>Title</label>
+                <input id="expense-title" type="text" required placeholder="e.g. Petrol, groceries, dinner"
+                  value={title} onChange={e => setTitle(e.target.value)} className={inputClass} />
               </div>
 
               {/* Date & Category */}
@@ -526,6 +513,7 @@ export default function ExpenseModal({
                   <input
                     type="date"
                     required
+                    aria-label="Date"
                     value={date}
                     onChange={(e) => setDate(e.target.value)}
                     className={inputClass}
@@ -536,6 +524,7 @@ export default function ExpenseModal({
                     {transactionType === 'borrowed' ? 'Used For' : 'Category'}
                   </label>
                   <select
+                    aria-label="Category"
                     value={category}
                     onChange={(e) => setCategory(e.target.value)}
                     className={inputClass}
@@ -561,6 +550,7 @@ export default function ExpenseModal({
                         Vehicle Type
                       </label>
                       <select
+                        aria-label="Vehicle"
                         value={vehicle}
                         onChange={(e) => setVehicle(e.target.value)}
                         className={inputClass}
@@ -577,6 +567,7 @@ export default function ExpenseModal({
                       <input
                         type="number"
                         placeholder="Odometer reading"
+                        aria-label="Odometer reading"
                         value={currentKm}
                         onChange={(e) => setCurrentKm(e.target.value)}
                         className={inputClass}
@@ -596,6 +587,7 @@ export default function ExpenseModal({
                         step="0.01"
                         min="0"
                         placeholder="e.g. 113.15"
+                        aria-label="Petrol price"
                         value={petrolPrice}
                         onChange={(e) => setPetrolPrice(Number(e.target.value) || 0)}
                         className={inputClass}
@@ -654,6 +646,7 @@ export default function ExpenseModal({
                       type="text"
                       required
                       placeholder="Enter custom name"
+                      aria-label="New person name"
                       value={customPerson}
                       onChange={(e) => setCustomPerson(e.target.value)}
                       className={inputClass}
@@ -661,6 +654,7 @@ export default function ExpenseModal({
                   ) : (
                     <select
                       required
+                      aria-label="Person"
                       value={personId}
                       onChange={(e) => setPersonId(e.target.value)}
                       className={inputClass}
@@ -679,6 +673,7 @@ export default function ExpenseModal({
                     {transactionType === 'borrowed' ? 'Destination Account' : 'Source Account'}
                   </label>
                   <select
+                    aria-label="Account"
                     value={sourceAccount}
                     onChange={(e) => setSourceAccount(e.target.value)}
                     className={inputClass}
@@ -730,6 +725,7 @@ export default function ExpenseModal({
                         UPI App
                       </label>
                       <select
+                        aria-label="UPI app"
                         value={upiApp}
                         onChange={(e) => setUpiApp(e.target.value)}
                         className={inputClass}
@@ -745,6 +741,7 @@ export default function ExpenseModal({
                           Linked Account
                         </label>
                         <select
+                          aria-label="Linked UPI account"
                           value={upiLinkedAccount}
                           onChange={(e) => setUpiLinkedAccount(e.target.value)}
                           className={inputClass}
@@ -774,6 +771,7 @@ export default function ExpenseModal({
                     Credit Card Issuer
                   </label>
                   <select
+                     aria-label="Credit card"
                      value={creditCardIssuer}
                      onChange={(e) => setCreditCardIssuer(e.target.value)}
                      className={inputClass}
@@ -795,6 +793,7 @@ export default function ExpenseModal({
                 </label>
                 <textarea
                   placeholder="Add details, description or comments..."
+                  aria-label="Notes"
                   value={notes}
                   onChange={(e) => setNotes(e.target.value)}
                   rows={2}
@@ -803,16 +802,16 @@ export default function ExpenseModal({
               </div>
 
               {/* Footer */}
-              <div className="flex flex-col gap-3 mt-6 pt-4 border-t border-white/[0.06]">
+              <div className={`${style.sheetActions} flex flex-col gap-1.5 pt-4 border-t border-white/[0.08]`}>
                 <motion.button
                   whileHover={{ scale: 1.01 }}
                   whileTap={{ scale: 0.98 }}
                   type="submit"
                   disabled={loading}
-                  className="flex items-center justify-center gap-2 w-full py-3 rounded-xl text-sm font-semibold bg-gold-400 text-black hover:bg-gold-500 transition-all disabled:opacity-50 shadow-[0_0_24px_-6px_rgba(250,204,21,0.45)]"
+                  className="flex items-center justify-center gap-2 w-full py-3 rounded-full text-sm font-semibold bg-gold-400 text-black hover:bg-gold-500 transition-all disabled:opacity-50"
                 >
                   {loading && <Loader2 className="h-4 w-4 animate-spin" />}
-                  {expenseToEdit ? 'Save Changes' : 'Create Expense'}
+                  {expenseToEdit ? 'Save changes' : 'Save transaction'}
                 </motion.button>
                 <motion.button
                   whileTap={{ scale: 0.98 }}

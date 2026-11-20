@@ -1,5 +1,7 @@
 'use client';
 
+import style from '@/components/LedgerSurfaces.module.css';
+
 import { useEffect, useState, useCallback, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
@@ -356,23 +358,18 @@ export default function PeoplePage() {
     'block text-xs font-normal uppercase tracking-wider text-[#8A8A8A] mb-1.5';
 
   return (
-    <div className="space-y-8 text-white pb-12">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <div className="h-10 w-10 rounded-xl bg-gold-400/10 border border-gold-400/20 flex items-center justify-center">
-            <Users className="h-5 w-5 text-gold-400" />
-          </div>
-          <div>
-            <h1 className="text-xl font-light tracking-tight">People Management</h1>
-            <p className="text-xs text-[#8A8A8A] font-light">Manage individuals and groups linked to expenses</p>
-          </div>
+    <div className={`${style.page} space-y-6 text-white`}>
+      <div className={style.header}>
+        <div>
+          <h1 className={style.title}>People</h1>
+          <p className={style.sub}>Shared expenses and balances by person.</p>
         </div>
         <button
           onClick={() => {
             setEditingPerson(null);
             setIsModalOpen(true);
           }}
-          className="flex items-center justify-center gap-1.5 px-4 py-2 bg-gold-400 hover:bg-gold-500 text-black rounded-xl text-xs font-medium transition-all"
+          className={`${style.action} flex items-center gap-2 bg-gold-400 hover:bg-gold-500 text-black text-sm font-semibold`}
         >
           <Plus className="h-4 w-4" />
           <span>Add Person</span>
@@ -384,7 +381,7 @@ export default function PeoplePage() {
           No persons recorded. Create a person to assign expenses to them.
         </div>
       ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
           {persons.map(person => {
             const { count, totalExpenses, totalLent, totalBorrowed, netLoan, lastActive } = allPersonStats.get(person._id) || { count: 0, totalExpenses: 0, totalLent: 0, totalBorrowed: 0, netLoan: 0, lastActive: null };
             const isTemp = person._id.startsWith('temp_');
@@ -392,16 +389,18 @@ export default function PeoplePage() {
               <div
                 key={person._id}
                 onClick={() => setSelectedPersonForLedger(person)}
-                className="bg-[#111111] cursor-pointer border border-white/[0.06] p-5 rounded-2xl flex flex-col justify-between hover:border-gold-400/20 transition-all duration-300 shadow-luxury hover:-translate-y-1"
+                className={`${style.contact} cursor-pointer flex flex-col justify-between`}
               >
                 <div className="flex items-start justify-between">
-                  <div className="flex items-center gap-3">
-                    <div className="h-12 w-12 rounded-xl bg-black text-[#8A8A8A] flex items-center justify-center border border-white/[0.08]">
-                      <User className="h-5 w-5 text-gold-400/80" />
+                  <div className="flex min-w-0 items-center gap-3">
+                    <div aria-hidden="true" className={style.avatar}>
+                      {person.name.trim().split(/\s+/).slice(0, 2).map(part => part[0]).join('').toLocaleUpperCase()}
                     </div>
                     <div>
-                      <h3 className="font-medium text-white flex items-center gap-1.5">
-                        {person.name}
+                      <h3 className="font-semibold text-white flex flex-wrap items-center gap-1.5">
+                        <button onClick={event => { event.stopPropagation(); setSelectedPersonForLedger(person); }} className="text-left break-words" aria-label={`Open ledger for ${person.name}`}>
+                          {person.name}
+                        </button>
                         {isTemp && (
                           <span className="px-1.5 py-0.5 rounded-full text-[9px] bg-gold-400/15 text-gold-400 border border-gold-400/25">
                             Offline
@@ -418,11 +417,11 @@ export default function PeoplePage() {
                 <div className="mt-6 pt-4 border-t border-white/[0.06] space-y-4">
                   <div className="grid grid-cols-2 gap-y-3.5 gap-x-4">
                     <div>
-                      <span className="text-[9px] uppercase font-normal text-[#555555] tracking-luxury-wide">Total Share</span>
+                      <span className="text-xs font-medium text-[#a6b2a6]">Total Share</span>
                       <p className="text-sm font-semibold text-white mt-0.5">₹{totalExpenses.toLocaleString('en-IN', { maximumFractionDigits: 2 })}</p>
                     </div>
                     <div>
-                      <span className="text-[9px] uppercase font-normal text-[#555555] tracking-luxury-wide">Net Balance</span>
+                      <span className="text-xs font-medium text-[#a6b2a6]">Net Balance</span>
                       {netLoan > 0 ? (
                         <p className="text-sm font-semibold text-[#4ADE80] mt-0.5">Owes ₹{netLoan.toLocaleString('en-IN', { maximumFractionDigits: 2 })}</p>
                       ) : netLoan < 0 ? (
@@ -432,17 +431,17 @@ export default function PeoplePage() {
                       )}
                     </div>
                     <div>
-                      <span className="text-[9px] uppercase font-normal text-[#555555] tracking-luxury-wide">Total Lent</span>
+                      <span className="text-xs font-medium text-[#a6b2a6]">Total Lent</span>
                       <p className="text-sm font-semibold text-white/90 mt-0.5">₹{totalLent.toLocaleString('en-IN', { maximumFractionDigits: 2 })}</p>
                     </div>
                     <div>
-                      <span className="text-[9px] uppercase font-normal text-[#555555] tracking-luxury-wide">Total Borrowed</span>
+                      <span className="text-xs font-medium text-[#a6b2a6]">Total Borrowed</span>
                       <p className="text-sm font-semibold text-white/90 mt-0.5">₹{totalBorrowed.toLocaleString('en-IN', { maximumFractionDigits: 2 })}</p>
                     </div>
                   </div>
 
                   {lastActive && (
-                    <div className="text-[10px] text-[#555555] font-light pt-1 border-t border-white/[0.03]">
+                    <div className="text-xs text-[#a6b2a6] pt-1 border-t border-white/[0.03]">
                       Last active: {new Date(lastActive).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}
                     </div>
                   )}
@@ -453,6 +452,7 @@ export default function PeoplePage() {
                         e.stopPropagation();
                         handleEdit(person);
                       }}
+                      aria-label={`Edit ${person.name}`}
                       className="p-2 hover:bg-white/[0.04] text-[#555555] hover:text-white rounded-lg transition-all"
                       disabled={isTemp}
                     >
@@ -463,6 +463,7 @@ export default function PeoplePage() {
                         e.stopPropagation();
                         handleDelete(person._id);
                       }}
+                      aria-label={`Delete ${person.name}`}
                       className="p-2 hover:bg-[#FF5A5F]/5 text-[#555555] hover:text-[#FF5A5F] rounded-lg transition-all"
                       disabled={isTemp}
                     >
@@ -499,6 +500,7 @@ export default function PeoplePage() {
               animate={{ y: 0, opacity: 1 }}
               exit={{ y: '100%', opacity: 0.5 }}
               transition={{ type: 'spring', damping: 28, stiffness: 350 }}
+              role="dialog" aria-modal="true" aria-label="Person ledger"
               className="relative w-full md:max-w-2xl rounded-t-2xl md:rounded-2xl bg-[#111111] border-t md:border border-white/[0.06] p-6 pb-12 md:pb-6 text-white shadow-luxury z-10 max-h-[92vh] md:max-h-[90vh] flex flex-col overflow-hidden"
             >
               {/* Handle */}

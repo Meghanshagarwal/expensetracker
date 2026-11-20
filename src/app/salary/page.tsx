@@ -1,5 +1,7 @@
 'use client';
 
+import style from '@/components/LedgerSurfaces.module.css';
+
 import { useEffect, useState, useCallback, useMemo } from 'react';
 import { motion } from 'framer-motion';
 import { 
@@ -161,47 +163,31 @@ export default function SalaryAccountPage() {
   };
 
   return (
-    <div>
-      {/* Header Summary */}
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 mb-10">
+    <div className={style.page}>
+        <header className={style.header}>
           <div>
-            <h1 className="text-3xl font-extrabold tracking-tight text-white flex items-center gap-3">
-              <Wallet className="h-8 w-8 text-gold-400" />
-              Salary Account
-            </h1>
-            <p className="text-sm text-[#8A8A8A] mt-1">
-              View and audit all transactions and statement payments funded by your Salary Account.
-            </p>
+            <h1 className={style.title}>Salary account</h1>
+            <p className={style.sub}>Expenses and card payments funded by your salary.</p>
           </div>
-          
-          <div className="grid grid-cols-2 gap-4 w-full md:w-auto">
-            <div className="bg-[#111111] border border-white/[0.06] rounded-2xl p-4 md:min-w-[180px] shadow-luxury">
-              <span className="text-[10px] uppercase tracking-wider text-[#8A8A8A] font-medium block mb-1">
-                Total Account Spent
-              </span>
-              <span className="text-2xl font-extrabold text-gold-400 tracking-tight">
-                {formatRupee(stats.totalDebit)}
-              </span>
-            </div>
-            
-            <div className="bg-[#111111] border border-white/[0.06] rounded-2xl p-4 md:min-w-[180px] shadow-luxury">
-              <span className="text-[10px] uppercase tracking-wider text-[#8A8A8A] font-medium block mb-1">
-                Spent This Month
-              </span>
-              <span className="text-2xl font-extrabold text-white tracking-tight">
-                {formatRupee(stats.thisMonthDebit)}
-              </span>
-            </div>
+        </header>
+        <div className={style.metricStrip}>
+          <div className={`${style.metric} ${style.balance}`}>
+            <span className={style.metricLabel}><Wallet size={16} /> Total spent</span>
+            <strong className="text-gold-400">{formatRupee(stats.totalDebit)}</strong>
+          </div>
+          <div className={style.metric}>
+            <span className={style.metricLabel}><Calendar size={16} /> This month</span>
+            <strong>{formatRupee(stats.thisMonthDebit)}</strong>
           </div>
         </div>
 
         {/* Transactions Panel Section */}
-        <div className="bg-[#111111] border border-white/[0.06] rounded-2xl p-6 shadow-luxury">
+        <div className="bg-[#111111] border border-white/[0.06] rounded-2xl p-4 sm:p-6 shadow-luxury">
           {/* Title & Toolbar */}
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-6 border-b border-white/[0.06] mb-6">
             <h2 className="text-lg font-semibold text-white flex items-center gap-2">
-              <span className="h-2 w-2 rounded-full bg-gold-400 animate-pulse" />
-              Salary Ledger ({filteredTransactions.length})
+              <Receipt size={17} className="text-gold-400" />
+              Transactions <span className="text-xs text-[#a6b2a6]">{filteredTransactions.length}</span>
             </h2>
 
             <div className="flex flex-col sm:flex-row gap-3 w-full md:w-auto">
@@ -210,7 +196,7 @@ export default function SalaryAccountPage() {
                 <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-[#555555]" />
                 <input
                   type="text"
-                  placeholder="Search item, notes..."
+                  aria-label="Search salary transactions" placeholder="Search transactions"
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   className="bg-black border border-white/[0.08] pl-10 pr-4 py-2 rounded-xl text-sm text-white placeholder:text-[#555555] focus:border-gold-400/40 focus:ring-1 focus:ring-gold-400/10 focus:outline-none transition-all w-full sm:w-[220px]"
@@ -220,6 +206,7 @@ export default function SalaryAccountPage() {
               {/* Category Dropdown */}
               <div className="relative">
                 <select
+                  aria-label="Filter by category"
                   value={selectedCategory}
                   onChange={(e) => setSelectedCategory(e.target.value)}
                   className="bg-black border border-white/[0.08] px-4 py-2 rounded-xl text-sm text-white focus:border-gold-400/40 focus:outline-none w-full sm:w-auto appearance-none pr-8 cursor-pointer"
@@ -228,9 +215,6 @@ export default function SalaryAccountPage() {
                     <option key={cat} value={cat}>{cat}</option>
                   ))}
                 </select>
-                <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-3 text-[#8A8A8A]">
-                  ▼
-                </div>
               </div>
             </div>
           </div>
@@ -239,7 +223,7 @@ export default function SalaryAccountPage() {
           <div className="space-y-3">
             {filteredTransactions.length === 0 ? (
               <div className="text-center py-12 text-[#555555] text-sm">
-                No salary account transactions found matching criteria.
+                {salaryTransactions.length ? 'No matching transactions.' : 'Salary account transactions will appear here.'}
               </div>
             ) : (
               filteredTransactions.map(tx => (
@@ -270,7 +254,7 @@ export default function SalaryAccountPage() {
                       )}
                     </div>
                     
-                    <div className="flex items-center gap-4 text-xs text-[#8A8A8A]">
+                    <div className="flex flex-wrap items-center gap-2 sm:gap-4 text-xs text-[#a6b2a6]">
                       <span className="flex items-center gap-1">
                         <Calendar className="h-3.5 w-3.5" />
                         {formatDate(tx.date)}

@@ -1,5 +1,7 @@
 'use client';
 
+import style from '@/components/LedgerSurfaces.module.css';
+
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, UserPlus, Loader2 } from 'lucide-react';
@@ -117,19 +119,22 @@ export default function PersonModal({
             animate={{ y: 0, opacity: 1 }}
             exit={{ y: '100%', opacity: 0.5 }}
             transition={{ type: 'spring', damping: 28, stiffness: 350 }}
-            className="relative w-full md:max-w-md overflow-hidden rounded-t-3xl md:rounded-3xl bg-[#111111] border-t md:border border-white/[0.08] p-6 pb-12 md:pb-6 text-white shadow-luxury-lg z-10"
+            role="dialog" aria-modal="true" aria-labelledby="person-dialog-title"
+            onKeyDown={event => { if (event.key === 'Escape') onClose(); }}
+            className={`${style.sheet} relative w-full md:max-w-md max-h-[90dvh] overflow-y-auto rounded-t-3xl md:rounded-3xl border-t md:border p-6 pb-10 md:pb-6 text-white z-10`}
           >
             {/* Mobile Sheet Handle */}
             <div className="w-12 h-1 bg-white/[0.1] rounded-full mx-auto mb-5 md:hidden" />
             
             <div className="flex items-center justify-between mb-6">
-              <h2 className="text-lg font-light tracking-tight flex items-center gap-2 text-white">
+              <h2 id="person-dialog-title" className="text-xl font-semibold tracking-tight flex items-center gap-2 text-white">
                 <UserPlus className="h-4.5 w-4.5 text-gold-400" />
                 {personToEdit ? 'Edit Person' : 'New Contact'}
               </h2>
               <button
                 onClick={onClose}
-                className="rounded-lg p-1.5 hover:bg-white/[0.04] text-[#8A8A8A] hover:text-white transition-colors"
+                aria-label="Close contact form"
+                className="rounded-lg p-2 hover:bg-white/[0.04] text-[#8A8A8A] hover:text-white transition-colors"
               >
                 <X className="h-4 w-4" />
               </button>
@@ -143,11 +148,11 @@ export default function PersonModal({
 
             <form onSubmit={handleSubmit} className="space-y-5">
               <div>
-                <label className="block text-[10px] font-normal uppercase tracking-luxury-wide text-[#8A8A8A] mb-2">
-                  Full Name / Group Name
+                <label htmlFor="contact-name" className="block text-sm font-medium text-[#bbcab7] mb-2">
+                  Person or group name
                 </label>
                 <input
-                  type="text"
+                  id="contact-name" autoFocus type="text"
                   required
                   placeholder="e.g. Family, Office, Rohit"
                   value={name}
@@ -172,10 +177,10 @@ export default function PersonModal({
                   whileTap={{ scale: 0.97 }}
                   type="submit"
                   disabled={loading}
-                  className="flex items-center justify-center gap-2 px-6 py-2.5 rounded-xl text-xs font-medium bg-gold-400 hover:bg-gold-500 text-black transition-all disabled:opacity-50 shadow-[0_0_20px_-4px_rgba(250,204,21,0.4)]"
+                  className="flex items-center justify-center gap-2 px-6 py-2.5 rounded-full text-sm font-semibold bg-gold-400 hover:bg-gold-500 text-black transition-all disabled:opacity-50"
                 >
                   {loading && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
-                  {personToEdit ? 'Save Changes' : 'Create'}
+                  {personToEdit ? 'Save changes' : 'Add contact'}
                 </motion.button>
               </div>
             </form>

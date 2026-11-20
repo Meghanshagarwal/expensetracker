@@ -1,120 +1,121 @@
 'use client';
 
+import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { LayoutDashboard, TrendingUp, Users, CreditCard, Wallet, Settings } from 'lucide-react';
 import { motion } from 'framer-motion';
+import { ArrowDownToLine, ArrowUpRight, ChartNoAxesColumnIncreasing, ChevronRight, CreditCard, LayoutGrid, Settings2, UsersRound, Volume2, VolumeX, Wallet, X } from 'lucide-react';
+import { useInterfaceSound } from './useInterfaceSound';
+
+const destinations = [
+  { href: '/', label: 'Overview', icon: LayoutGrid },
+  { href: '/cards', label: 'Cards', icon: CreditCard },
+  { href: '/people', label: 'People', icon: UsersRound },
+  { href: '/salary', label: 'Salary', icon: Wallet },
+  { href: '/ipo', label: 'IPO', icon: ChartNoAxesColumnIncreasing },
+];
+
+type InstallPrompt = Event & {
+  prompt: () => Promise<void>;
+  userChoice: Promise<{ outcome: 'accepted' | 'dismissed' }>;
+};
+
+function Brand() {
+  return (
+    <Link href="/" aria-label="FinTrack overview" className="brand">
+      <img src="/fintrack-mark.svg" width="36" height="36" alt="" />
+      <span>FinTrack<span className="brand-period">.</span></span>
+    </Link>
+  );
+}
 
 export default function Navbar() {
-  const pathname = usePathname();
+  const path = usePathname();
+  const { enabled, toggle } = useInterfaceSound();
+  const [online, setOnline] = useState(true);
+  const [installPrompt, setInstallPrompt] = useState<InstallPrompt | null>(null);
+  const [appleInstall, setAppleInstall] = useState(false);
+  const installHelp = useRef<HTMLDialogElement>(null);
+  const current = destinations.find(item => item.href === path)?.label ?? 'Settings';
 
-  const navItems = [
-    { name: 'Dashboard', path: '/', icon: LayoutDashboard },
-    { name: 'IPO', path: '/ipo', icon: TrendingUp },
-    { name: 'Cards', path: '/cards', icon: CreditCard },
-    { name: 'Salary', path: '/salary', icon: Wallet },
-    { name: 'People', path: '/people', icon: Users },
-  ];
+  useEffect(() => {
+    const update = () => setOnline(navigator.onLine);
+    const installable = (event: Event) => {
+      event.preventDefault();
+      setInstallPrompt(event as InstallPrompt);
+    };
+    const installed = () => { setInstallPrompt(null); setAppleInstall(false); };
+    update();
+    const standalone = window.matchMedia('(display-mode: standalone)').matches
+      || (navigator as Navigator & { standalone?: boolean }).standalone;
+    const ios = /iPad|iPhone|iPod/.test(navigator.userAgent)
+      || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+    setAppleInstall(Boolean(ios && !standalone));
+    window.addEventListener('online', update);
+    window.addEventListener('offline', update);
+    window.addEventListener('beforeinstallprompt', installable);
+    window.addEventListener('appinstalled', installed);
+    return () => {
+      window.removeEventListener('online', update);
+      window.removeEventListener('offline', update);
+      window.removeEventListener('beforeinstallprompt', installable);
+      window.removeEventListener('appinstalled', installed);
+    };
+  }, []);
+
+  async function install() {
+    if (!installPrompt) { installHelp.current?.showModal(); return; }
+    try {
+      await installPrompt.prompt();
+      await installPrompt.userChoice;
+    } catch { /* A dismissed or expired browser prompt can be offered again later. */ }
+    setInstallPrompt(null);
+  }
+
+  const navigation = (compact: boolean) => destinations.map(({ href, label, icon: Icon }) => {
+    const active = path === href;
+    return (
+      <Link key={href} href={href} className="destination" aria-current={active ? 'page' : undefined}>
+        {active && <motion.span className="selected-tab" layoutId={compact ? 'dock-tab' : 'sidebar-tab'} transition={{ type: 'spring', stiffness: 420, damping: 38 }} />}
+        <Icon size={19} strokeWidth={1.7} aria-hidden="true" /><span>{label}</span>
+        {!compact && active && <span className="nav-pip" aria-hidden="true" />}
+      </Link>
+    );
+  });
 
   return (
     <>
-      {/* Desktop Navigation — Luxury Top Bar */}
-      <header className="hidden md:flex fixed top-0 left-0 right-0 z-40 items-center justify-between px-8 py-4 bg-black/80 backdrop-blur-xl border-b border-white/[0.06] text-white">
-        <div className="flex items-center gap-3">
-          <div className="h-9 w-9 rounded-xl bg-gold-400/10 border border-gold-400/20 flex items-center justify-center font-semibold text-lg text-gold-400">
-            ₹
-          </div>
-          <span className="text-xl font-medium tracking-wide text-white">
-            FinTrack
-          </span>
-        </div>
-
-        <nav className="flex items-center gap-1">
-          {navItems.map(item => {
-            const isActive = pathname === item.path;
-            return (
-              <Link
-                key={item.path}
-                href={item.path}
-                className={`relative px-5 py-2.5 text-sm font-normal transition-colors rounded-lg ${
-                  isActive ? 'text-white' : 'text-[#8A8A8A] hover:text-white'
-                }`}
-              >
-                {item.name}
-                {isActive && (
-                  <motion.div
-                    layoutId="activeTabDesktop"
-                    className="absolute bottom-0 left-2 right-2 h-[2px] bg-gold-400 rounded-full"
-                    transition={{ type: 'spring', stiffness: 380, damping: 30 }}
-                  />
-                )}
-              </Link>
-            );
-          })}
-          <div className="w-px h-6 bg-white/[0.08] mx-3" />
-          <Link
-            href="/settings"
-            className="flex items-center justify-center p-2 rounded-lg text-[#8A8A8A] hover:text-white hover:bg-white/[0.04] transition-all"
-            title="Settings"
-          >
-            <Settings className="h-4 w-4" />
+      <aside className="side-rail">
+        <Brand />
+        <nav aria-label="Main navigation" className="side-nav">
+          <span className="rail-caption">Workspace</span>
+          {navigation(false)}
+          <div className="rail-rule" />
+          <Link href="/settings" className="destination" aria-current={path === '/settings' ? 'page' : undefined}>
+            <Settings2 size={19} strokeWidth={1.7} /><span>Settings</span>
           </Link>
         </nav>
-      </header>
-
-      {/* Mobile Top Header */}
-      <header className="md:hidden fixed top-0 left-0 right-0 z-40 flex items-center justify-between px-4 h-14 bg-black/80 backdrop-blur-xl border-b border-white/[0.06] text-white">
-        <div className="flex items-center gap-2">
-          <div className="h-7 w-7 rounded-lg bg-gold-400/10 border border-gold-400/20 flex items-center justify-center font-semibold text-sm text-gold-400">
-            ₹
-          </div>
-          <span className="text-base font-medium tracking-wide text-white">
-            FinTrack
-          </span>
-        </div>
-
-        <div className="flex items-center gap-1">
-          <Link
-            href="/settings"
-            className="flex items-center justify-center h-9 w-9 rounded-xl text-[#8A8A8A] hover:text-white hover:bg-white/[0.04] active:bg-white/[0.08] transition-all"
-            title="Settings"
-          >
-            <Settings className="h-4.5 w-4.5" />
-          </Link>
+        <div className="rail-foot"><span className={online ? 'status-dot' : 'status-dot is-offline'} />{online ? 'Online' : 'Offline mode'}</div>
+      </aside>
+      <header className="workspace-bar">
+        <div className="mobile-brand"><Brand /></div>
+        <div className="breadcrumbs"><LayoutGrid size={15} /><span>Workspace</span><ChevronRight size={13} /><strong>{current}</strong></div>
+        <div className="bar-tools">
+          {(installPrompt || appleInstall) && <button className="tool-button install-button" type="button" onClick={install} aria-label="Install FinTrack" title="Install FinTrack"><ArrowDownToLine size={17} /><span>Install app</span></button>}
+          <button className="tool-button sound-button" type="button" data-sound-toggle aria-label="Interface sounds" aria-pressed={enabled} title={enabled ? 'Mute interface sounds' : 'Enable interface sounds'} onClick={toggle}>
+            {enabled ? <Volume2 size={17} /> : <VolumeX size={17} />}
+            <span>{enabled ? 'Sound on' : 'Sound off'}</span>
+          </button>
+          <Link className="tool-button mobile-settings" href="/settings" aria-label="Settings" aria-current={path === '/settings' ? 'page' : undefined}><Settings2 size={19} /></Link>
         </div>
       </header>
-
-      {/* Mobile Bottom Navigation — Frosted Dark Glass */}
-      <nav className="md:hidden fixed bottom-5 left-1/2 -translate-x-1/2 z-40 w-[88%] max-w-sm bg-[#111111]/90 backdrop-blur-2xl border border-white/[0.06] rounded-2xl py-3 px-4 shadow-luxury flex items-center justify-around text-white">
-        {navItems.map(item => {
-          const isActive = pathname === item.path;
-          const Icon = item.icon;
-          return (
-            <Link
-              key={item.path}
-              href={item.path}
-              className={`relative flex flex-col items-center gap-1 py-1 px-3 transition-all ${
-                isActive ? 'text-gold-400' : 'text-[#555555] hover:text-[#8A8A8A]'
-              }`}
-            >
-              <Icon className="h-5 w-5" strokeWidth={isActive ? 2 : 1.5} />
-              <span className="text-[9px] font-medium tracking-luxury-wide uppercase">
-                {item.name}
-              </span>
-              {isActive && (
-                <motion.div
-                  layoutId="activeTabMobile"
-                  className="absolute -bottom-1.5 left-1/2 -translate-x-1/2 h-[3px] w-[3px] rounded-full bg-gold-400"
-                  transition={{ type: 'spring', stiffness: 380, damping: 30 }}
-                />
-              )}
-            </Link>
-          );
-        })}
-      </nav>
-
-      {/* Spacing for Header (Mobile Top bar and Desktop Header) */}
-      <div className="h-16 md:h-20" />
+      <nav aria-label="Mobile navigation" className="mobile-dock">{navigation(true)}</nav>
+      <dialog ref={installHelp} aria-labelledby="install-title" className="install-dialog">
+        <form method="dialog"><button className="tool-button" autoFocus aria-label="Close install instructions"><X size={18} /></button></form>
+        <ArrowUpRight size={24} aria-hidden="true" />
+        <h2 id="install-title">Install FinTrack</h2>
+        <p>Open this page in Safari, tap Share, then choose Add to Home Screen.</p>
+      </dialog>
     </>
   );
 }

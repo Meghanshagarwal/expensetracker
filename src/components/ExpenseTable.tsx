@@ -1,8 +1,10 @@
 'use client';
 
+import style from '@/components/LedgerSurfaces.module.css';
+
 import { useState, useMemo } from 'react';
 import { 
-  Search, ArrowUpDown, ChevronLeft, ChevronRight, 
+  Search, SlidersHorizontal, Download, ArrowUpDown, ChevronLeft, ChevronRight,
   Edit2, Trash2, FileSpreadsheet, FileText, FileDown 
 } from 'lucide-react';
 import { Expense, Person } from '@/types';
@@ -32,6 +34,8 @@ export default function ExpenseTable({
   selectedCategory: controlledCategory,
   onSelectedCategoryChange: setControlledCategory,
 }: ExpenseTableProps) {
+  const [showFilters, setShowFilters] = useState(false);
+  const [showExport, setShowExport] = useState(false);
   const [search, setSearch] = useState('');
   const [localSelectedCategory, setLocalSelectedCategory] = useState('');
 
@@ -145,27 +149,40 @@ export default function ExpenseTable({
     return 'text-white';
   };
 
+  const filterCount = [selectedCategory, selectedPerson, selectedMethod, selectedType].filter(Boolean).length;
+
   return (
-    <div className="space-y-4">
+    <div className="space-y-3 min-w-0">
       {/* Filters Row */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 gap-3">
+      <div className={style.tableTools}>
         {/* Search Input */}
-        <div className="relative">
+        <div className="relative flex-[1_1_12rem] min-w-0">
           <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-[#555555]" />
           <input
             type="text"
-            placeholder="Search expenses..."
+            aria-label="Search expenses" placeholder="Search transactions"
             value={search}
             onChange={(e) => {
               setSearch(e.target.value);
               setCurrentPage(1);
             }}
-            className="w-full rounded-xl bg-[#0A0A0A] border border-white/[0.08] pl-10 pr-4 py-2.5 text-sm text-white placeholder:text-[#555555] focus:border-gold-400/40 focus:outline-none transition-colors"
+            className="w-full min-h-11 rounded-xl bg-[#0A0A0A] border border-white/[0.08] pl-10 pr-4 py-2.5 text-sm text-white placeholder:text-[#555555] focus:border-gold-400/40 focus:outline-none transition-colors"
           />
         </div>
 
+        <button type="button" aria-expanded={showFilters} aria-controls="expense-filters" className={style.tool} onClick={() => setShowFilters(open => !open)}>
+          <SlidersHorizontal size={15} /> Filters {filterCount > 0 && <span>({filterCount})</span>}
+        </button>
+        <button type="button" aria-expanded={showExport} aria-controls="expense-exports" className={style.tool} onClick={() => setShowExport(open => !open)}>
+          <Download size={15} /> Export
+        </button>
+      </div>
+
+      <div id="expense-filters" hidden={!showFilters}>
+        <div className={style.filters}>
         {/* Category Filter */}
         <select
+          aria-label="Filter by category"
           value={selectedCategory}
           onChange={(e) => {
             setSelectedCategory(e.target.value);
@@ -181,6 +198,7 @@ export default function ExpenseTable({
 
         {/* Person Filter */}
         <select
+          aria-label="Filter by person"
           value={selectedPerson}
           onChange={(e) => {
             setSelectedPerson(e.target.value);
@@ -196,6 +214,7 @@ export default function ExpenseTable({
 
         {/* Payment Method Filter */}
         <select
+          aria-label="Filter by payment method"
           value={selectedMethod}
           onChange={(e) => {
             setSelectedMethod(e.target.value);
@@ -211,6 +230,7 @@ export default function ExpenseTable({
 
         {/* Transaction Type Filter */}
         <select
+          aria-label="Filter by transaction type"
           value={selectedType}
           onChange={(e) => {
             setSelectedType(e.target.value);
@@ -224,8 +244,11 @@ export default function ExpenseTable({
           <option value="borrowed">Borrowed Only</option>
         </select>
 
-        {/* Export Buttons */}
-        <div className="flex gap-2 justify-end sm:justify-start">
+        </div>
+      </div>
+
+      <div id="expense-exports" hidden={!showExport}>
+        <div className="flex gap-2 sm:max-w-sm sm:ml-auto">
           <button
             onClick={() => exportToPDF(processedExpenses, persons)}
             title="Export PDF"
@@ -260,17 +283,17 @@ export default function ExpenseTable({
           <table className="w-full text-left border-collapse">
             <thead>
               <tr className="border-b border-white/[0.06] text-xs font-normal tracking-wider text-[#8A8A8A] uppercase">
-                <th className="py-3.5 px-4 cursor-pointer hover:text-gold-400 transition-colors" onClick={() => handleSort('date')}>
-                  <div className="flex items-center gap-1.5">
+                <th className="py-3.5 px-4" aria-sort={sortField === 'date' ? sortOrder === 'asc' ? 'ascending' : 'descending' : 'none'}>
+                  <button type="button" className="flex items-center gap-1.5 hover:text-gold-400" onClick={() => handleSort('date')}>
                     Date <ArrowUpDown className="h-3.5 w-3.5" />
-                  </div>
+                  </button>
                 </th>
                 <th className="py-3.5 px-4">Title</th>
                 <th className="py-3.5 px-4">Category</th>
-                <th className="py-3.5 px-4 cursor-pointer hover:text-gold-400 transition-colors" onClick={() => handleSort('amount')}>
-                  <div className="flex items-center gap-1.5">
+                <th className="py-3.5 px-4" aria-sort={sortField === 'amount' ? sortOrder === 'asc' ? 'ascending' : 'descending' : 'none'}>
+                  <button type="button" className="flex items-center gap-1.5 hover:text-gold-400" onClick={() => handleSort('amount')}>
                     Amount <ArrowUpDown className="h-3.5 w-3.5" />
-                  </div>
+                  </button>
                 </th>
                 <th className="py-3.5 px-4">Person</th>
                 <th className="py-3.5 px-4">Method</th>
@@ -345,6 +368,7 @@ export default function ExpenseTable({
                     <td className="py-3.5 px-4 text-right">
                       <div className="flex justify-end gap-1.5">
                         <button
+                          aria-label={`Edit ${exp.title}`}
                           onClick={() => onEdit(exp)}
                           className="p-2 text-[#555555] hover:text-white hover:bg-white/[0.04] rounded-lg transition-all"
                           disabled={exp.isPendingSync}
@@ -352,6 +376,7 @@ export default function ExpenseTable({
                           <Edit2 className="h-4 w-4" />
                         </button>
                         <button
+                          aria-label={`Delete ${exp.title}`}
                           onClick={() => onDelete(exp._id)}
                           className="p-2 text-[#555555] hover:text-[#FF5A5F] hover:bg-[#FF5A5F]/5 rounded-lg transition-all"
                           disabled={exp.isPendingSync}
@@ -376,8 +401,8 @@ export default function ExpenseTable({
           ) : (
             paginatedExpenses.map(exp => (
               <div key={exp._id} className="p-4 space-y-3 hover:bg-white/[0.02] transition-colors">
-                <div className="flex justify-between items-start">
-                  <div>
+                <div className="flex justify-between items-start gap-3">
+                  <div className="min-w-0 break-words">
                     <div className="font-medium text-white flex flex-wrap items-center gap-1.5">
                       {exp.title}
                       {exp.isPendingSync && (
@@ -413,11 +438,11 @@ export default function ExpenseTable({
                     </div>
                     <div className="text-xs text-[#555555] mt-0.5">{formatDate(exp.date)}</div>
                   </div>
-                  <div className={`font-bold text-base ${getAmountColor(exp)}`}>₹{exp.amount.toFixed(2)}</div>
+                  <div className={`text-right font-semibold text-base tabular-nums ${getAmountColor(exp)}`}>₹{exp.amount.toFixed(2)}</div>
                 </div>
 
                 <div className="flex flex-wrap gap-2 items-center justify-between text-xs pt-1">
-                  <div className="flex gap-2 items-center">
+                  <div className="flex flex-wrap gap-2 items-center">
                     <span className="bg-white/[0.04] text-[#8A8A8A] rounded-lg px-2 py-0.5 text-[11px]">
                       {exp.category}
                     </span>
@@ -440,14 +465,16 @@ export default function ExpenseTable({
 
                 <div className="flex justify-end gap-3 pt-2 border-t border-white/[0.04]">
                   <button
-                    onClick={() => onEdit(exp)}
+                    aria-label={`Edit ${exp.title}`}
+                          onClick={() => onEdit(exp)}
                     className="flex items-center gap-1 text-xs font-medium text-[#555555] hover:text-white transition-colors"
                     disabled={exp.isPendingSync}
                   >
                     <Edit2 className="h-3.5 w-3.5" /> Edit
                   </button>
                   <button
-                    onClick={() => onDelete(exp._id)}
+                    aria-label={`Delete ${exp.title}`}
+                          onClick={() => onDelete(exp._id)}
                     className="flex items-center gap-1 text-xs font-medium text-[#555555] hover:text-[#FF5A5F] transition-colors"
                     disabled={exp.isPendingSync}
                   >
@@ -468,6 +495,7 @@ export default function ExpenseTable({
           </p>
           <div className="flex gap-2">
             <button
+              aria-label="Previous page"
               onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
               disabled={currentPage === 1}
               className="flex items-center justify-center p-2 rounded-lg bg-[#111111] border border-white/[0.08] text-[#8A8A8A] hover:border-gold-400/30 hover:text-white transition-colors disabled:opacity-30 disabled:hover:border-white/[0.08] disabled:hover:text-[#8A8A8A]"
@@ -475,6 +503,7 @@ export default function ExpenseTable({
               <ChevronLeft className="h-4 w-4" />
             </button>
             <button
+              aria-label="Next page"
               onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
               disabled={currentPage === totalPages}
               className="flex items-center justify-center p-2 rounded-lg bg-[#111111] border border-white/[0.08] text-[#8A8A8A] hover:border-gold-400/30 hover:text-white transition-colors disabled:opacity-30 disabled:hover:border-white/[0.08] disabled:hover:text-[#8A8A8A]"

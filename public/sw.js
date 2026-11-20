@@ -1,95 +1,101 @@
-const CACHE_NAME = 'expense-tracker-v5';
-const ASSETS_TO_CACHE = [
-  '/',
-  '/analytics',
-  '/people',
-  '/manifest.webmanifest',
-  '/icon-192.png',
-  '/icon-512.png',
+const CACHE_NAME = 'fintrack-shell-v1';
+const SHELL_ROUTES = ['/', '/cards', '/people', '/salary', '/ipo', '/settings'];
+const PUBLIC_FILES = [
+  '/manifest.webmanifest', '/fintrack-mark.svg', '/favicon.ico',
+  '/icon-192.png', '/icon-512.png', '/icon-maskable-512.png', '/apple-touch-icon.png',
 ];
 
-// Install Event
+function nextAsset(value) {
+  const url = new URL(value.replaceAll('&amp;', '&'), self.location.origin);
+  return url.origin === self.location.origin && url.pathname.startsWith('/_next/static/') ? url.href : null;
+}
+
+// Warm the HTML and the scripts/styles it references together. This lets a
+// freshly installed PWA reopen offline before the worker has observed a reload.
+async function installShell() {
+  const cache = await caches.open(CACHE_NAME);
+  await cache.addAll(PUBLIC_FILES);
+
+  const assetJobs = new Map();
+  async function warmPage(route) {
+    const response = await fetch(route, { headers: { Accept: 'text/html' }, cache: 'reload' });
+    if (!response.ok || response.redirected || !response.headers.get('content-type')?.includes('text/html')) {
+      throw new Error('FinTrack shell unavailable');
+    }
+    const html = await response.clone().text();
+    const pending = [];
+    for (const [, value] of html.matchAll(/(?:href|src)="([^"]+)"/g)) {
+      const asset = nextAsset(value);
+      if (!asset) continue;
+      if (!assetJobs.has(asset)) assetJobs.set(asset, cache.add(asset));
+      pending.push(assetJobs.get(asset));
+    }
+    await Promise.all(pending);
+    await cache.put(route, response);
+  }
+
+  await warmPage('/');
+  await Promise.allSettled(SHELL_ROUTES.filter((route) => route !== '/').map(warmPage));
+}
+
 self.addEventListener('install', (event) => {
-  event.waitUntil(
-    caches.open(CACHE_NAME).then((cache) => {
-      return cache.addAll(ASSETS_TO_CACHE);
-    })
-  );
-  self.skipWaiting();
+  event.waitUntil(installShell().then(() => self.skipWaiting()));
 });
 
-// Activate Event
 self.addEventListener('activate', (event) => {
-  event.waitUntil(
-    caches.keys().then((keys) => {
-      return Promise.all(
-        keys.map((key) => {
-          if (key !== CACHE_NAME) {
-            return caches.delete(key);
-          }
-        })
-      );
-    })
-  );
-  self.clients.claim();
+  event.waitUntil((async () => {
+    const keys = await caches.keys();
+    await Promise.all(keys.filter((key) =>
+      key !== CACHE_NAME && (key.startsWith('fintrack-shell-') || key.startsWith('expense-tracker-v'))
+    ).map((key) => caches.delete(key)));
+    await self.clients.claim();
+  })());
 });
 
-// Fetch Event
+async function navigate(request, path) {
+  const cache = await caches.open(CACHE_NAME);
+  try {
+    const response = await fetch(request);
+    if (response.ok && !response.redirected && response.headers.get('content-type')?.includes('text/html')) {
+      await cache.put(path, response.clone());
+    }
+    return response;
+  } catch {
+    return (await cache.match(path)) || Response.error();
+  }
+}
+
+async function cachedAsset(request) {
+  const cache = await caches.open(CACHE_NAME);
+  const cached = await cache.match(request);
+  if (cached) return cached;
+  const response = await fetch(request);
+  if (response.ok && response.type === 'basic' && !response.redirected) {
+    await cache.put(request, response.clone());
+  }
+  return response;
+}
+
 self.addEventListener('fetch', (event) => {
   const { request } = event;
   const url = new URL(request.url);
+  if (request.method !== 'GET' || url.origin !== self.location.origin) return;
 
-  // Skip API calls and non-GET requests for standard caching
-  if (request.method !== 'GET' || url.pathname.startsWith('/api/')) {
-    return;
+  if (request.mode === 'navigate' && SHELL_ROUTES.includes(url.pathname)) {
+    event.respondWith(navigate(request, url.pathname));
+  } else if (url.pathname.startsWith('/_next/static/') || PUBLIC_FILES.includes(url.pathname)) {
+    event.respondWith(cachedAsset(request));
   }
-
-  event.respondWith(
-    caches.match(request).then((cachedResponse) => {
-      if (cachedResponse) {
-        // Fetch new version in background to update cache (Stale-While-Revalidate)
-        fetch(request).then((networkResponse) => {
-          if (networkResponse.status === 200) {
-            const responseToCache = networkResponse.clone();
-            caches.open(CACHE_NAME).then((cache) => cache.put(request, responseToCache));
-          }
-        }).catch(() => {/* Ignore network errors offline */});
-        
-        return cachedResponse;
-      }
-
-      return fetch(request)
-        .then((networkResponse) => {
-          if (!networkResponse || networkResponse.status !== 200 || networkResponse.type !== 'basic') {
-            return networkResponse;
-          }
-          const responseToCache = networkResponse.clone();
-          caches.open(CACHE_NAME).then((cache) => {
-            cache.put(request, responseToCache);
-          });
-          return networkResponse;
-        })
-        .catch(() => {
-          // Offline Fallback for page navigation
-          if (request.mode === 'navigate') {
-            return caches.match('/');
-          }
-        });
-    })
-  );
 });
 
-// Push Event — show the due-date reminder notification
 self.addEventListener('push', (event) => {
   let data = {};
   try {
-    data = event.data ? event.data.json() : {};
-  } catch (e) {
-    data = { title: 'FinTrack', body: event.data ? event.data.text() : '' };
+    data = event.data?.json() || {};
+  } catch {
+    data = { title: 'FinTrack', body: event.data?.text() || '' };
   }
-
-  const title = data.title || 'FinTrack Reminder';
-  const options = {
+  event.waitUntil(self.registration.showNotification(data.title || 'FinTrack Reminder', {
     body: data.body || '',
     icon: '/icon-192.png',
     badge: '/icon-192.png',
@@ -97,27 +103,21 @@ self.addEventListener('push', (event) => {
     tag: 'fintrack-due-reminder',
     renotify: true,
     data: { url: data.url || '/cards' },
-  };
-
-  event.waitUntil(self.registration.showNotification(title, options));
+  }));
 });
 
-// Notification Click — focus an existing tab or open the cards page
 self.addEventListener('notificationclick', (event) => {
   event.notification.close();
-  const targetUrl = (event.notification.data && event.notification.data.url) || '/cards';
-
-  event.waitUntil(
-    clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clientList) => {
-      for (const client of clientList) {
-        if ('focus' in client) {
-          client.navigate(targetUrl);
-          return client.focus();
-        }
-      }
-      if (clients.openWindow) {
-        return clients.openWindow(targetUrl);
-      }
-    })
-  );
+  const url = new URL(event.notification.data?.url || '/cards', self.location.origin);
+  const target = url.origin === self.location.origin ? url.href : self.location.origin + '/cards';
+  event.waitUntil((async () => {
+    const windows = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
+    const existing = windows.find((client) => new URL(client.url).origin === self.location.origin);
+    if (existing) {
+      await existing.navigate(target);
+      await existing.focus();
+    } else {
+      await self.clients.openWindow(target);
+    }
+  })());
 });

@@ -1,10 +1,13 @@
 'use client';
 
 import { useEffect, useState, useCallback, useMemo } from 'react';
-import { 
-  Plus, Wifi, WifiOff, RefreshCw, Upload, Download, 
-  Fuel, Utensils, Gauge, TrendingUp, Calendar, ArrowUpRight, ArrowDownRight
+import {
+  Plus, RefreshCw, Upload, Download, Fuel, Utensils, Gauge, CalendarDays,
+  CornerDownLeft, CornerUpRight, ArrowUpRight, ChevronDown,
+  Archive, CircleDollarSign, Clock3
 } from 'lucide-react';
+import SpendingOverview from '@/components/SpendingOverview';
+import './dashboard.css';
 import { useOfflineSync } from '@/hooks/useOfflineSync';
 import { getLocalExpenses, getLocalPersons } from '@/lib/offlineDb';
 import { Expense, Person, DashboardStats } from '@/types';
@@ -18,14 +21,14 @@ const CATEGORIES = [
 ];
 const PAYMENT_METHODS = ['Cash', 'UPI', 'Debit Card', 'Credit Card'];
 
-function getGreeting(): string {
-  const hour = new Date().getHours();
-  if (hour < 12) return 'Good Morning';
-  if (hour < 17) return 'Good Afternoon';
-  return 'Good Evening';
-}
+const formatMoney = (amount: number) => new Intl.NumberFormat('en-IN', {
+  style: 'currency', currency: 'INR', maximumFractionDigits: 0,
+}).format(amount);
 
 export default function DashboardPage() {
+  const [now, setNow] = useState<Date | null>(null);
+  useEffect(() => { setNow(new Date()); }, []);
+
   const [expenses, setExpenses] = useState<Expense[]>([]);
   const [persons, setPersons] = useState<Person[]>([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -87,6 +90,7 @@ export default function DashboardPage() {
             localStorage.setItem('app_dropdown_settings', JSON.stringify({
               categories: data.categories,
               upiApps: data.upiApps,
+              upiAccounts: data.upiAccounts,
               sourceAccounts: data.sourceAccounts,
               vehicles: data.vehicles
             }));
@@ -95,52 +99,6 @@ export default function DashboardPage() {
         .catch(err => console.error('Failed to fetch categories:', err));
     }
   }, [loadData]);
-
-  const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
-  const [isStandalone, setIsStandalone] = useState(false);
-  const [isIOS, setIsIOS] = useState(false);
-  const [showInstallBanner, setShowInstallBanner] = useState(true);
-
-  useEffect(() => {
-    const checkStandalone = () => {
-      const isStandaloneMode = 
-        window.matchMedia('(display-mode: standalone)').matches || 
-        (window.navigator as any).standalone || 
-        document.referrer.includes('android-app://');
-      setIsStandalone(isStandaloneMode);
-    };
-
-    checkStandalone();
-    setIsIOS(/iPad|iPhone|iPod/.test(navigator.userAgent) && !(window as any).MSStream);
-
-    // Watch for standalone changes
-    const mediaQuery = window.matchMedia('(display-mode: standalone)');
-    const handleChange = () => checkStandalone();
-    mediaQuery.addEventListener('change', handleChange);
-    return () => mediaQuery.removeEventListener('change', handleChange);
-  }, []);
-
-  useEffect(() => {
-    const handleBeforeInstallPrompt = (e: Event) => {
-      e.preventDefault();
-      setDeferredPrompt(e);
-    };
-
-    window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
-
-    return () => {
-      window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
-    };
-  }, []);
-
-  const handleInstallClick = async () => {
-    if (!deferredPrompt) return;
-    deferredPrompt.prompt();
-    const { outcome } = await deferredPrompt.userChoice;
-    if (outcome === 'accepted') {
-      setDeferredPrompt(null);
-    }
-  };
 
   const handleEdit = (expense: Expense) => {
     setEditingExpense(expense);
@@ -171,7 +129,7 @@ export default function DashboardPage() {
     const now = new Date();
     const currentMonth = now.getMonth();
     const currentYear = now.getFullYear();
-    const todayStr = now.toISOString().split('T')[0];
+    const todayStr = now.toDateString();
 
     let totalMonth = 0;
     let totalYear = 0;
@@ -229,7 +187,7 @@ export default function DashboardPage() {
         const expDate = new Date(exp.date);
         const expMonth = expDate.getMonth();
         const expYear = expDate.getFullYear();
-        const expDayStr = exp.date.split('T')[0];
+        const expDayStr = expDate.toDateString();
 
         if (expMonth === currentMonth && expYear === currentYear) {
           totalMonth += exp.amount;
@@ -333,6 +291,7 @@ export default function DashboardPage() {
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
     } catch (err: any) {
       alert(err.message || 'Failed to download backup');
     }
@@ -340,6 +299,7 @@ export default function DashboardPage() {
 
   const handleImportBackup = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
+    e.target.value = '';
     if (!file) return;
 
     if (!window.confirm('WARNING: Restoring backup will overwrite all current database records. Proceed?')) {
@@ -370,292 +330,80 @@ export default function DashboardPage() {
     reader.readAsText(file);
   };
 
-  const monthDiff = stats.thisMonthExpenses - stats.lastMonthExpenses;
-  const monthDiffPositive = monthDiff >= 0;
 
+  const syncStatus = !isOnline ? 'Offline · Cached' : isSyncing ? 'Syncing' : syncError ? 'Sync issue' : 'Sync now';
+  const summary = [
+    { label: 'Spent today', amount: stats.today, Icon: Clock3, color: 'mint' },
+    { label: 'Spent this year', amount: stats.totalYear, Icon: CalendarDays, color: 'lavender' },
+    { label: 'Owed to you', amount: stats.totalReceivable, Icon: CornerDownLeft, color: 'aqua' },
+    { label: 'You owe', amount: stats.totalPayable, Icon: CornerUpRight, color: 'peach' },
+  ];
+  const details = [
+    { label: 'Daily average', value: formatMoney(stats.avgDaily), Icon: CircleDollarSign },
+    { label: 'Last month', value: formatMoney(stats.lastMonthExpenses), Icon: CalendarDays },
+    { label: 'Largest expense', value: formatMoney(stats.highestExpense?.amount ?? 0), Icon: ArrowUpRight, title: stats.highestExpense?.title },
+    { label: 'Average mileage', value: stats.avgMileage ? `${stats.avgMileage.toFixed(1)} km/l` : '—', Icon: Gauge },
+  ];
   return (
-    <div className="space-y-8 text-white pb-12">
-      {/* Greeting */}
-      <div className="space-y-1">
-        <h1 className="text-2xl sm:text-3xl font-light text-white tracking-tight">
-          {getGreeting()}
-        </h1>
-        <p className="text-sm text-[#8A8A8A] font-light">
-          {new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}
-        </p>
-      </div>
-
-      {/* Connection Status — Minimal */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-2.5">
-          <div className={`h-2 w-2 rounded-full ${isOnline ? 'bg-[#4ADE80]' : 'bg-gold-400 animate-pulse'}`} />
-          <span className="text-xs text-[#8A8A8A] font-normal">
-            {isOnline 
-              ? isSyncing ? 'Syncing...' : syncError ? `Error: ${syncError}` : 'Synced'
-              : 'Offline · Cached data'}
-          </span>
+    <div className="ft-dashboard">
+      <header className="ft-intro">
+        <div>
+          <p className="ft-date">{now?.toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }) || '\u00a0'}</p>
+          <h1>Overview<span>.</span></h1>
         </div>
-        <div className="flex items-center gap-2">
-          {isOnline && (
-            <button
-              onClick={triggerSync}
-              disabled={isSyncing}
-              className="flex items-center gap-1.5 px-3 py-1.5 text-[11px] text-[#8A8A8A] hover:text-white border border-white/[0.06] rounded-lg hover:border-white/[0.12] transition-all disabled:opacity-40"
-            >
-              <RefreshCw className={`h-3 w-3 ${isSyncing ? 'animate-spin' : ''}`} />
-              Sync
-            </button>
-          )}
-        </div>
-      </div>
-
-
-
-      {/* Premium Balance Card */}
-      <div className="relative bg-[#111111] rounded-3xl p-6 sm:p-8 border border-white/[0.06] shadow-luxury overflow-hidden">
-        {/* Subtle gold accent line at top */}
-        <div className="absolute top-0 left-8 right-8 h-px bg-gradient-to-r from-transparent via-gold-400/30 to-transparent" />
-        
-        <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-6">
-          <div className="space-y-1">
-            <p className="text-[11px] text-[#8A8A8A] uppercase tracking-luxury-wide font-normal">This Month</p>
-            <h2 className="text-4xl sm:text-5xl font-bold text-white tracking-tight font-sans">
-              ₹{stats.totalMonth.toLocaleString('en-IN', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
-            </h2>
-            <div className="flex items-center gap-3 mt-2">
-              <span className="text-xs text-[#8A8A8A] font-light">
-                Avg ₹{stats.avgDaily.toFixed(0)}/day
-              </span>
-              <span className="text-[#555555]">·</span>
-              <div className={`flex items-center gap-0.5 text-xs ${monthDiffPositive ? 'text-[#FF5A5F]' : 'text-[#4ADE80]'}`}>
-                {monthDiffPositive ? <ArrowUpRight className="h-3 w-3" /> : <ArrowDownRight className="h-3 w-3" />}
-                <span>₹{Math.abs(monthDiff).toLocaleString('en-IN', { maximumFractionDigits: 0 })} vs last</span>
-              </div>
-            </div>
-          </div>
-
-          <div className="flex items-center gap-6">
-            <div className="text-right">
-              <p className="text-[10px] text-[#555555] uppercase tracking-luxury-wide">Year</p>
-              <p className="text-lg font-medium text-white mt-0.5">₹{stats.totalYear.toLocaleString('en-IN', { maximumFractionDigits: 0 })}</p>
-            </div>
-            <div className="w-px h-10 bg-white/[0.06]" />
-            <div className="text-right">
-              <p className="text-[10px] text-[#555555] uppercase tracking-luxury-wide">Today</p>
-              <p className="text-lg font-medium text-white mt-0.5">₹{stats.today.toLocaleString('en-IN', { maximumFractionDigits: 0 })}</p>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Financial Overview Row */}
-      <div className="grid grid-cols-3 gap-3 sm:gap-4">
-        {/* Receivable */}
-        <div className="bg-[#111111] rounded-2xl p-4 border border-white/[0.06]">
-          <p className="text-[10px] text-[#555555] uppercase tracking-luxury-wide font-normal">Owed to You</p>
-          <p className="text-xl font-semibold text-[#4ADE80] mt-1.5">
-            ₹{stats.totalReceivable.toLocaleString('en-IN', { maximumFractionDigits: 0 })}
-          </p>
-        </div>
-
-        {/* Payable */}
-        <div className="bg-[#111111] rounded-2xl p-4 border border-white/[0.06]">
-          <p className="text-[10px] text-[#555555] uppercase tracking-luxury-wide font-normal">You Owe</p>
-          <p className="text-xl font-semibold text-[#FF5A5F] mt-1.5">
-            ₹{stats.totalPayable.toLocaleString('en-IN', { maximumFractionDigits: 0 })}
-          </p>
-        </div>
-
-        {/* Highest */}
-        <div className="bg-[#111111] rounded-2xl p-4 border border-white/[0.06]">
-          <p className="text-[10px] text-[#555555] uppercase tracking-luxury-wide font-normal">Highest</p>
-          <p className="text-xl font-semibold text-white mt-1.5 truncate">
-            ₹{stats.highestExpense ? stats.highestExpense.amount.toLocaleString('en-IN', { maximumFractionDigits: 0 }) : '0'}
-          </p>
-          <p className="text-[10px] text-[#555555] truncate mt-0.5">
-            {stats.highestExpense ? stats.highestExpense.title : 'No records'}
-          </p>
-        </div>
-      </div>
-
-      {/* Category Spending — Minimal Row */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-        {/* Petrol */}
-        <div 
-          onClick={() => setSelectedCategory(prev => prev === 'Petrol' ? '' : 'Petrol')}
-          className={`flex items-center gap-3 bg-[#111111] rounded-xl p-3.5 border transition-all cursor-pointer select-none ${
-            selectedCategory === 'Petrol' 
-              ? 'border-gold-400/40 bg-gold-400/[0.02]' 
-              : 'border-white/[0.06] hover:border-white/[0.12]'
-          }`}
-        >
-          <div className={`h-9 w-9 rounded-lg flex items-center justify-center transition-all ${
-            selectedCategory === 'Petrol' ? 'bg-gold-400/15' : 'bg-gold-400/8'
-          }`}>
-            <Fuel className="h-4 w-4 text-gold-400" strokeWidth={1.5} />
-          </div>
-          <div>
-            <p className="text-[9px] text-[#555555] uppercase tracking-luxury-wide">Petrol</p>
-            <p className="text-sm font-medium text-white">₹{stats.petrolExpenses.toLocaleString('en-IN', { maximumFractionDigits: 0 })}</p>
-          </div>
-        </div>
-
-        {/* Food */}
-        <div 
-          onClick={() => setSelectedCategory(prev => prev === 'Food' ? '' : 'Food')}
-          className={`flex items-center gap-3 bg-[#111111] rounded-xl p-3.5 border transition-all cursor-pointer select-none ${
-            selectedCategory === 'Food' 
-              ? 'border-gold-400/40 bg-gold-400/[0.02]' 
-              : 'border-white/[0.06] hover:border-white/[0.12]'
-          }`}
-        >
-          <div className={`h-9 w-9 rounded-lg flex items-center justify-center transition-all ${
-            selectedCategory === 'Food' ? 'bg-gold-400/15 text-gold-400' : 'bg-white/[0.04] text-[#8A8A8A]'
-          }`}>
-            <Utensils className="h-4 w-4" strokeWidth={1.5} />
-          </div>
-          <div>
-            <p className="text-[9px] text-[#555555] uppercase tracking-luxury-wide">Food</p>
-            <p className="text-sm font-medium text-white">₹{stats.foodExpenses.toLocaleString('en-IN', { maximumFractionDigits: 0 })}</p>
-          </div>
-        </div>
-
-        {/* Average Mileage */}
-        <div className="flex items-center gap-3 bg-[#111111] rounded-xl p-3.5 border border-white/[0.06] select-none">
-          <div className="h-9 w-9 rounded-lg bg-white/[0.04] text-[#8A8A8A] flex items-center justify-center">
-            <Gauge className="h-4 w-4" strokeWidth={1.5} />
-          </div>
-          <div>
-            <p className="text-[9px] text-[#555555] uppercase tracking-luxury-wide">Avg Mileage</p>
-            <p className="text-sm font-medium text-white">{stats.avgMileage > 0 ? `${stats.avgMileage.toFixed(1)} km/l` : '—'}</p>
-          </div>
-        </div>
-
-        <div className="flex items-center gap-3 bg-[#111111] rounded-xl p-3.5 border border-white/[0.06] select-none">
-          <div className="h-9 w-9 rounded-lg bg-white/[0.04] flex items-center justify-center">
-            <Calendar className="h-4 w-4 text-[#8A8A8A]" strokeWidth={1.5} />
-          </div>
-          <div>
-            <p className="text-[9px] text-[#555555] uppercase tracking-luxury-wide">Last Month</p>
-            <p className="text-sm font-medium text-white">₹{stats.lastMonthExpenses.toLocaleString('en-IN', { maximumFractionDigits: 0 })}</p>
-          </div>
-        </div>
-      </div>
-
-      {/* Transactions Section */}
-      <div className="space-y-4">
-        <div className="flex items-center justify-between">
-          <h2 className="text-lg font-medium text-white tracking-tight">Transactions</h2>
-          <button
-            onClick={() => {
-              setEditingExpense(null);
-              setIsModalOpen(true);
-            }}
-            className="flex items-center gap-1.5 px-4 py-2 bg-gold-400 hover:bg-gold-500 text-black rounded-xl text-xs font-medium transition-all"
-          >
-            <Plus className="h-3.5 w-3.5" />
-            <span>Add</span>
+        <div className="ft-intro-actions">
+          {isOnline ? <button type="button" className="ft-sync" aria-label={`${syncStatus}. Sync changes`} disabled={isSyncing}
+            title={syncError || 'Sync changes'} onClick={triggerSync}>
+            <i className={syncError ? 'ft-warning' : ''} /><span>{syncStatus}</span>
+            <RefreshCw size={13} className={isSyncing ? 'animate-spin' : ''} />
+          </button> : <span className="ft-sync" role="status"><i className="ft-warning" />{syncStatus}</span>}
+          <button type="button" className="ft-add" onClick={() => { setEditingExpense(null); setIsModalOpen(true); }}>
+            <Plus size={18} aria-hidden="true" /> Add expense
           </button>
         </div>
-        <ExpenseTable
-          expenses={expenses}
-          persons={persons}
-          categories={dynamicCategories}
-          paymentMethods={PAYMENT_METHODS}
-          onEdit={handleEdit}
-          onDelete={handleDelete}
-          selectedCategory={selectedCategory}
-          onSelectedCategoryChange={setSelectedCategory}
-        />
+      </header>
+      <div className="ft-overview-grid">
+        <SpendingOverview expenses={expenses} now={now} />
+        <section className="ft-snapshot">
+          <h2>At a glance</h2>
+          <dl>
+            {summary.map(({ label, amount, Icon, color }) => <div key={label}>
+              <dt><span className={`ft-bubble ft-${color}`}><Icon size={17} aria-hidden="true" /></span>{label}</dt>
+              <dd>{formatMoney(amount)}</dd>
+            </div>)}
+          </dl>
+        </section>
       </div>
-
-      {/* PWA Install Banner */}
-      {!isStandalone && showInstallBanner && (
-        <div className="relative bg-[#111111] border border-white/[0.06] rounded-2xl p-5 flex flex-col md:flex-row items-center justify-between gap-4 shadow-luxury overflow-hidden">
-          {/* Subtle gold line at left side of banner */}
-          <div className="absolute left-0 top-0 bottom-0 w-[3px] bg-gold-400" />
-          
-          <div className="space-y-1 text-center md:text-left pl-2">
-            <h3 className="text-sm font-semibold text-white">
-              {isIOS ? 'Install on iPhone / iPad' : 'Install FinTrack App'}
-            </h3>
-            <p className="text-xs text-[#8A8A8A] font-light leading-relaxed">
-              {isIOS 
-                ? 'Tap the Share button in Safari, scroll down and select "Add to Home Screen".' 
-                : deferredPrompt 
-                  ? 'Add FinTrack to your home screen for quick offline access and a premium full-screen experience.'
-                  : 'Tap your browser\'s menu button (three dots) and select "Install app" or "Add to Home screen" to install FinTrack.'}
-            </p>
-          </div>
-
-          <div className="flex items-center gap-3 w-full md:w-auto justify-center">
-            {!isIOS && deferredPrompt && (
-              <button
-                onClick={handleInstallClick}
-                className="px-5 py-2.5 rounded-xl bg-gold-400 hover:bg-gold-500 text-black font-semibold text-xs transition-all whitespace-nowrap"
-              >
-                Install Now
-              </button>
-            )}
-            <button
-              onClick={() => setShowInstallBanner(false)}
-              className="px-4 py-2.5 rounded-xl bg-black border border-white/[0.08] hover:border-white/[0.15] text-xs font-normal text-[#8A8A8A] hover:text-white transition-all"
-            >
-              Dismiss
-            </button>
-          </div>
+      <details className="ft-details">
+        <summary>Spending details <ChevronDown size={16} /></summary>
+        <div className="ft-detail-grid">
+          {details.map(({ label, value, Icon, title }) => <div key={label} className="ft-detail-cell">
+            <Icon size={16} aria-hidden="true" /><span>{label}</span><strong>{value}</strong>
+            {title && <small>{title}</small>}
+          </div>)}
+          {[{ label: 'Petrol', value: stats.petrolExpenses, Icon: Fuel }, { label: 'Food', value: stats.foodExpenses, Icon: Utensils }].map(({ label, value, Icon }) =>
+            <button key={label} type="button" className="ft-detail-cell" aria-pressed={selectedCategory === label}
+              title={`Filter transactions by ${label}`} onClick={() => setSelectedCategory(prev => prev === label ? '' : label)}>
+              <Icon size={16} aria-hidden="true" /><span>{label} this month</span><strong>{formatMoney(value)}</strong>
+            </button>)}
         </div>
-      )}
-
-      {/* Backup Section */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <div className="bg-[#111111] border border-white/[0.06] rounded-2xl p-5 space-y-3">
-          <h3 className="text-sm font-medium text-white">Data Backup</h3>
-          <p className="text-xs text-[#555555] font-light leading-relaxed">
-            Download your entire database as a JSON file.
-          </p>
-          <button
-            onClick={handleExportBackup}
-            className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-black border border-white/[0.08] hover:border-gold-400/20 text-xs font-normal text-white transition-all"
-          >
-            <Download className="h-4 w-4 text-gold-400" strokeWidth={1.5} />
-            <span>Download Backup</span>
-          </button>
+      </details>
+      <section className="ft-ledger" aria-labelledby="ledger-title">
+        <h2 id="ledger-title">Transactions</h2>
+        <ExpenseTable expenses={expenses} persons={persons} categories={dynamicCategories} paymentMethods={PAYMENT_METHODS}
+          onEdit={handleEdit} onDelete={handleDelete} selectedCategory={selectedCategory} onSelectedCategoryChange={setSelectedCategory} />
+      </section>
+      <section className="ft-utility">
+        <Archive size={22} aria-hidden="true" />
+        <div><h2>Backup &amp; restore</h2><p>Download or restore your expenses and people as a JSON file.</p></div>
+        <div className="ft-utility-actions">
+          <button type="button" onClick={handleExportBackup}><Download size={15} /> Download</button>
+          <label className="ft-file"><Upload size={15} /> Restore<input type="file" accept=".json,application/json" aria-label="Restore backup file" onChange={handleImportBackup} /></label>
         </div>
-
-        <div className="bg-[#111111] border border-white/[0.06] rounded-2xl p-5 space-y-3">
-          <h3 className="text-sm font-medium text-white">Restore</h3>
-          <p className="text-xs text-[#555555] font-light leading-relaxed">
-            Upload a JSON backup to restore your data. This overwrites all records.
-          </p>
-          <label className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-black border border-white/[0.08] hover:border-gold-400/20 text-xs font-normal cursor-pointer text-white transition-all">
-            <Upload className="h-4 w-4 text-gold-400" strokeWidth={1.5} />
-            <span>Select File</span>
-            <input
-              type="file"
-              accept=".json"
-              onChange={handleImportBackup}
-              className="hidden"
-            />
-          </label>
-        </div>
-      </div>
-
-      <ExpenseModal
-        isOpen={isModalOpen}
-        onClose={() => {
-          setIsModalOpen(false);
-          setEditingExpense(null);
-        }}
-        onSuccess={loadData}
-        expenseToEdit={editingExpense}
-        persons={persons}
-        categories={dynamicCategories}
-        paymentMethods={PAYMENT_METHODS}
-        addExpenseOffline={addExpenseOffline}
-        addPersonOffline={addPersonOffline}
-        expenses={expenses}
-      />
+      </section>
+      <ExpenseModal isOpen={isModalOpen} onClose={() => { setIsModalOpen(false); setEditingExpense(null); }}
+        onSuccess={loadData} expenseToEdit={editingExpense} persons={persons} categories={dynamicCategories}
+        paymentMethods={PAYMENT_METHODS} addExpenseOffline={addExpenseOffline} addPersonOffline={addPersonOffline} expenses={expenses} />
     </div>
   );
 }

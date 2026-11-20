@@ -1,5 +1,7 @@
 'use client';
 
+import style from '@/components/LedgerSurfaces.module.css';
+
 import { useEffect, useState, useCallback, useMemo, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
@@ -640,7 +642,7 @@ export default function CardsPage() {
 
   return (
     <>
-      <div className="overflow-x-hidden">
+      <div className={style.page}>
         {/* Due-soon reminder banner */}
         {dueSoonCards.length > 0 && (
           <div className="mb-5 rounded-2xl border border-gold-400/25 bg-gold-400/[0.06] p-3.5 sm:p-4 flex items-start gap-3">
@@ -671,82 +673,39 @@ export default function CardsPage() {
           </div>
         )}
 
-        {/* Header Summary */}
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 mb-6">
-          <div className="flex justify-between items-start gap-3 w-full md:w-auto">
-            <div className="min-w-0">
-              <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-white flex items-center gap-2 sm:gap-3">
-                <CreditCard className="h-6 w-6 sm:h-8 sm:w-8 text-gold-400 shrink-0" />
-                Cards Ledger
-              </h1>
-              <p className="text-xs text-[#8A8A8A] mt-1">
-                Track outstanding balances and mark credit card statements as paid.
-              </p>
-            </div>
-
-            <div className="md:hidden shrink-0 flex items-center gap-2 mt-1">
-              {pushSupported && (
-                <button
-                  onClick={togglePush}
-                  disabled={pushBusy}
-                  title={pushOn ? 'Reminders on' : 'Enable due-date reminders'}
-                  className={`flex items-center justify-center h-8 w-8 rounded-xl border transition-all disabled:opacity-50 ${
-                    pushOn
-                      ? 'bg-gold-400/15 border-gold-400/40 text-gold-400'
-                      : 'bg-white/[0.04] border-white/[0.08] text-[#8A8A8A]'
-                  }`}
-                >
-                  {pushBusy ? <Loader2 className="h-4 w-4 animate-spin" /> : pushOn ? <BellRing className="h-4 w-4" /> : <BellOff className="h-4 w-4" />}
-                </button>
-              )}
-              <button
-                onClick={openAddCard}
-                className="flex items-center gap-1 px-3 py-1.5 rounded-xl text-xs font-semibold bg-gold-400 text-black hover:bg-gold-500 transition-all shadow-md"
-              >
-                <Plus className="h-3.5 w-3.5" />
-                Add Card
-              </button>
-            </div>
+        <header className={style.header}>
+          <div>
+            <h1 className={style.title}>Cards</h1>
+            <p className={style.sub}>Statements, payments and due dates.</p>
           </div>
-          
-          <div className="flex items-center gap-4 w-full md:w-auto justify-between md:justify-end">
-            <div className="bg-[#111111] border border-white/[0.06] rounded-2xl p-4 md:p-5 w-full md:min-w-[280px] shadow-luxury">
-              <span className="text-[10px] uppercase tracking-wider text-[#8A8A8A] font-medium block mb-1">
-                Total Outstanding Balance
-              </span>
-              <span className="text-3xl font-extrabold font-mono tabular-nums text-gold-400 tracking-tight">
-                {formatRupee(totalOutstandingAllCards)}
-              </span>
-            </div>
-
+          <div className="flex flex-wrap items-center gap-2">
             {pushSupported && (
-              <button
-                onClick={togglePush}
-                disabled={pushBusy}
-                title={pushOn ? 'Due-date reminders on' : 'Enable due-date reminders'}
-                className={`hidden md:flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold border transition-all disabled:opacity-50 ${
-                  pushOn
-                    ? 'bg-gold-400/15 border-gold-400/40 text-gold-400'
-                    : 'bg-white/[0.04] border-white/[0.08] text-[#8A8A8A] hover:text-white'
-                }`}
-              >
-                {pushBusy ? <Loader2 className="h-4 w-4 animate-spin" /> : pushOn ? <BellRing className="h-4 w-4" /> : <Bell className="h-4 w-4" />}
+              <button onClick={togglePush} disabled={pushBusy} aria-pressed={pushOn} className={style.tool}>
+                {pushBusy ? <Loader2 size={16} className="animate-spin" /> : pushOn ? <BellRing size={16} /> : <Bell size={16} />}
                 {pushOn ? 'Reminders on' : 'Reminders'}
               </button>
             )}
-
-            <button
-              onClick={openAddCard}
-              className="hidden md:flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-semibold bg-gold-400 text-black hover:bg-gold-500 transition-all shadow-md"
-            >
-              <Plus className="h-4 w-4" />
-              Add Card
+            <button onClick={openAddCard} className={`${style.action} inline-flex items-center gap-2 bg-gold-400 text-black text-sm font-semibold hover:bg-gold-500`}>
+              <Plus size={16} /> Add card
             </button>
           </div>
-        </div>
+        </header>
 
+        <section className={style.wallet} aria-label="Card wallet">
+          <div className={style.walletFigure}>
+            <span className={style.metricLabel}><CreditCard size={16} /> Total outstanding</span>
+            <strong className={style.walletTotal}>{formatRupee(totalOutstandingAllCards)}</strong>
+            <div className={style.cardPicker} aria-label="Choose a card">
+              {cards.map(card => (
+                <button key={card._id} aria-pressed={card._id === selectedCardId}
+                  onClick={() => { setSelectedCardId(card._id); setExpandedTxId(null); }}>
+                  {card.name}
+                </button>
+              ))}
+            </div>
+          </div>
         {/* Vertical wallet card stack (swipe up/down) */}
-        <div className="relative h-[290px] md:h-[330px] w-full max-w-[480px] mx-auto flex items-center justify-center mb-6 overflow-visible">
+        <div className="relative h-[290px] md:h-[330px] w-full max-w-[480px] mx-auto flex items-center justify-center overflow-visible">
           {cards.length === 0 ? (
             <div className="text-[#555555] text-xs py-8">Loading credit cards...</div>
           ) : (
@@ -754,10 +713,10 @@ export default function CardsPage() {
               const isActive = selectedCardId === card._id;
               
               // Define dynamic gradient themes based on colorTheme or name
-              let gradient = 'bg-gradient-to-br from-[#121212] via-[#222222] to-[#0A0A0A] border border-white/[0.08]'; // Default OneCard
+              let gradient = 'bg-gradient-to-br from-[#41553f] via-[#283626] to-[#19241b] border border-white/[0.08]'; // Default OneCard
               let textAccent = 'text-gold-400';
               let chipTheme = 'from-yellow-300 via-yellow-500 to-amber-600';
-              let cardNum = `•••• •••• •••• ${card.last4}`;
+              const cardNum = `•••• •••• •••• ${card.last4}`;
 
               if (card.colorTheme === 'coral' || card.name.toLowerCase() === 'icici') {
                 gradient = 'bg-gradient-to-br from-[#E75B3F] via-[#C93E23] to-[#7A1200] border border-orange-500/10';
@@ -798,8 +757,8 @@ export default function CardsPage() {
                     setSelectedCardId(card._id);
                     setExpandedTxId(null);
                   }}
-                  className={`absolute cursor-pointer rounded-2xl p-5 md:p-6 w-[280px] md:w-[325px] h-[175px] md:h-[200px] flex flex-col justify-between select-none shadow-2xl transition-shadow overflow-hidden ${gradient} ${
-                    isActive ? 'ring-2 ring-gold-400 ring-offset-0 shadow-[0_0_36px_rgba(212,175,55,0.22)]' : ''
+                  className={`${style.bankCard} absolute cursor-pointer rounded-2xl p-5 md:p-6 w-[min(100%,280px)] md:w-[min(100%,325px)] h-[175px] md:h-[200px] flex flex-col justify-between select-none shadow-2xl transition-shadow overflow-hidden ${gradient} ${
+                    isActive ? 'ring-2 ring-gold-400 ring-offset-0 shadow-[0_14px_30px_rgba(8,18,9,0.45)]' : ''
                   }`}
                 >
                   {/* CRED-style glossy light sweep on the active card */}
@@ -835,7 +794,7 @@ export default function CardsPage() {
                   </div>
 
                   <div>
-                    <span className="text-[9px] text-[#8A8A8A] uppercase tracking-wider block">
+                    <span className="text-[10px] text-white/75 uppercase tracking-wider block">
                       Outstanding Balance
                     </span>
                     <span className="text-xl md:text-2xl font-bold font-mono tabular-nums tracking-tight text-white mt-0.5 block">
@@ -843,15 +802,17 @@ export default function CardsPage() {
                     </span>
                   </div>
 
-                  <div className="relative z-10 flex justify-between items-end text-[9px] text-[#555555] font-mono tabular-nums tracking-wider">
+                  <div className="relative z-10 flex justify-between items-end text-[10px] text-white/80 font-mono tabular-nums tracking-wider">
                     <span>{cardNum}</span>
-                    <span className="text-[#8A8A8A]">Total: {formatRupee(cardMetrics[card.name]?.spent || 0)}</span>
+                    <span className="text-white/75">Total: {formatRupee(cardMetrics[card.name]?.spent || 0)}</span>
                   </div>
                 </motion.div>
               );
             })
           )}
         </div>
+
+        </section>
 
         {/* Transactions Panel Section */}
         <div className="bg-[#111111] border border-white/[0.06] rounded-2xl p-4 sm:p-6 shadow-luxury mt-8">
@@ -1146,7 +1107,9 @@ export default function CardsPage() {
               initial={{ scale: 0.95, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.95, opacity: 0 }}
-              className="relative w-full max-w-sm rounded-2xl bg-[#111111] border border-white/[0.06] p-6 text-white shadow-luxury z-10"
+              role="dialog" aria-modal="true" aria-label={editingCardId ? 'Edit card' : 'Add card'}
+              onKeyDown={event => { if (event.key === 'Escape') closeCardModal(); }}
+              className={`${style.sheet} relative w-full max-w-sm rounded-2xl border p-5 sm:p-6 text-white z-10 max-h-[90dvh] overflow-y-auto`}
             >
               <h3 className="text-lg font-bold text-white mb-4 flex items-center gap-2">
                 <CreditCard className="h-5 w-5 text-gold-400" />
@@ -1168,6 +1131,7 @@ export default function CardsPage() {
                     type="text"
                     required
                     placeholder="e.g. SBI, HDFC, Axis"
+                    autoFocus aria-label="Card name"
                     value={newCardName}
                     onChange={(e) => setNewCardName(e.target.value)}
                     className="w-full rounded-xl bg-black border border-white/[0.08] px-3.5 py-2.5 text-sm text-white placeholder:text-[#555555] focus:border-gold-400/40 focus:outline-none"

@@ -1,5 +1,7 @@
 'use client';
 
+import style from '@/components/LedgerSurfaces.module.css';
+
 import { useEffect, useState, useCallback, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
@@ -191,894 +193,709 @@ export default function IpoPage() {
   // Selecting a preset IPO auto-fills its name + amount
   const handlePresetChange = (val: string) => {
     if (val === '__custom__') {
-      setForm(f => ({ ...f, presetKey: val, ipoName: '', perLotAmount: 0, amount: '', openDate: '', closeDate: '' }));
+      setForm(f => ({ ...f, presetKey: val, ipoName: '', perLotCn6�Kh��춻�q�^window.confirm('Are you sure you want to delete this repayment?')) return;
+
+    if (!navigator.onLine) {
+      alert('Deleting repayments is currently disabled offline.');
       return;
     }
-    const preset = presetIpos.find(p => p.name === val);
-    if (preset) {
-      setForm(f => ({
-        ...f,
-        presetKey: val,
-        ipoName: preset.name,
-        perLotAmount: preset.amount,
-        amount: preset.amount * f.lots, // lots × per-lot
-        openDate: preset.openDate || '',
-        closeDate: preset.closeDate || '',
-      }));
-    }
-  };
 
-  // Changing the number of lots recomputes the amount from the per-lot base.
-  const handleLotsChange = (val: string) => {
-    const lots = Math.max(1, Math.floor(Number(val) || 1));
-    setForm(f => ({
-      ...f,
-      lots,
-      amount: f.perLotAmount > 0 ? f.perLotAmount * lots : f.amount,
-    }));
-  };
-
-  const addContribution = () =>
-    setForm(f => ({
-      ...f,
-      contributions: [...f.contributions, { from: 'Mummy', amount: '', date: todayStr(), returnDate: '' }],
-    }));
-
-  const updateContribution = (idx: number, key: 'from' | 'amount' | 'date' | 'returnDate', value: string) =>
-    setForm(f => ({
-      ...f,
-      contributions: f.contributions.map((c, i) => (i === idx ? { ...c, [key]: value } : c)),
-    }));
-
-  const removeContribution = (idx: number) =>
-    setForm(f => ({ ...f, contributions: f.contributions.filter((_, i) => i !== idx) }));
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!form.ipoName.trim()) {
-      setError('Please select or enter an IPO name');
-      return;
-    }
-    setSaving(true);
-    setError(null);
-
-    const payload = {
-      ipoName: form.ipoName.trim(),
-      lots: Math.max(1, Math.floor(Number(form.lots) || 1)),
-      amount: Number(form.amount) || 0,
-      appliedFrom: form.appliedFrom,
-      status: form.status,
-      applyDate: new Date(form.applyDate).toISOString(),
-      openDate: form.openDate || undefined,
-      closeDate: form.closeDate || undefined,
-      contributions: form.contributions
-        .filter(c => c.from && Number(c.amount) > 0)
-        .map(c => ({
-          from: c.from,
-          amount: Number(c.amount) || 0,
-          date: new Date(c.date).toISOString(),
-          returnDate: c.returnDate ? new Date(c.returnDate).toISOString() : undefined,
-        })),
-      returnAmount: form.status === 'Not Allotted' && !isSelfFunded ? Number(form.returnAmount) || 0 : 0,
-      returnDate: form.status === 'Not Allotted' && !isSelfFunded && form.returnDate ? new Date(form.returnDate).toISOString() : undefined,
-      listingDate: form.status === 'Allotted' && form.listingDate ? new Date(form.listingDate).toISOString() : undefined,
-      profitAmount: form.status === 'Allotted' ? Number(form.profitAmount) || 0 : 0,
-      notes: form.notes.trim(),
-    };
+    const updatedRepayments = (expense.repayments || []).filter((_, idx) => idx !== repaymentIndex);
 
     try {
-      const res = await fetch('/api/ipos', {
-        method: editingId ? 'PUT' : 'POST',
+      const res = await fetch('/api/expenses', {
+        method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(editingId ? { id: editingId, ...payload } : payload),
+        body: JSON.stringify({
+          id: expense._id,
+          repayments: updatedRepayments,
+        }),
       });
+
       if (res.ok) {
         await loadData();
-        setIsModalOpen(false);
       } else {
-        const data = await res.json();
-        setError(data.error || 'Failed to save IPO');
+        alert('Failed to delete repayment');
       }
     } catch (err) {
-      console.error(err);
-      setError('Error connecting to server');
-    } finally {
-      setSaving(false);
+      alert('Error connecting to server');
     }
   };
 
-  const handleDelete = async (ipo: Ipo) => {
-    if (!window.confirm(`Delete IPO entry "${ipo.ipoName}"?`)) return;
-    try {
-      const res = await fetch(`/api/ipos?id=${ipo._id}`, { method: 'DELETE' });
-      if (res.ok) {
-        setIpos(prev => prev.filter(i => i._id !== ipo._id));
-      } else {
-        alert('Failed to delete IPO');
+  const allPersonStats = useMemo(() => {
+    const statsMap = new Map<string, { 
+      count: number; 
+      totalExpenses: number; 
+      totalLent: number; 
+      totalBorrowed: number; 
+      netLoan: number;
+      lastActive: string | null;
+    }>();
+
+    const personMap = new Map(persons.map(p => [p._id, p.name]));
+
+    expenses.forEach(exp => {
+      const current = statsMap.get(exp.personId) || { 
+        count: 0, 
+        totalExpenses: 0, 
+        totalLent: 0, 
+        totalBorrowed: 0, 
+        netLoan: 0,
+        lastActive: null 
+      };
+      
+      current.count++;
+      const type = exp.transactionType || 'expense';
+      const personName = personMap.get(exp.personId) || '';
+      const isSelf = isSelfPerson(personName);
+
+      if (type === 'expense') {
+        current.totalExpenses += exp.amount;
+        if (!isSelf) {
+          current.totalLent += exp.amount;
+          current.netLoan += exp.amount;
+        }
+      } else if (type === 'lent') {
+        current.totalLent += exp.amount;
+        current.netLoan += exp.amount;
+      } else if (type === 'received') {
+        current.netLoan -= exp.amount;
+      } else if (type === 'borrowed') {
+        current.totalBorrowed += exp.amount;
+        current.netLoan -= exp.amount;
+      } else if (type === 'repaid') {
+        current.netLoan += exp.amount;
       }
-    } catch (err) {
-      console.error(err);
-      alert('Error deleting IPO');
-    }
-  };
 
-  // No refund to track when the money never actually left the applicant's own pocket —
-  // i.e. every contribution's source is the same person as who the IPO was applied from.
-  const isSelfFunded =
-    form.contributions.length === 0 ||
-    form.contributions.every(c => normalizePerson(c.from) === normalizePerson(form.appliedFrom));
+      if (!current.lastActive || new Date(exp.date) > new Date(current.lastActive)) {
+        current.lastActive = exp.date;
+      }
 
-  const setAllotment = (result: 'Allotted' | 'Not Allotted') => {
-    setForm(f => ({
-      ...f,
-      status: result,
-      returnAmount: result === 'Not Allotted' && !f.returnAmount ? f.amount : f.returnAmount,
-    }));
-  };
+      statsMap.set(exp.personId, current);
+    });
 
-  const statusStyle = (status: string) => {
-    switch (status) {
-      case 'Allotted':
-        return { cls: 'text-green-400 bg-green-500/15 border-green-500/30', Icon: CheckCircle2 };
-      case 'Not Allotted':
-        return { cls: 'text-[#FF5A5F] bg-[#FF5A5F]/10 border-[#FF5A5F]/25', Icon: XCircle };
-      default:
-        return { cls: 'text-gold-400 bg-gold-400/10 border-gold-400/25', Icon: Clock };
-    }
-  };
+    return statsMap;
+  }, [expenses, persons]);
+
+  // Filter and sort ledger list for selected person
+  const personLedgerExpenses = useMemo(() => {
+    if (!currentPersonForLedger) return [];
+    return expenses
+      .filter(exp => exp.personId === currentPersonForLedger._id)
+      .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+  }, [currentPersonForLedger, expenses]);
+
+  // Input styles
+  const inputClass =
+    'w-full rounded-xl bg-black border border-white/[0.08] px-4 py-2.5 text-base md:text-sm text-white placeholder:text-[#555555] focus:border-gold-400/40 focus:ring-1 focus:ring-gold-400/10 focus:outline-none transition-all';
+  const labelClass =
+    'block text-xs font-normal uppercase tracking-wider text-[#8A8A8A] mb-1.5';
 
   return (
-    <>
-      <div className="overflow-x-hidden">
-        {/* Header */}
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 mb-6">
-          <div className="min-w-0">
-            <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-white flex items-center gap-2 sm:gap-3">
-              <TrendingUp className="h-6 w-6 sm:h-8 sm:w-8 text-gold-400 shrink-0" />
-              IPO Tracker
-            </h1>
-            <p className="text-xs text-[#8A8A8A] mt-1">
-              Track your IPO applications, who funded them and returns.
-            </p>
-          </div>
-          <button
-            onClick={openAdd}
-            className="flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-xl text-sm font-semibold bg-gold-400 text-black hover:bg-gold-500 transition-all shadow-md w-full md:w-auto"
-          >
-            <Plus className="h-4 w-4" />
-            Add IPO
-          </button>
+    <div className={`${style.page} space-y-6 text-white`}>
+      <div className={style.header}>
+        <div>
+          <h1 className={style.title}>People</h1>
+          <p className={style.sub}>Shared expenses and balances by person.</p>
         </div>
-
-        {/* Summary cards */}
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 mb-6">
-          {[
-            { label: 'Total Applied', value: formatRupee(summary.invested), Icon: Wallet, accent: 'text-white' },
-            { label: 'Total Profit', value: formatRupee(summary.profit), Icon: TrendingUp, accent: summary.profit >= 0 ? 'text-green-400' : 'text-[#FF5A5F]' },
-            { label: 'Total Refunded', value: formatRupee(summary.returned), Icon: ArrowDownLeft, accent: 'text-gold-400' },
-            { label: 'Allotted', value: String(summary.allotted), Icon: CheckCircle2, accent: 'text-green-400' },
-          ].map(card => (
-            <div key={card.label} className="bg-[#111111] border border-white/[0.06] rounded-2xl p-4 shadow-luxury">
-              <div className="flex items-center gap-1.5 text-[10px] uppercase tracking-wider text-[#8A8A8A] font-medium mb-1.5">
-                <card.Icon className="h-3.5 w-3.5" />
-                {card.label}
-              </div>
-              <span className={`text-xl sm:text-2xl font-extrabold font-mono tabular-nums tracking-tight ${card.accent}`}>
-                {card.value}
-              </span>
-            </div>
-          ))}
-        </div>
-
-        {/* Active Account Balances (Refunds sitting in accounts) */}
-        <div className="bg-[#111111] border border-white/[0.06] rounded-2xl p-4 mb-6 shadow-luxury">
-          <h2 className="text-[10px] uppercase tracking-wider text-[#8A8A8A] font-bold mb-3 flex items-center gap-1.5">
-            <Wallet className="h-4 w-4 text-gold-400" />
-            Active Balances in Accounts (Refunds pending reuse)
-          </h2>
-          <div className="grid grid-cols-2 sm:grid-cols-3 gap-3.5">
-            {['Mummy', 'Papa', 'Anshshikha'].map(acc => {
-              const bal = accountBalances[acc] || 0;
-              return (
-                <div key={acc} className="bg-white/[0.02] border border-white/[0.04] rounded-xl p-3.5 flex items-center justify-between">
-                  <div>
-                    <span className="text-xs font-semibold text-white">{acc}'s Account</span>
-                    <span className="block text-[10px] text-[#8A8A8A] mt-0.5">Available for next IPO</span>
-                  </div>
-                  <span className={`text-sm sm:text-base font-bold font-mono tabular-nums tracking-tight ${bal > 0 ? 'text-gold-400' : 'text-[#555555]'}`}>
-                    {formatRupee(bal)}
-                  </span>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-
-        {/* Filter tabs */}
-        <div className="flex bg-black p-1 rounded-xl border border-white/[0.08] w-full sm:w-fit mb-5 overflow-x-auto">
-          {(['all', 'Applied', 'Allotted', 'Not Allotted'] as const).map(s => (
-            <button
-              key={s}
-              onClick={() => setFilter(s)}
-              className={`px-3.5 py-1.5 rounded-lg text-xs font-medium capitalize tracking-wide transition-all whitespace-nowrap ${
-                filter === s
-                  ? 'bg-gold-400/10 border border-gold-400/20 text-gold-400'
-                  : 'text-[#8A8A8A] hover:text-white border border-transparent'
-              }`}
-            >
-              {s}
-            </button>
-          ))}
-        </div>
-
-        {/* List */}
-        {loading ? (
-          <div className="flex justify-center py-16 text-[#555555]">
-            <Loader2 className="h-6 w-6 animate-spin" />
-          </div>
-        ) : filteredIpos.length === 0 ? (
-          <div className="text-center py-16 bg-[#111111] border border-white/[0.06] rounded-2xl">
-            <TrendingUp className="h-10 w-10 text-[#333333] mx-auto mb-3" />
-            <p className="text-sm text-[#8A8A8A]">No IPO entries yet.</p>
-            <button onClick={openAdd} className="mt-4 text-xs font-semibold text-gold-400 hover:text-gold-500">
-              + Add your first IPO
-            </button>
-          </div>
-        ) : (
-          <div className="space-y-3">
-            {filteredIpos.map(ipo => {
-              const { cls, Icon } = statusStyle(ipo.status);
-              const takenTotal = (ipo.contributions || []).reduce((s, c) => s + (c.amount || 0), 0);
-              const preset = presetIpos.find(p => {
-                const n1 = p.name.toLowerCase().replace(/[^a-z0-9]/g, '');
-                const n2 = ipo.ipoName.toLowerCase().replace(/[^a-z0-9]/g, '');
-                return n1.includes(n2) || n2.includes(n1);
-              });
-              return (
-                <div
-                  key={ipo._id}
-                  className="rounded-2xl border border-white/[0.06] bg-[#151515] hover:bg-[#1A1A1A] transition-all p-4 sm:p-5"
-                >
-                  <div className="flex flex-col sm:flex-row justify-between gap-4">
-                    <div className="min-w-0 flex-1">
-                      <div className="flex flex-wrap items-center gap-2">
-                        <h3 className="font-semibold text-white text-base truncate">{ipo.ipoName}</h3>
-                        <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-md border flex items-center gap-1 ${cls}`}>
-                          <Icon className="h-3 w-3" />
-                          {ipo.status}
-                        </span>
-                        {preset && preset.gmp !== undefined && (
-                          <span className={`text-[10px] font-semibold px-2.5 py-0.5 rounded-md border flex items-center gap-0.5 ${
-                            preset.gmpDirection === 'up'
-                              ? 'text-[#4ADE80] bg-[#4ADE80]/10 border-[#4ADE80]/20'
-                              : 'text-[#FF5A5F] bg-[#FF5A5F]/10 border-[#FF5A5F]/20'
-                          }`}>
-                            GMP: {preset.gmpDirection === 'up' ? '▲' : '▼'} ₹{preset.gmp}
-                          </span>
-                        )}
-                      </div>
-                      <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-[#8A8A8A] mt-2">
-                        <span className="flex items-center gap-1">
-                          <Calendar className="h-3.5 w-3.5" />
-                          {formatDate(ipo.applyDate)}
-                        </span>
-                        <span className="flex items-center gap-1">
-                          <User className="h-3.5 w-3.5" />
-                          Applied from <span className="text-white/80 font-medium">{ipo.appliedFrom}</span>
-                        </span>
-                        {(ipo.openDate || ipo.closeDate) && (
-                          <span className="flex items-center gap-1">
-                            Open/Close: <span className="text-white/70">{ipo.openDate || '—'} → {ipo.closeDate || '—'}</span>
-                          </span>
-                        )}
-                      </div>
-
-                      {/* Contributions */}
-                      {ipo.contributions && ipo.contributions.length > 0 && (
-                        <div className="mt-3 flex flex-wrap gap-1.5">
-                          {ipo.contributions.map((c, i) => (
-                            <span
-                              key={i}
-                              className="text-[10px] px-2 py-1 rounded-lg bg-white/[0.04] border border-white/[0.06] text-[#C9C9C9]"
-                            >
-                              <span className="text-gold-400 font-medium">{c.from}</span>{' '}
-                              {formatRupee(c.amount)}
-                              <span className="text-[#555555]"> · {formatDate(c.date)}</span>
-                              {c.returnDate && (
-                                <span className="text-green-400/80"> · return {formatDate(c.returnDate)}</span>
-                              )}
-                            </span>
-                          ))}
-                          {takenTotal > 0 && (
-                            <span className="text-[10px] px-2 py-1 rounded-lg bg-black text-[#8A8A8A] border border-white/[0.06]">
-                              Taken: {formatRupee(takenTotal)}
-                            </span>
-                          )}
-                        </div>
-                      )}
-
-                      {ipo.notes && (
-                        <p className="mt-2.5 text-xs italic text-[#555555] truncate">"{ipo.notes}"</p>
-                      )}
-                    </div>
-
-                    <div className="flex sm:flex-col items-end justify-between sm:justify-start gap-3 shrink-0">
-                      <div className="text-right">
-                        <span className="text-[9px] uppercase tracking-wider text-[#8A8A8A] block">
-                          Applied{ipo.lots > 1 ? ` · ${ipo.lots} lots` : ''}
-                        </span>
-                        <span className="text-lg font-bold font-mono tabular-nums text-white">
-                          {formatRupee(ipo.amount)}
-                        </span>
-                        {ipo.status === 'Not Allotted' && ipo.returnAmount > 0 && (
-                          <span className="block text-[11px] font-mono text-gold-400 mt-0.5">
-                            + {formatRupee(ipo.returnAmount)} refunded
-                          </span>
-                        )}
-                        {ipo.status === 'Not Allotted' && ipo.returnDate && (
-                          <span className="block text-[10px] text-[#8A8A8A] mt-0.5">
-                            by {formatDate(ipo.returnDate)}
-                          </span>
-                        )}
-                        {ipo.status === 'Allotted' && !!ipo.profitAmount && (
-                          <span className={`block text-[11px] font-mono mt-0.5 ${ipo.profitAmount >= 0 ? 'text-green-400' : 'text-[#FF5A5F]'}`}>
-                            {ipo.profitAmount >= 0 ? '+' : ''}{formatRupee(ipo.profitAmount)} profit
-                          </span>
-                        )}
-                        {ipo.status === 'Allotted' && ipo.listingDate && (
-                          <span className="block text-[10px] text-[#8A8A8A] mt-0.5">
-                            listed {formatDate(ipo.listingDate)}
-                          </span>
-                        )}
-                      </div>
-                      <div className="flex items-center gap-1.5">
-                        <button
-                          onClick={() => openEdit(ipo)}
-                          className="p-2 rounded-lg bg-white/[0.04] border border-white/[0.08] text-[#8A8A8A] hover:text-gold-400 hover:border-gold-400/30 transition-all"
-                          title="Edit"
-                        >
-                          <Pencil className="h-3.5 w-3.5" />
-                        </button>
-                        <button
-                          onClick={() => handleDelete(ipo)}
-                          className="p-2 rounded-lg bg-white/[0.04] border border-white/[0.08] text-[#8A8A8A] hover:text-[#FF5A5F] hover:border-[#FF5A5F]/30 transition-all"
-                          title="Delete"
-                        >
-                          <Trash2 className="h-3.5 w-3.5" />
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        )}
+        <button
+          onClick={() => {
+            setEditingPerson(null);
+            setIsModalOpen(true);
+          }}
+          className={`${style.action} flex items-center gap-2 bg-gold-400 hover:bg-gold-500 text-black text-sm font-semibold`}
+        >
+          <Plus className="h-4 w-4" />
+          <span>Add Person</span>
+        </button>
       </div>
 
-      {/* Add / Edit Modal */}
+      {persons.length === 0 ? (
+        <div className="bg-[#111111] border border-white/[0.06] rounded-2xl p-10 text-center text-[#555555] text-sm font-light">
+          No persons recorded. Create a person to assign expenses to them.
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
+          {persons.map(person => {
+            const { count, totalExpenses, totalLent, totalBorrowed, netLoan, lastActive } = allPersonStats.get(person._id) || { count: 0, totalExpenses: 0, totalLent: 0, totalBorrowed: 0, netLoan: 0, lastActive: null };
+            const isTemp = person._id.startsWith('temp_');
+            return (
+              <div
+                key={person._id}
+                onClick={() => setSelectedPersonForLedger(person)}
+                className={`${style.contact} cursor-pointer flex flex-col justify-between`}
+              >
+                <div className="flex items-start justify-between">
+                  <div className="flex min-w-0 items-center gap-3">
+                    <div aria-hidden="true" className={style.avatar}>
+                      {person.name.trim().split(/\s+/).slice(0, 2).map(part => part[0]).join('').toLocaleUpperCase()}
+                    </div>
+                    <div>
+                      <h3 className="font-semibold text-white flex flex-wrap items-center gap-1.5">
+                        <button onClick={event => { event.stopPropagation(); setSelectedPersonForLedger(person); }} className="text-left break-words" aria-label={`Open ledger for ${person.name}`}>
+                          {person.name}
+                        </button>
+                        {isTemp && (
+                          <span className="px-1.5 py-0.5 rounded-full text-[9px] bg-gold-400/15 text-gold-400 border border-gold-400/25">
+                            Offline
+                          </span>
+                        )}
+                      </h3>
+                      <p className="text-xs text-[#8A8A8A] font-light mt-0.5">
+                        {count === 0 ? 'No transactions' : `${count} transactions`}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="mt-6 pt-4 border-t border-white/[0.06] space-y-4">
+                  <div className="grid grid-cols-2 gap-y-3.5 gap-x-4">
+                    <div>
+                      <span className="text-xs font-medium text-[#a6b2a6]">Total Share</span>
+                      <p className="text-sm font-semibold text-white mt-0.5">₹{totalExpenses.toLocaleString('en-IN', { maximumFractionDigits: 2 })}</p>
+                    </div>
+                    <div>
+                      <span className="text-xs font-medium text-[#a6b2a6]">Net Balance</span>
+                      {netLoan > 0 ? (
+                        <p className="text-sm font-semibold text-[#4ADE80] mt-0.5">Owes ₹{netLoan.toLocaleString('en-IN', { maximumFractionDigits: 2 })}</p>
+                      ) : netLoan < 0 ? (
+                        <p className="text-sm font-semibold text-[#FF5A5F] mt-0.5 font-sans">You owe ₹{Math.abs(netLoan).toLocaleString('en-IN', { maximumFractionDigits: 2 })}</p>
+                      ) : (
+                        <p className="text-sm font-medium text-[#555555] mt-0.5">Settled</p>
+                      )}
+                    </div>
+                    <div>
+                      <span className="text-xs font-medium text-[#a6b2a6]">Total Lent</span>
+                      <p className="text-sm font-semibold text-white/90 mt-0.5">₹{totalLent.toLocaleString('en-IN', { maximumFractionDigits: 2 })}</p>
+                    </div>
+                    <div>
+                      <span className="text-xs font-medium text-[#a6b2a6]">Total Borrowed</span>
+                      <p className="text-sm font-semibold text-white/90 mt-0.5">₹{totalBorrowed.toLocaleString('en-IN', { maximumFractionDigits: 2 })}</p>
+                    </div>
+                  </div>
+
+                  {lastActive && (
+                    <div className="text-xs text-[#a6b2a6] pt-1 border-t border-white/[0.03]">
+                      Last active: {new Date(lastActive).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}
+                    </div>
+                  )}
+                  
+                  <div className="flex justify-end gap-1 pt-2 border-t border-white/[0.06]">
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleEdit(person);
+                      }}
+                      aria-label={`Edit ${person.name}`}
+                      className="p-2 hover:bg-white/[0.04] text-[#555555] hover:text-white rounded-lg transition-all"
+                      disabled={isTemp}
+                    >
+                      <Edit2 className="h-4 w-4" />
+                    </button>
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleDelete(person._id);
+                      }}
+                      aria-label={`Delete ${person.name}`}
+                      className="p-2 hover:bg-[#FF5A5F]/5 text-[#555555] hover:text-[#FF5A5F] rounded-lg transition-all"
+                      disabled={isTemp}
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </button>
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      {/* Person Ledger Drawer/Modal */}
       <AnimatePresence>
-        {isModalOpen && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+        {currentPersonForLedger && (
+          <div className="fixed inset-0 z-50 flex items-end md:items-center justify-center p-0 md:p-4 overflow-y-auto">
+            {/* Backdrop */}
             <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
-              onClick={() => setIsModalOpen(false)}
+              onClick={() => {
+                setSelectedPersonForLedger(null);
+                setIsAddingTransaction(false);
+                resetLedgerForm();
+              }}
               className="fixed inset-0 bg-black/80 backdrop-blur-md"
             />
 
+            {/* Modal Box */}
             <motion.div
-              initial={{ scale: 0.94, opacity: 0, y: 12 }}
-              animate={{ scale: 1, opacity: 1, y: 0 }}
-              exit={{ scale: 0.96, opacity: 0, y: 8 }}
-              transition={{ type: 'spring', stiffness: 320, damping: 28 }}
-              className="relative w-full max-w-lg max-h-[90vh] overflow-y-auto rounded-3xl bg-[#111111] border border-white/[0.08] text-white shadow-luxury z-10"
+              initial={{ y: '100%', opacity: 0.5 }}
+              animate={{ y: 0, opacity: 1 }}
+              exit={{ y: '100%', opacity: 0.5 }}
+              transition={{ type: 'spring', damping: 28, stiffness: 350 }}
+              role="dialog" aria-modal="true" aria-label="Person ledger"
+              className="relative w-full md:max-w-2xl rounded-t-2xl md:rounded-2xl bg-[#111111] border-t md:border border-white/[0.06] p-6 pb-12 md:pb-6 text-white shadow-luxury z-10 max-h-[92vh] md:max-h-[90vh] flex flex-col overflow-hidden"
             >
-              {/* Sticky header */}
-              <div className="sticky top-0 z-10 flex items-center justify-between px-6 py-4 bg-[#111111]/95 backdrop-blur-xl border-b border-white/[0.06]">
-                <div className="flex items-center gap-2.5">
-                  <div className="h-9 w-9 rounded-xl bg-gold-400/10 border border-gold-400/25 flex items-center justify-center shrink-0">
-                    <TrendingUp className="h-4.5 w-4.5 text-gold-400" />
-                  </div>
-                  <div>
-                    <h3 className="text-base font-bold leading-tight">
-                      {editingId ? 'Edit IPO' : 'Add IPO'}
-                    </h3>
-                    <p className="text-[10px] text-[#8A8A8A] leading-tight mt-0.5">
-                      {editingId ? 'Update the result whenever it comes out' : 'Fill this in now, update the result later'}
-                    </p>
+              {/* Handle */}
+              <div className="w-12 h-1.5 bg-white/[0.12] rounded-full mx-auto mb-4 md:hidden" />
+
+              {/* Header */}
+              <div className="flex items-center justify-between pb-4 border-b border-white/[0.06] shrink-0">
+                <div>
+                  <h2 className="text-xl font-bold flex items-center gap-2.5 text-white">
+                    <User className="h-5 w-5 text-gold-400" />
+                    <span>{currentPersonForLedger.name}&apos;s Ledger</span>
+                  </h2>
+                  <div className="mt-1">
+                    {(() => {
+                      const stats = allPersonStats.get(currentPersonForLedger._id) || { netLoan: 0 };
+                      if (stats.netLoan > 0) {
+                        return <span className="text-xs font-semibold text-[#4ADE80]">Owes you ₹{stats.netLoan.toLocaleString('en-IN')}</span>;
+                      } else if (stats.netLoan < 0) {
+                        return <span className="text-xs font-semibold text-[#FF5A5F]">You owe ₹{Math.abs(stats.netLoan).toLocaleString('en-IN')}</span>;
+                      } else {
+                        return <span className="text-xs font-semibold text-[#8A8A8A]">Settled Balance</span>;
+                      }
+                    })()}
                   </div>
                 </div>
                 <button
-                  onClick={() => setIsModalOpen(false)}
-                  className="p-2 rounded-xl text-[#8A8A8A] hover:text-white hover:bg-white/[0.06] transition-colors shrink-0"
+                  onClick={() => {
+                    setSelectedPersonForLedger(null);
+                    setIsAddingTransaction(false);
+                    resetLedgerForm();
+                  }}
+                  className="rounded-lg p-1.5 text-[#8A8A8A] hover:text-white hover:bg-white/[0.06] transition-colors"
                 >
-                  <X className="h-4 w-4" />
+                  <X className="h-5 w-5" />
                 </button>
               </div>
 
-              <div className="p-6 pt-5">
-                <AnimatePresence>
-                  {error && (
-                    <motion.div
-                      initial={{ opacity: 0, height: 0, marginBottom: 0 }}
-                      animate={{ opacity: 1, height: 'auto', marginBottom: 16 }}
-                      exit={{ opacity: 0, height: 0, marginBottom: 0 }}
-                      className="rounded-xl bg-[#FF5A5F]/10 border border-[#FF5A5F]/20 p-2.5 text-xs text-[#FF5A5F] overflow-hidden"
-                    >
-                      {error}
-                    </motion.div>
-                  )}
-                </AnimatePresence>
-
-              <form onSubmit={handleSubmit} className="space-y-4">
-                {/* Step 1 — Application */}
-                <div className="rounded-2xl border border-white/[0.06] bg-white/[0.015] p-4 space-y-3.5">
-                  <div className="flex items-center gap-2">
-                    <span className="h-5 w-5 shrink-0 rounded-full bg-gold-400/15 border border-gold-400/30 text-gold-400 text-[10px] font-bold flex items-center justify-center">1</span>
-                    <span className="text-[11px] font-semibold text-white/90 uppercase tracking-wider">Application</span>
-                  </div>
-
-                {/* IPO select */}
-                <div>
-                  <div className="flex items-center justify-between mb-1.5">
-                    <label className="block text-[10px] text-[#8A8A8A] uppercase tracking-wider font-medium">
-                      Select IPO
-                    </label>
-                    <span className={`text-[9px] font-semibold px-1.5 py-0.5 rounded border flex items-center gap-1 ${
-                      presetSource === 'live'
-                        ? 'text-green-400 bg-green-500/10 border-green-500/25'
-                        : presetSource === 'loading'
-                        ? 'text-[#8A8A8A] bg-white/[0.04] border-white/[0.08]'
-                        : 'text-gold-400 bg-gold-400/10 border-gold-400/25'
-                    }`}>
-                      <span className={`h-1.5 w-1.5 rounded-full ${
-                        presetSource === 'live' ? 'bg-green-400 animate-pulse'
-                        : presetSource === 'loading' ? 'bg-[#555555] animate-pulse'
-                        : 'bg-gold-400'
-                      }`} />
-                      {presetSource === 'live' ? `LIVE · NSE (${presetIpos.length})`
-                        : presetSource === 'loading' ? 'LOADING…'
-                        : presetSource === 'empty' ? 'NO OPEN IPO'
-                        : 'LIVE UNAVAILABLE'}
-                    </span>
-                  </div>
-                  <select
-                    value={form.presetKey}
-                    onChange={e => handlePresetChange(e.target.value)}
-                    className="w-full rounded-xl bg-black border border-white/[0.08] px-3.5 py-2.5 text-sm text-white focus:border-gold-400/40 focus:outline-none"
+              {/* Content area: Scrollable list */}
+              <div className="flex-1 overflow-y-auto py-4 space-y-4 pr-1">
+                {/* Form to add transaction in ledger */}
+                {isAddingTransaction ? (
+                  <motion.div
+                    initial={{ opacity: 0, height: 0 }}
+                    animate={{ opacity: 1, height: 'auto' }}
+                    exit={{ opacity: 0, height: 0 }}
+                    className="bg-black/50 border border-white/[0.06] p-4 rounded-xl space-y-4"
                   >
-                    <option value="">
-                      {presetSource === 'live' ? '— Choose a live IPO —' : '— Add manually below —'}
-                    </option>
-                    {presetIpos.map(p => (
-                      <option key={p.name} value={p.name}>
-                        {p.name}
-                        {p.board === 'SME' ? ' [SME]' : ''}
-                        {p.priceBand ? ` · ${p.priceBand}` : ''}
-                        {p.gmp !== undefined ? ` · GMP: ${p.gmpDirection === 'up' ? '+' : '-'}₹${p.gmp}` : ''}
-                      </option>
-                    ))}
-                    <option value="__custom__">Other (type manually)</option>
-                  </select>
-                  {presetSource !== 'live' && presetSource !== 'loading' && (
-                    <p className="mt-1.5 text-[10px] text-[#8A8A8A]">
-                      {presetSource === 'empty'
-                        ? 'No IPO open on NSE right now. Pick "Other" to add one manually.'
-                        : 'Couldn\'t load the live NSE list. Pick "Other" to add manually.'}
-                    </p>
-                  )}
-                  {(() => {
-                    const sel = presetIpos.find(p => p.name === form.presetKey);
-                    return sel && (sel.openDate || sel.closeDate) ? (
-                      <p className="mt-1.5 text-[10px] text-[#8A8A8A]">
-                        Open: <span className="text-white/70">{sel.openDate || '—'}</span> · Close:{' '}
-                        <span className="text-white/70">{sel.closeDate || '—'}</span>
-                        {' '}· Est. 1-lot amount auto-filled
-                      </p>
-                    ) : null;
-                  })()}
-                </div>
-
-                {/* Custom name if "Other" */}
-                {form.presetKey === '__custom__' && (
-                  <div>
-                    <label className="block text-[10px] text-[#8A8A8A] uppercase tracking-wider mb-1.5 font-medium">
-                      IPO Name
-                    </label>
-                    <input
-                      type="text"
-                      placeholder="e.g. Some New IPO Ltd"
-                      value={form.ipoName}
-                      onChange={e => setForm(f => ({ ...f, ipoName: e.target.value }))}
-                      className="w-full rounded-xl bg-black border border-white/[0.08] px-3.5 py-2.5 text-sm text-white placeholder:text-[#555555] focus:border-gold-400/40 focus:outline-none"
-                    />
-                  </div>
-                )}
-
-                <div className="grid grid-cols-3 gap-3">
-                  {/* Lots (default 1) */}
-                  <div>
-                    <label className="block text-[10px] text-[#8A8A8A] uppercase tracking-wider mb-1.5 font-medium">
-                      Lots
-                    </label>
-                    <select
-                      value={form.lots}
-                      onChange={e => handleLotsChange(e.target.value)}
-                      className="w-full rounded-xl bg-black border border-white/[0.08] px-3 py-2.5 text-sm text-white focus:border-gold-400/40 focus:outline-none"
-                    >
-                      {Array.from({ length: 20 }, (_, i) => i + 1).map(n => (
-                        <option key={n} value={n}>{n}</option>
-                      ))}
-                    </select>
-                  </div>
-                  {/* Amount (auto = lots × per-lot) */}
-                  <div>
-                    <label className="block text-[10px] text-[#8A8A8A] uppercase tracking-wider mb-1.5 font-medium">
-                      Amount (₹)
-                    </label>
-                    <input
-                      type="number"
-                      min="0"
-                      placeholder="Auto"
-                      value={form.amount}
-                      onChange={e => setForm(f => ({ ...f, amount: e.target.value }))}
-                      className="w-full rounded-xl bg-black border border-white/[0.08] px-3 py-2.5 text-sm text-white font-mono placeholder:text-[#555555] focus:border-gold-400/40 focus:outline-none"
-                    />
-                  </div>
-                  {/* Applied From */}
-                  <div>
-                    <label className="block text-[10px] text-[#8A8A8A] uppercase tracking-wider mb-1.5 font-medium">
-                      Applied From
-                    </label>
-                    <select
-                      value={form.appliedFrom}
-                      onChange={e => setForm(f => ({ ...f, appliedFrom: e.target.value }))}
-                      className="w-full rounded-xl bg-black border border-white/[0.08] px-3 py-2.5 text-sm text-white focus:border-gold-400/40 focus:outline-none"
-                    >
-                      {APPLIED_FROM.map(a => {
-                        const bal = accountBalances[a] || 0;
-                        return (
-                          <option key={a} value={a}>
-                            {a}{bal > 0 ? ` (Bal: ₹${bal})` : ''}
-                          </option>
-                        );
-                      })}
-                    </select>
-                  </div>
-                </div>
-                {form.perLotAmount > 0 && (
-                  <p className="-mt-2 text-[10px] text-[#8A8A8A]">
-                    {form.lots} lot{form.lots > 1 ? 's' : ''} × {formatRupee(form.perLotAmount)} = {formatRupee(form.perLotAmount * form.lots)}
-                  </p>
-                )}
-
-                <div className="grid grid-cols-2 gap-3">
-                  {/* Status — result (Allotted/Not Allotted) can only be set once the IPO already exists, via Edit */}
-                  <div>
-                    <label className="block text-[10px] text-[#8A8A8A] uppercase tracking-wider mb-1.5 font-medium">
-                      Applied
-                    </label>
-                    <div className="w-full rounded-xl bg-green-500/[0.06] border border-green-500/20 px-3.5 py-2.5 text-sm text-green-400 flex items-center gap-1.5">
-                      <CheckCircle2 className="h-3.5 w-3.5" /> Yes
+                    <div className="flex justify-between items-center pb-2 border-b border-white/[0.04]">
+                      <h4 className="text-xs font-bold text-gold-400 uppercase tracking-wider">Record Transaction</h4>
+                      <button
+                        type="button"
+                        onClick={() => setIsAddingTransaction(false)}
+                        className="text-xs text-[#8A8A8A] hover:text-white"
+                      >
+                        Cancel
+                      </button>
                     </div>
-                  </div>
-                  {/* Apply date */}
-                  <div>
-                    <label className="block text-[10px] text-[#8A8A8A] uppercase tracking-wider mb-1.5 font-medium">
-                      Apply Date
-                    </label>
-                    <input
-                      type="date"
-                      value={form.applyDate}
-                      onChange={e => setForm(f => ({ ...f, applyDate: e.target.value }))}
-                      className="w-full rounded-xl bg-black border border-white/[0.08] px-3.5 py-2.5 text-sm text-white focus:border-gold-400/40 focus:outline-none"
-                    />
-                  </div>
-                </div>
-                </div>
 
-                {/* Step 2 — Funding */}
-                <div className="rounded-2xl border border-white/[0.06] bg-white/[0.015] p-4 space-y-3">
-                  <div className="flex items-center gap-2">
-                    <span className="h-5 w-5 shrink-0 rounded-full bg-gold-400/15 border border-gold-400/30 text-gold-400 text-[10px] font-bold flex items-center justify-center">2</span>
-                    <span className="text-[11px] font-semibold text-white/90 uppercase tracking-wider">Funding</span>
-                  </div>
+                    {formError && (
+                      <div className="rounded-lg bg-[#FF5A5F]/10 border border-[#FF5A5F]/20 p-2.5 text-xs text-[#FF5A5F]">
+                        {formError}
+                      </div>
+                    )}
 
-                {/* Contributions — amount taken from */}
-                <div className="rounded-xl border border-white/[0.06] bg-black/40 p-3.5">
-                  <div className="flex items-center justify-between mb-2.5">
-                    <label className="text-[10px] text-[#8A8A8A] uppercase tracking-wider font-medium">
-                      Amount Taken From
-                    </label>
-                    <motion.button
-                      whileTap={{ scale: 0.95 }}
-                      type="button"
-                      onClick={addContribution}
-                      className="flex items-center gap-1 text-[11px] font-semibold text-gold-400 hover:text-gold-500"
-                    >
-                      <Plus className="h-3 w-3" /> Add person
-                    </motion.button>
-                  </div>
+                    <form onSubmit={handleAddLedgerSubmit} className="space-y-4">
+                      {/* Sub-type selection */}
+                      <div>
+                        <label className={labelClass}>Type</label>
+                        <div className="grid grid-cols-2 gap-2">
+                          {(['lent', 'received'] as const).map(type => (
+                            <button
+                              key={type}
+                              type="button"
+                              onClick={() => setLedgerType(type)}
+                              className={`py-2 px-3 rounded-xl border text-xs font-semibold capitalize transition-all ${
+                                ledgerType === type
+                                  ? 'bg-[#4ADE80]/10 border-[#4ADE80]/30 text-[#4ADE80]'
+                                  : 'bg-black border-white/[0.08] text-[#8A8A8A] hover:text-white'
+                              }`}
+                            >
+                              {type === 'lent' ? 'We Lent (Udhaar Diya)' : 'They Repaid (Udhaar Back)'}
+                            </button>
+                          ))}
+                          {(['borrowed', 'repaid'] as const).map(type => (
+                            <button
+                              key={type}
+                              type="button"
+                              onClick={() => setLedgerType(type)}
+                              className={`py-2 px-3 rounded-xl border text-xs font-semibold capitalize transition-all ${
+                                ledgerType === type
+                                  ? 'bg-[#FF5A5F]/10 border-[#FF5A5F]/30 text-[#FF5A5F]'
+                                  : 'bg-black border-white/[0.08] text-[#8A8A8A] hover:text-white'
+                              }`}
+                            >
+                              {type === 'borrowed' ? 'We Borrowed (Liya)' : 'We Repaid (Chukaya)'}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
 
-                  {form.contributions.length === 0 ? (
-                    <p className="text-[11px] text-[#555555]">No one added. Add if money was taken from someone.</p>
-                  ) : (
-                    <div className="space-y-3">
-                      <AnimatePresence initial={false}>
-                      {form.contributions.map((c, idx) => (
-                        <motion.div
-                          key={idx}
-                          initial={{ opacity: 0, height: 0, marginBottom: 0 }}
-                          animate={{ opacity: 1, height: 'auto', marginBottom: 0 }}
-                          exit={{ opacity: 0, height: 0, marginBottom: 0 }}
-                          transition={{ duration: 0.18 }}
-                          className="rounded-lg border border-white/[0.06] bg-black/50 p-2.5 relative overflow-hidden"
-                        >
-                          <button
-                            type="button"
-                            onClick={() => removeContribution(idx)}
-                            className="absolute top-2 right-2 text-[#555555] hover:text-[#FF5A5F] transition-colors"
-                          >
-                            <X className="h-3.5 w-3.5" />
-                          </button>
-                          <div className="grid grid-cols-2 gap-2 pr-5">
-                            <div>
-                              <label className="block text-[9px] text-[#8A8A8A] uppercase tracking-wide mb-1">From</label>
-                              <select
-                                value={TAKEN_FROM_OPTIONS.includes(c.from) ? c.from : 'Other'}
-                                onChange={e => updateContribution(idx, 'from', e.target.value === 'Other' ? '' : e.target.value)}
-                                className="w-full rounded-lg bg-black border border-white/[0.08] px-2 py-1.5 text-xs text-white focus:border-gold-400/40 focus:outline-none"
+                      {/* Title & Amount */}
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        <div>
+                          <label className={labelClass}>Title (Optional)</label>
+                          <input
+                            type="text"
+                            placeholder="e.g. Cash payment, GPay back"
+                            value={ledgerTitle}
+                            onChange={(e) => setLedgerTitle(e.target.value)}
+                            className={inputClass}
+                          />
+                        </div>
+                        <div>
+                          <label className={labelClass}>Amount (₹)</label>
+                          <input
+                            type="number"
+                            step="0.01"
+                            required
+                            placeholder="0.00"
+                            value={ledgerAmount}
+                            onChange={(e) => setLedgerAmount(e.target.value)}
+                            className={inputClass}
+                          />
+                        </div>
+                      </div>
+
+                      {/* Date & Payment Method */}
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        <div>
+                          <label className={labelClass}>Date</label>
+                          <input
+                            type="date"
+                            required
+                            value={ledgerDate}
+                            onChange={(e) => setLedgerDate(e.target.value)}
+                            className={inputClass}
+                          />
+                        </div>
+                        <div>
+                          <label className={labelClass}>Payment Method</label>
+                          <div className="grid grid-cols-2 gap-2">
+                            {(['Cash', 'UPI'] as const).map(method => (
+                              <button
+                                key={method}
+                                type="button"
+                                onClick={() => setLedgerPaymentMethod(method)}
+                                className={`py-2 px-3 rounded-xl border text-xs font-medium transition-all ${
+                                  ledgerPaymentMethod === method
+                                    ? 'bg-gold-400/10 border-gold-400/30 text-gold-400'
+                                    : 'bg-black border-white/[0.08] text-[#8A8A8A] hover:text-white'
+                                }`}
                               >
-                                {TAKEN_FROM_OPTIONS.map(p => (
-                                  <option key={p} value={p}>{p}</option>
-                                ))}
-                              </select>
-                              {!TAKEN_FROM_OPTIONS.includes(c.from) && (
-                                <input
-                                  type="text"
-                                  placeholder="Enter name"
-                                  value={c.from}
-                                  onChange={e => updateContribution(idx, 'from', e.target.value)}
-                                  className="w-full mt-1.5 rounded-lg bg-black border border-white/[0.08] px-2 py-1.5 text-xs text-white placeholder:text-[#555555] focus:border-gold-400/40 focus:outline-none"
-                                />
+                                {method}
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* UPI details */}
+                      {ledgerPaymentMethod === 'UPI' && (
+                        <motion.div
+                          initial={{ opacity: 0, height: 0 }}
+                          animate={{ opacity: 1, height: 'auto' }}
+                          className="bg-black/40 p-3 rounded-xl border border-white/[0.04]"
+                        >
+                          <label className="block text-xs font-normal uppercase tracking-wider text-gold-400 mb-1.5">UPI App</label>
+                          <select
+                            value={ledgerUpiApp}
+                            onChange={(e) => setLedgerUpiApp(e.target.value as any)}
+                            className={inputClass}
+                          >
+                            <option value="GPay">GPay</option>
+                            <option value="Amazon Pay">Amazon Pay</option>
+                            <option value="Cred UPI">Cred UPI</option>
+                          </select>
+                        </motion.div>
+                      )}
+
+                      {/* Notes */}
+                      <div>
+                        <label className={labelClass}>Notes</label>
+                        <input
+                          type="text"
+                          placeholder="Repayment notes..."
+                          value={ledgerNotes}
+                          onChange={(e) => setLedgerNotes(e.target.value)}
+                          className={inputClass}
+                        />
+                      </div>
+
+                      <button
+                        type="submit"
+                        disabled={formLoading}
+                        className="flex items-center justify-center gap-2 w-full py-2.5 rounded-xl text-xs font-semibold bg-gold-400 text-black hover:bg-gold-500 transition-all disabled:opacity-50"
+                      >
+                        {formLoading && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
+                        Record Transaction
+                      </button>
+                    </form>
+                  </motion.div>
+                ) : (
+                  <button
+                    onClick={() => setIsAddingTransaction(true)}
+                    className="flex items-center justify-center gap-2 w-full py-3 bg-[#171717] hover:bg-white/[0.02] border border-white/[0.06] hover:border-gold-400/20 text-[#8A8A8A] hover:text-gold-400 rounded-xl text-xs font-semibold transition-all shrink-0"
+                  >
+                    <Plus className="h-4 w-4" />
+                    <span>Record Repayment or New Loan</span>
+                  </button>
+                )}
+
+                {/* List of ledger history */}
+                <div className="space-y-2.5">
+                  <h3 className="text-[10px] font-semibold text-[#555555] uppercase tracking-wider">Transaction History</h3>
+
+                  {personLedgerExpenses.length === 0 ? (
+                    <div className="py-12 text-center text-[#555555] text-xs font-light">
+                      No loan or repayment history recorded for this person.
+                    </div>
+                  ) : (
+                    personLedgerExpenses.map(exp => {
+                      const type = exp.transactionType || 'expense';
+                      const personName = currentPersonForLedger.name;
+                      const isSelf = isSelfPerson(personName);
+                      
+                      const isLentFlow = type === 'lent' || type === 'received' || (type === 'expense' && !isSelf);
+                      const isOutflow = type === 'lent' || type === 'repaid' || (type === 'expense' && !isSelf);
+                      const isExpanded = expandedExpenseId === exp._id;
+                      const totalRepayments = exp.repayments ? exp.repayments.reduce((sum, r) => sum + r.amount, 0) : 0;
+                      const canHaveRepayments = type === 'lent' || type === 'borrowed' || (type === 'expense' && !isSelf);
+
+                      return (
+                        <div
+                          key={exp._id}
+                          onClick={() => {
+                            if (canHaveRepayments) {
+                              setExpandedExpenseId(isExpanded ? null : exp._id);
+                              // Reset form errors
+                              setRepaymentError(null);
+                            }
+                          }}
+                          className={`bg-[#171717] border ${
+                            isExpanded ? 'border-gold-400/20' : 'border-white/[0.04]'
+                          } rounded-xl p-3.5 transition-all duration-300 ${
+                            canHaveRepayments ? 'cursor-pointer hover:border-white/10' : ''
+                          }`}
+                        >
+                          <div className="flex items-center justify-between gap-4">
+                            <div className="space-y-1">
+                              <div className="flex items-center gap-2 flex-wrap">
+                                <span className="text-sm font-medium text-white">{exp.title}</span>
+                                <span className={`px-1.5 py-0.5 rounded-md text-[8px] font-bold uppercase tracking-wider ${
+                                  type === 'lent' ? 'bg-[#4ADE80]/10 text-[#4ADE80] border border-[#4ADE80]/10' :
+                                  type === 'received' ? 'bg-gold-400/10 text-gold-400 border border-gold-400/10' :
+                                  type === 'borrowed' ? 'bg-[#FF5A5F]/10 text-[#FF5A5F] border border-[#FF5A5F]/10' :
+                                  type === 'repaid' ? 'bg-white/10 text-white border border-white/10' :
+                                  isSelf ? 'bg-white/5 text-[#8A8A8A] border border-white/5' :
+                                  'bg-[#4ADE80]/10 text-[#4ADE80] border border-[#4ADE80]/10'
+                                }`}>
+                                  {type === 'lent' ? 'Lent' :
+                                   type === 'received' ? 'Received (Back)' :
+                                   type === 'borrowed' ? 'Borrowed' :
+                                   type === 'repaid' ? 'Repaid' :
+                                   isSelf ? 'Personal Expense' : 'Expense (Lent)'}
+                                </span>
+                                {totalRepayments > 0 && (
+                                  <span className="px-1.5 py-0.5 rounded-md text-[8px] font-bold uppercase tracking-wider bg-gold-400/10 text-gold-400 border border-gold-400/15">
+                                    Partially Paid (₹{totalRepayments})
+                                  </span>
+                                )}
+                              </div>
+                              <div className="flex items-center gap-2 text-[10px] text-[#555555]">
+                                <div className="flex items-center gap-1">
+                                  <Calendar className="h-3 w-3" />
+                                  <span>{new Date(exp.date).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}</span>
+                                </div>
+                                <span>·</span>
+                                <span>{exp.paymentMethod === 'UPI' && exp.upiApp ? `UPI (${exp.upiApp})` : exp.paymentMethod}</span>
+                              </div>
+                              {exp.notes && (
+                                <p className="text-[11px] text-[#8A8A8A] font-light italic mt-0.5">&ldquo;{exp.notes}&rdquo;</p>
                               )}
                             </div>
-                            <div>
-                              <label className="block text-[9px] text-[#8A8A8A] uppercase tracking-wide mb-1">Amount ₹</label>
-                              <input
-                                type="number"
-                                min="0"
-                                placeholder="Amount"
-                                value={c.amount}
-                                onChange={e => updateContribution(idx, 'amount', e.target.value)}
-                                className="w-full rounded-lg bg-black border border-white/[0.08] px-2 py-1.5 text-xs text-white font-mono placeholder:text-[#555555] focus:border-gold-400/40 focus:outline-none"
-                              />
-                            </div>
-                            <div className="col-span-2">
-                              <label className="block text-[9px] text-[#8A8A8A] uppercase tracking-wide mb-1">Taken On</label>
-                              <input
-                                type="date"
-                                value={c.date}
-                                onChange={e => updateContribution(idx, 'date', e.target.value)}
-                                className="w-full rounded-lg bg-black border border-white/[0.08] px-1.5 py-1.5 text-[11px] text-white focus:border-gold-400/40 focus:outline-none"
-                              />
+
+                            <div className="flex items-center gap-3 shrink-0">
+                              {isSelf && type === 'expense' ? (
+                                <span className="font-semibold text-sm text-[#8A8A8A]">
+                                  ₹{exp.amount.toLocaleString('en-IN', { minimumFractionDigits: 0 })}
+                                </span>
+                              ) : (
+                                <span className={`font-semibold text-sm ${isLentFlow ? 'text-[#4ADE80]' : 'text-[#FF5A5F]'}`}>
+                                  {isOutflow ? '-' : '+'}₹{exp.amount.toLocaleString('en-IN', { minimumFractionDigits: 0 })}
+                                </span>
+                              )}
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleDeleteLedgerItem(exp._id);
+                                }}
+                                className="p-1.5 text-[#555555] hover:text-[#FF5A5F] hover:bg-[#FF5A5F]/5 rounded-md transition-colors"
+                              >
+                                <Trash2 className="h-3.5 w-3.5" />
+                              </button>
                             </div>
                           </div>
-                        </motion.div>
-                      ))}
-                      </AnimatePresence>
-                    </div>
+
+                          {/* Expanded view for linked repayments */}
+                          {isExpanded && (
+                            <div 
+                              onClick={(e) => e.stopPropagation()} 
+                              className="mt-4 pt-4 border-t border-white/[0.04] space-y-4 cursor-default animate-fadeIn"
+                            >
+                              {/* Outstanding indicator */}
+                              <div className="flex justify-between items-center bg-black/30 p-2.5 rounded-xl border border-white/[0.03]">
+                                <span className="text-[10px] font-normal text-[#8A8A8A] uppercase tracking-wider">Remaining Outstanding</span>
+                                <span className={`text-xs font-semibold ${isLentFlow ? 'text-[#4ADE80]' : 'text-[#FF5A5F]'}`}>
+                                  ₹{Math.max(0, exp.amount - totalRepayments).toLocaleString('en-IN')} / ₹{exp.amount.toLocaleString('en-IN')}
+                                </span>
+                              </div>
+
+                              {/* Repayments log list */}
+                              <div className="space-y-2">
+                                <span className="text-[9px] font-semibold text-[#555555] uppercase tracking-wider block">Repayment Log</span>
+                                {!exp.repayments || exp.repayments.length === 0 ? (
+                                  <p className="text-[11px] text-[#555555] font-light">No repayments recorded for this transaction yet.</p>
+                                ) : (
+                                  <div className="space-y-1.5">
+                                    {exp.repayments.map((rep, idx) => (
+                                      <div key={idx} className="flex justify-between items-center bg-black/20 px-3 py-2 rounded-lg border border-white/[0.02]">
+                                        <div className="text-[11px]">
+                                          <span className="text-white font-medium">₹{rep.amount}</span>
+                                          <span className="text-[#8A8A8A] ml-2">via {rep.paymentMethod === 'UPI' && rep.upiApp ? `UPI (${rep.upiApp})` : rep.paymentMethod}</span>
+                                          <span className="text-[#555555] ml-2">({new Date(rep.date).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })})</span>
+                                          {rep.notes && <p className="text-[10px] text-[#8A8A8A] italic mt-0.5">&ldquo;{rep.notes}&rdquo;</p>}
+                                        </div>
+                                        <button
+                                          onClick={() => handleDeleteRepayment(exp, idx)}
+                                          className="p-1 hover:bg-[#FF5A5F]/5 text-[#555555] hover:text-[#FF5A5F] rounded-md transition-colors"
+                                        >
+                                          <Trash2 className="h-3 w-3" />
+                                        </button>
+                                      </div>
+                                    ))}
+                                  </div>
+                                )}
+                              </div>
+
+                              {/* Form to add repayment */}
+                              <form onSubmit={(e) => handleAddRepaymentSubmit(e, exp)} className="space-y-3 pt-2 border-t border-white/[0.03]">
+                                <span className="text-[9px] font-semibold text-gold-400 uppercase tracking-wider block">Record Amount Received Back</span>
+                                
+                                {repaymentError && (
+                                  <div className="rounded-lg bg-[#FF5A5F]/10 border border-[#FF5A5F]/20 p-2 text-[10px] text-[#FF5A5F]">
+                                    {repaymentError}
+                                  </div>
+                                )}
+
+                                <div className="grid grid-cols-2 gap-2">
+                                  <div>
+                                    <label className="text-[9px] font-normal uppercase tracking-wider text-[#8A8A8A] mb-1 block">Amount Received (₹)</label>
+                                    <input
+                                      type="number"
+                                      step="0.01"
+                                      required
+                                      placeholder="0.00"
+                                      value={repaymentAmount}
+                                      onChange={(e) => setRepaymentAmount(e.target.value)}
+                                      className="w-full rounded-lg bg-black border border-white/[0.08] px-3 py-1.5 text-xs text-white placeholder:text-[#555555] focus:border-gold-400/40 focus:outline-none transition-all"
+                                    />
+                                  </div>
+                                  <div>
+                                    <label className="text-[9px] font-normal uppercase tracking-wider text-[#8A8A8A] mb-1 block">Payment Method</label>
+                                    <div className="grid grid-cols-2 gap-1.5">
+                                      {(['Cash', 'UPI'] as const).map(method => (
+                                        <button
+                                          key={method}
+                                          type="button"
+                                          onClick={() => setRepaymentMethod(method)}
+                                          className={`py-1.5 rounded-lg border text-[10px] font-medium transition-all ${
+                                            repaymentMethod === method
+                                              ? 'bg-gold-400/10 border-gold-400/30 text-gold-400'
+                                              : 'bg-black border-white/[0.08] text-[#8A8A8A] hover:text-white'
+                                          }`}
+                                        >
+                                          {method}
+                                        </button>
+                                      ))}
+                                    </div>
+                                  </div>
+                                </div>
+
+                                <div className="grid grid-cols-2 gap-2">
+                                  <div>
+                                    <label className="text-[9px] font-normal uppercase tracking-wider text-[#8A8A8A] mb-1 block">Date</label>
+                                    <input
+                                      type="date"
+                                      required
+                                      value={repaymentDate}
+                                      onChange={(e) => setRepaymentDate(e.target.value)}
+                                      className="w-full rounded-lg bg-black border border-white/[0.08] px-3 py-1.5 text-xs text-white focus:border-gold-400/40 focus:outline-none transition-all"
+                                    />
+                                  </div>
+                                  {repaymentMethod === 'UPI' && (
+                                    <div>
+                                      <label className="text-[9px] font-normal uppercase tracking-wider text-gold-400 mb-1 block">UPI App</label>
+                                      <select
+                                        value={repaymentUpiApp}
+                                        onChange={(e) => setRepaymentUpiApp(e.target.value as any)}
+                                        className="w-full rounded-lg bg-black border border-white/[0.08] px-3 py-1.5 text-xs text-white focus:border-gold-400/40 focus:outline-none transition-all"
+                                      >
+                                        <option value="GPay">GPay</option>
+                                        <option value="Amazon Pay">Amazon Pay</option>
+                                        <option value="Cred UPI">Cred UPI</option>
+                                      </select>
+                                    </div>
+                                  )}
+                                </div>
+
+                                <div>
+                                  <label className="text-[9px] font-normal uppercase tracking-wider text-[#8A8A8A] mb-1 block">Notes (Optional)</label>
+                                  <input
+                                    type="text"
+                                    placeholder="e.g. Partial recovery, final settle"
+                                    value={repaymentNotes}
+                                    onChange={(e) => setRepaymentNotes(e.target.value)}
+                                    className="w-full rounded-lg bg-black border border-white/[0.08] px-3 py-1.5 text-xs text-white placeholder:text-[#555555] focus:border-gold-400/40 focus:outline-none transition-all"
+                                  />
+                                </div>
+
+                                <button
+                                  type="submit"
+                                  disabled={repaymentLoading}
+                                  className="flex items-center justify-center gap-1.5 w-full py-2 rounded-lg text-xs font-semibold bg-gold-400 text-black hover:bg-gold-500 transition-all disabled:opacity-50"
+                                >
+                                  {repaymentLoading && <Loader2 className="h-3 w-3 animate-spin" />}
+                                  Record Amount Received
+                                </button>
+                              </form>
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })
                   )}
                 </div>
-
-                {/* Available balance tip */}
-                <AnimatePresence>
-                  {(form.appliedFrom === 'Mummy' || form.appliedFrom === 'Papa' || form.appliedFrom === 'Anshshikha') && (accountBalances[form.appliedFrom] || 0) > 0 && (
-                    <motion.div
-                      initial={{ opacity: 0, height: 0 }}
-                      animate={{ opacity: 1, height: 'auto' }}
-                      exit={{ opacity: 0, height: 0 }}
-                      className="overflow-hidden"
-                    >
-                      <div className="text-[10px] leading-relaxed text-gold-400/90 bg-gold-400/[0.03] border border-gold-400/10 rounded-xl p-3">
-                        💡 <strong>Refund Balance Alert:</strong> {form.appliedFrom}'s account currently holds <strong>{formatRupee(accountBalances[form.appliedFrom])}</strong> of your money from previous unallotted IPO returns. If you are reusing this existing balance for this application, <strong>don't add a new "Amount Taken From" entry</strong> — it's already sitting there.
-                      </div>
-                    </motion.div>
-                  )}
-                </AnimatePresence>
-                </div>
-
-                {/* Step 3 — Result */}
-                <div className="rounded-2xl border border-white/[0.06] bg-white/[0.015] p-4 space-y-3.5">
-                  <div className="flex items-center gap-2">
-                    <span className="h-5 w-5 shrink-0 rounded-full bg-gold-400/15 border border-gold-400/30 text-gold-400 text-[10px] font-bold flex items-center justify-center">3</span>
-                    <span className="text-[11px] font-semibold text-white/90 uppercase tracking-wider">Result</span>
-                  </div>
-
-                {/* Allotment result — only relevant once the IPO application already exists */}
-                {editingId ? (
-                  <div>
-                    <label className="block text-[10px] text-[#8A8A8A] uppercase tracking-wider mb-1.5 font-medium">
-                      Allotment
-                    </label>
-                    <div className="grid grid-cols-3 gap-2">
-                      <motion.button
-                        whileTap={{ scale: 0.96 }}
-                        type="button"
-                        onClick={() => setForm(f => ({ ...f, status: 'Applied' }))}
-                        className={`px-3 py-2.5 rounded-xl text-xs font-semibold border transition-all ${
-                          form.status === 'Applied'
-                            ? 'bg-gold-400/10 border-gold-400/30 text-gold-400'
-                            : 'bg-black border-white/[0.08] text-[#8A8A8A] hover:text-white'
-                        }`}
-                      >
-                        Pending
-                      </motion.button>
-                      <motion.button
-                        whileTap={{ scale: 0.96 }}
-                        type="button"
-                        onClick={() => setAllotment('Allotted')}
-                        className={`px-3 py-2.5 rounded-xl text-xs font-semibold border transition-all ${
-                          form.status === 'Allotted'
-                            ? 'bg-green-500/10 border-green-500/30 text-green-400'
-                            : 'bg-black border-white/[0.08] text-[#8A8A8A] hover:text-white'
-                        }`}
-                      >
-                        Allotted: Yes
-                      </motion.button>
-                      <motion.button
-                        whileTap={{ scale: 0.96 }}
-                        type="button"
-                        onClick={() => setAllotment('Not Allotted')}
-                        className={`px-3 py-2.5 rounded-xl text-xs font-semibold border transition-all ${
-                          form.status === 'Not Allotted'
-                            ? 'bg-[#FF5A5F]/10 border-[#FF5A5F]/30 text-[#FF5A5F]'
-                            : 'bg-black border-white/[0.08] text-[#8A8A8A] hover:text-white'
-                        }`}
-                      >
-                        Allotted: No
-                      </motion.button>
-                    </div>
-                  </div>
-                ) : (
-                  <div className="rounded-xl border border-dashed border-white/[0.1] bg-black/30 p-3.5 text-center">
-                    <Clock className="h-4 w-4 text-[#555555] mx-auto mb-1.5" />
-                    <p className="text-[11px] text-[#8A8A8A]">Result pending. Come back and hit <span className="text-white/80 font-medium">Edit</span> once allotment is out.</p>
-                  </div>
-                )}
-
-                <AnimatePresence mode="wait">
-                {/* Not Allotted → refund tracking (skipped when the money never left the applicant's own pocket) */}
-                {form.status === 'Not Allotted' && !isSelfFunded && (
-                  <motion.div
-                    key="refund"
-                    initial={{ opacity: 0, y: -6 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0, y: -6 }}
-                    className="grid grid-cols-2 gap-3 rounded-xl border border-[#FF5A5F]/15 bg-[#FF5A5F]/[0.03] p-3.5"
-                  >
-                    <div className="col-span-2 text-[10px] text-[#FF5A5F]/90 font-semibold uppercase tracking-wider -mb-1 flex items-center gap-1">
-                      <XCircle className="h-3 w-3" /> Refund
-                    </div>
-                    <div>
-                      <label className="block text-[10px] text-[#8A8A8A] uppercase tracking-wider mb-1.5 font-medium">
-                        Return Amount (₹)
-                      </label>
-                      <input
-                        type="number"
-                        min="0"
-                        placeholder="Refund amount"
-                        value={form.returnAmount}
-                        onChange={e => setForm(f => ({ ...f, returnAmount: e.target.value }))}
-                        className="w-full rounded-xl bg-black border border-white/[0.08] px-3 py-2.5 text-sm text-white font-mono placeholder:text-[#555555] focus:border-gold-400/40 focus:outline-none"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-[10px] text-[#8A8A8A] uppercase tracking-wider mb-1.5 font-medium">
-                        Return Date
-                      </label>
-                      <input
-                        type="date"
-                        value={form.returnDate}
-                        onChange={e => setForm(f => ({ ...f, returnDate: e.target.value }))}
-                        className="w-full rounded-xl bg-black border border-white/[0.08] px-3 py-2.5 text-sm text-white focus:border-gold-400/40 focus:outline-none"
-                      />
-                    </div>
-                    <motion.button
-                      whileHover={{ scale: 1.01 }}
-                      whileTap={{ scale: 0.97 }}
-                      type="button"
-                      onClick={() => setForm(f => ({ ...f, returnDate: todayStr() }))}
-                      className="col-span-2 flex items-center justify-center gap-1.5 py-2 rounded-lg text-[11px] font-semibold bg-[#FF5A5F]/10 border border-[#FF5A5F]/25 text-[#FF5A5F] hover:bg-[#FF5A5F]/20 transition-all"
-                    >
-                      {form.returnDate ? <CheckCircle2 className="h-3.5 w-3.5" /> : null}
-                      {form.returnDate ? `Marked Returned · ${form.returnDate}` : 'Mark as Returned'}
-                    </motion.button>
-                  </motion.div>
-                )}
-
-                {/* Allotted → listing profit tracking */}
-                {form.status === 'Allotted' && (
-                  <motion.div
-                    key="listing"
-                    initial={{ opacity: 0, y: -6 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0, y: -6 }}
-                    className="grid grid-cols-2 gap-3 rounded-xl border border-green-500/15 bg-green-500/[0.03] p-3.5"
-                  >
-                    <div className="col-span-2 text-[10px] text-green-400/90 font-semibold uppercase tracking-wider -mb-1 flex items-center gap-1">
-                      <CheckCircle2 className="h-3 w-3" /> Listing
-                    </div>
-                    <div>
-                      <label className="block text-[10px] text-[#8A8A8A] uppercase tracking-wider mb-1.5 font-medium">
-                        Profit Amount (₹)
-                      </label>
-                      <input
-                        type="number"
-                        placeholder="Profit (or negative for loss)"
-                        value={form.profitAmount}
-                        onChange={e => setForm(f => ({ ...f, profitAmount: e.target.value }))}
-                        className="w-full rounded-xl bg-black border border-white/[0.08] px-3 py-2.5 text-sm text-white font-mono placeholder:text-[#555555] focus:border-gold-400/40 focus:outline-none"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-[10px] text-[#8A8A8A] uppercase tracking-wider mb-1.5 font-medium">
-                        Listing Date
-                      </label>
-                      <input
-                        type="date"
-                        value={form.listingDate}
-                        onChange={e => setForm(f => ({ ...f, listingDate: e.target.value }))}
-                        className="w-full rounded-xl bg-black border border-white/[0.08] px-3 py-2.5 text-sm text-white focus:border-gold-400/40 focus:outline-none"
-                      />
-                    </div>
-                  </motion.div>
-                )}
-                </AnimatePresence>
-                </div>
-
-                {/* Notes */}
-                <div>
-                  <label className="block text-[10px] text-[#8A8A8A] uppercase tracking-wider mb-1.5 font-medium">
-                    Notes <span className="normal-case text-[#555555]">(optional)</span>
-                  </label>
-                  <textarea
-                    rows={2}
-                    placeholder="Any details..."
-                    value={form.notes}
-                    onChange={e => setForm(f => ({ ...f, notes: e.target.value }))}
-                    className="w-full rounded-xl bg-black border border-white/[0.08] px-3.5 py-2.5 text-sm text-white placeholder:text-[#555555] focus:border-gold-400/40 focus:outline-none resize-none"
-                  />
-                </div>
-
-                <div className="flex gap-2 justify-end pt-2 sticky bottom-0 -mx-6 -mb-6 px-6 py-4 bg-gradient-to-t from-[#111111] via-[#111111]/95 to-transparent">
-                  <motion.button
-                    whileTap={{ scale: 0.96 }}
-                    type="button"
-                    onClick={() => setIsModalOpen(false)}
-                    className="px-4 py-2.5 rounded-xl text-xs font-medium text-[#8A8A8A] hover:text-white hover:bg-white/[0.04] transition-colors"
-                  >
-                    Cancel
-                  </motion.button>
-                  <motion.button
-                    whileHover={{ scale: 1.02 }}
-                    whileTap={{ scale: 0.97 }}
-                    type="submit"
-                    disabled={saving}
-                    className="px-5 py-2.5 rounded-xl text-xs font-semibold bg-gold-400 text-black hover:bg-gold-500 flex items-center gap-1.5 disabled:opacity-50 shadow-[0_0_20px_-4px_rgba(250,204,21,0.4)]"
-                  >
-                    {saving && <Loader2 className="h-3 w-3 animate-spin" />}
-                    {editingId ? 'Save Changes' : 'Add IPO'}
-                  </motion.button>
-                </div>
-              </form>
               </div>
             </motion.div>
           </div>
         )}
       </AnimatePresence>
-    </>
+
+      <PersonModal
+        isOpen={isModalOpen}
+        onClose={() => {
+          setIsModalOpen(false);
+          setEditingPerson(null);
+        }}
+        onSuccess={loadData}
+        personToEdit={editingPerson}
+        addPersonOffline={addPersonOffline}
+      />
+    </div>
   );
 }

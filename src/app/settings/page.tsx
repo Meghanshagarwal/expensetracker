@@ -1,5 +1,7 @@
 'use client';
 
+import style from '@/components/LedgerSurfaces.module.css';
+
 import { useEffect, useState } from 'react';
 import { Settings as SettingsIcon, Plus, Trash2, Edit2, Check, X, Loader2, Save } from 'lucide-react';
 import { useRouter } from 'next/navigation';
@@ -143,7 +145,7 @@ export default function SettingsPage() {
   };
 
   // Input styles
-  const inputClass = "flex-1 rounded-xl bg-black border border-white/[0.08] px-3.5 py-2.5 text-sm text-white placeholder:text-[#555555] focus:border-gold-400/40 focus:outline-none font-normal";
+  const inputClass = "min-w-0 flex-1 rounded-xl bg-black border border-white/[0.08] px-3.5 py-2.5 text-sm text-white placeholder:text-[#555555] focus:border-gold-400/40 focus:outline-none font-normal";
   const btnClass = "px-4 py-2.5 bg-gold-400 hover:bg-gold-500 text-black rounded-xl font-semibold text-xs transition-all flex items-center justify-center gap-1.5 disabled:opacity-50 shrink-0";
 
   if (loading) {
@@ -163,13 +165,16 @@ export default function SettingsPage() {
     sectionKey: string
   ) => {
     return (
-      <div className="bg-[#111111] border border-white/[0.06] rounded-2xl p-5 space-y-4 shadow-luxury">
-        <h3 className="text-sm font-semibold text-white tracking-wide">{title}</h3>
+      <div className={style.folder}>
+        <div className={style.folderHeading}>
+          <h2>{title}</h2><span aria-label={`${items.length} options`}>{items.length}</span>
+        </div>
         
         {/* Add Input */}
         <div className="flex gap-2">
           <input
             type="text"
+            aria-label={`New option in ${title}`}
             placeholder={`Add new ${title.toLowerCase().replace(/s$/, '')}...`}
             value={newValue}
             onChange={(e) => inputSetter(e.target.value)}
@@ -191,33 +196,35 @@ export default function SettingsPage() {
         </div>
 
         {/* List of items */}
-        <div className="space-y-2 max-h-[250px] overflow-y-auto pr-1">
+        <div className="mt-3 max-h-[250px] overflow-y-auto pr-1">
           {items.map((item, idx) => {
             const isEditing = editingItem && editingItem.section === sectionKey && editingItem.index === idx;
             return (
-              <div key={idx} className="flex items-center justify-between bg-white/[0.02] border border-white/[0.04] hover:bg-white/[0.04] rounded-xl px-4 py-2.5 transition-all">
+              <div key={idx} className={style.settingsRow}>
                 {isEditing ? (
                   <input
                     type="text"
                     value={editingItem.value}
                     onChange={(e) => setEditingItem(prev => prev ? { ...prev, value: e.target.value } : null)}
-                    className="flex-1 bg-black border border-gold-400/40 rounded-lg px-2 py-1 text-xs text-white focus:outline-none"
+                    className="min-w-0 flex-1 bg-black border border-gold-400/40 rounded-lg px-2 py-1 text-xs text-white focus:outline-none"
                     autoFocus
                   />
                 ) : (
-                  <span className="text-xs text-[#C9C9C9] font-medium">{item}</span>
+                  <span className="text-sm text-[#d4ded1] break-all">{item}</span>
                 )}
 
                 <div className="flex items-center gap-1.5">
                   {isEditing ? (
                     <>
                       <button
+                        aria-label={`Save ${item}`}
                         onClick={() => saveEdit(setter)}
                         className="p-1.5 rounded-lg text-green-400 hover:bg-green-500/10 transition-colors"
                       >
                         <Check className="h-3.5 w-3.5" />
                       </button>
                       <button
+                        aria-label="Cancel edit"
                         onClick={() => setEditingItem(null)}
                         className="p-1.5 rounded-lg text-[#FF5A5F] hover:bg-[#FF5A5F]/10 transition-colors"
                       >
@@ -227,12 +234,14 @@ export default function SettingsPage() {
                   ) : (
                     <>
                       <button
+                        aria-label={`Edit ${item}`}
                         onClick={() => startEdit(sectionKey, idx, item)}
                         className="p-1.5 rounded-lg text-[#8A8A8A] hover:text-gold-400 hover:bg-white/[0.04] transition-colors"
                       >
                         <Edit2 className="h-3.5 w-3.5" />
                       </button>
                       <button
+                        aria-label={`Delete ${item}`}
                         onClick={() => handleDelete(setter, item)}
                         className="p-1.5 rounded-lg text-[#8A8A8A] hover:text-[#FF5A5F] hover:bg-white/[0.04] transition-colors"
                       >
@@ -250,22 +259,16 @@ export default function SettingsPage() {
   };
 
   return (
-    <div className="max-w-4xl mx-auto space-y-6">
-      {/* Header */}
-      <div className="flex items-center justify-between">
+    <div className={`${style.page} space-y-6`}>
+      <div className={style.header}>
         <div>
-          <h1 className="text-2xl font-extrabold tracking-tight text-white flex items-center gap-2">
-            <SettingsIcon className="h-6 w-6 text-gold-400" />
-            Dropdown Settings
-          </h1>
-          <p className="text-xs text-[#8A8A8A] mt-1">
-            Customize category, UPI apps, source account, and vehicle dropdown options.
-          </p>
+          <h1 className={style.title}>Settings</h1>
+          <p className={style.sub}>Choose the options available when adding a transaction.</p>
         </div>
         <button
           onClick={handleSave}
           disabled={saving}
-          className="flex items-center justify-center gap-1.5 px-4.5 py-2.5 rounded-xl text-xs font-semibold bg-gold-400 text-black hover:bg-gold-500 transition-all shadow-md disabled:opacity-50"
+          className={`${style.action} flex items-center justify-center gap-2 text-sm font-semibold bg-gold-400 text-black hover:bg-gold-500 disabled:opacity-50`}
         >
           {saving ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Save className="h-3.5 w-3.5" />}
           <span>Save Settings</span>
@@ -280,7 +283,7 @@ export default function SettingsPage() {
       )}
       {success && (
         <div className="rounded-xl bg-green-500/10 border border-green-500/20 p-3 text-xs text-green-400">
-          ✓ Dropdown settings saved successfully! Changes are applied instantly.
+          Settings saved.
         </div>
       )}
 
@@ -289,7 +292,7 @@ export default function SettingsPage() {
         {renderSection('Categories', categories, setCategories, newCategory, setNewCategory, 'categories')}
         {renderSection('UPI Apps', upiApps, setUpiApps, newUpiApp, setNewUpiApp, 'upiApps')}
         {renderSection('Source Accounts', sourceAccounts, setSourceAccounts, newSourceAccount, setNewSourceAccount, 'sourceAccounts')}
-        {renderSection('UPI Bank Accounts (Linked)', upiAccounts, setUpiAccounts, newUpiAccount, setNewUpiAccount, 'upiAccounts')}
+        {renderSection('Linked UPI accounts', upiAccounts, setUpiAccounts, newUpiAccount, setNewUpiAccount, 'upiAccounts')}
         {renderSection('Vehicles', vehicles, setVehicles, newVehicle, setNewVehicle, 'vehicles')}
       </div>
     </div>
