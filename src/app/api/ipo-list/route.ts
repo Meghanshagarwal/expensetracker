@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { findIpoSchedule, indiaDate, ipoDate, ipoNameKey, type IpoSchedule } from '@/lib/ipoDates';
 
 // Cache the live list for 30 min so we don't hammer NSE on every page load.
 export const revalidate = 1800;
@@ -24,12 +25,14 @@ function estimateAmount(band: string): number {
 async function nseCookie(): Promise<string> {
   const home = await fetch('https://www.nseindia.com/', {
     headers: { 'User-Agent': UA, Accept: 'text/html' },
+    signal: AbortSignal.timeout(5000),
   });
   return home.headers.get('set-cookie') || '';
 }
 
 async function fetchCategory(category: 'ipo' | 'sme', cookie: string) {
   const res = await fetch(`https://www.nseindia.com/api/all-upcoming-issues?category=${category}`, {
+    signal: AbortSignal.timeout(5000),
     headers: {
       'User-Agent': UA,
       Accept: 'application/json',
@@ -85,30 +88,79 @@ function parseGmp(html: string): Map<string, { gmp: number; direction: 'up' | 'd
   return gmpMap;
 }
 
-function normalizeName(name: string): string {
-  return name
-    .toLowerCase()
-    .replace(/\s+limited$/i, '')
-    .replace(/\s+ltd$/i, '')
-    .replace(/\s+sme$/i, '')
-    .replace(/[^a-z0-9]/g, '');
+type CalendarPreset = IpoSchedule & {
+  openDate: string;
+  board: string;
+  source: 'live';
+  amount: number;
+  priceBand: string;
+};
+
+async function fetchCalendar() {
+  const [year, month] = indiaDate().split('-').map(Number);
+  const months = [-1, 0, 1].map(offset => new Date(Date.UTC(year, month - 1 + offset, 1)));
+  const results = await Promise.allSettled(months.map(async date => {
+    const url = `https://ipowatch.in/server/api/ipo/GetAllIpoListing/${date.getUTCMonth() + 1}/${date.getUTCFullYear()}`;
+    const res = await fetch(url, { signal: AbortSignal.timeout(5000), next: { revalidate: 1800 } });
+    if (!res.ok) throw new Error(`IPO calendar returned ${res.status}`);
+    const data = await res.json();
+    return Array.isArray(data.result) ? data.result : [];
+  }));
+  const schedules = new Map<string, IpoSchedule>();
+  const presets = new Map<string, CalendarPreset>();
+  const today = indiaDate();
+  for (const result of results) {
+    if (result.status !== 'fulfilled') continue;
+    for (const item of result.value) {
+      if (!item || typeof item.name !== 'string') continue;
+      const allotmentDate = ipoDate(item.allotmentDate);
+      const listingDate = ipoDate(item.listingDate);
+      const closeDate = ipoDate(item.closeDate);
+      const key = `${ipoNameKey(item.name)}:${closeDate ?? ''}`;
+      const previous = schedules.get(key);
+      const schedule = {
+        name: item.name,
+        closeDate,
+        allotmentDate: allotmentDate ?? previous?.allotmentDate,
+        listingDate: listingDate ?? previous?.listingDate,
+      };
+      if (allotmentDate || listingDate) schedules.set(key, schedule);
+      const openDate = ipoDate(item.openDate);
+      if (!openDate || !closeDate || closeDate < today) continue;
+      const price = Number(item.priceBandTo);
+      const lowerPrice = Number(item.priceBandFrom);
+      const lotSize = Number(item.ipoMinBidQty || item.lotSize);
+      const priceBand = price > 0 ? (lowerPrice > 0 && lowerPrice < price ? `₹${lowerPrice}–₹${price}` : `₹${price}`) : '';
+      presets.set(key, {
+        ...schedule,
+        openDate,
+        board: item.type === 'Mainboard' ? 'Mainboard' : 'SME',
+        source: 'live',
+        amount: price > 0 && lotSize > 0 ? price * lotSize : 0,
+        priceBand,
+      });
+    }
+  }
+  return { schedules: [...schedules.values()], presets: [...presets.values()] };
 }
 
 export async function GET() {
   try {
-    const cookie = await nseCookie();
-    // Pull both mainboard IPOs, SME issues from NSE, and live GMP data from IPO Watch
-    const [main, sme, gmpHtml] = await Promise.all([
+    const nse = nseCookie().then(cookie => Promise.all([
       fetchCategory('ipo', cookie).catch(() => []),
       fetchCategory('sme', cookie).catch(() => []),
-      fetchGmpHtml().catch(() => ''),
+    ])).catch(() => [[], []]);
+    const [[main, sme], gmpHtml, { schedules, presets }] = await Promise.all([
+      nse,
+      fetchGmpHtml(),
+      fetchCalendar(),
     ]);
 
     const gmpMap = parseGmp(gmpHtml);
     const getGmpForCompany = (companyName: string) => {
-      const normCompany = normalizeName(companyName);
+      const normCompany = ipoNameKey(companyName);
       for (const [gmpName, data] of gmpMap.entries()) {
-        const normGmp = normalizeName(gmpName);
+        const normGmp = ipoNameKey(gmpName.replace(/\s+sme$/i, ''));
         if (normCompany.includes(normGmp) || normGmp.includes(normCompany)) {
           return data;
         }
@@ -123,6 +175,7 @@ export async function GET() {
           const band = i.issuePrice || '';
           const name = String(i.companyName).replace(/\s+Limited$/i, '').trim();
           const gmpInfo = getGmpForCompany(name);
+          const schedule = findIpoSchedule(schedules, name, i.issueEndDate);
 
           return {
             name,
@@ -130,6 +183,8 @@ export async function GET() {
             priceBand: band,
             openDate: i.issueStartDate || '',
             closeDate: i.issueEndDate || '',
+            allotmentDate: schedule?.allotmentDate,
+            listingDate: schedule?.listingDate,
             status: i.status || '',
             board,
             symbol: i.symbol || '',
@@ -139,9 +194,11 @@ export async function GET() {
           };
         });
 
-    const ipos = [...map(main, 'Mainboard'), ...map(sme, 'SME')];
+    const nseIpos = [...map(main, 'Mainboard'), ...map(sme, 'SME')];
+    const names = new Set(nseIpos.map(ipo => ipoNameKey(ipo.name)));
+    const ipos = [...nseIpos, ...presets.filter(ipo => !names.has(ipoNameKey(ipo.name)))];
 
-    return NextResponse.json({ source: ipos.length ? 'live' : 'empty', ipos });
+    return NextResponse.json({ source: ipos.length ? 'live' : 'empty', ipos, schedules });
   } catch (err: any) {
     // Live source unreachable — return empty so the UI shows no misleading names.
     return NextResponse.json({ source: 'unavailable', ipos: [], error: err.message });

@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import dbConnect, { isMockMode, getMockData, saveMockData } from '@/lib/mongodb';
 import Ipo from '@/models/Ipo';
+import { ipoDate } from '@/lib/ipoDates';
 
 // Normalise a contributions array coming from the client
 function sanitizeContributions(list: any): any[] {
@@ -25,10 +26,11 @@ function buildPayload(body: any) {
     applyDate: body.applyDate ? new Date(body.applyDate).toISOString() : new Date().toISOString(),
     openDate: body.openDate ? String(body.openDate).trim() : undefined,
     closeDate: body.closeDate ? String(body.closeDate).trim() : undefined,
+    allotmentDate: typeof body.allotmentDate === 'string' ? ipoDate(body.allotmentDate) : undefined,
     contributions: sanitizeContributions(body.contributions),
     returnAmount: Math.max(0, Number(body.returnAmount) || 0),
     returnDate: body.returnDate ? new Date(body.returnDate).toISOString() : undefined,
-    listingDate: body.listingDate ? new Date(body.listingDate).toISOString() : undefined,
+    listingDate: typeof body.listingDate === 'string' ? ipoDate(body.listingDate) : undefined,
     profitAmount: Number(body.profitAmount) || 0,
     notes: body.notes ? String(body.notes).trim() : '',
   };
@@ -102,7 +104,10 @@ export async function PUT(request: Request) {
     }
 
     await dbConnect();
-    const updated = await Ipo.findByIdAndUpdate(id, payload, { new: true, runValidators: true });
+    const unset = Object.fromEntries(
+      Object.entries(payload).filter(([, value]) => value === undefined).map(([key]) => [key, 1]),
+    );
+    const updated = await Ipo.findByIdAndUpdate(id, { $set: payload, $unset: unset }, { new: true, runValidators: true });
     if (!updated) {
       return NextResponse.json({ error: 'IPO not found' }, { status: 404 });
     }

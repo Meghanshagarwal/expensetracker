@@ -60,10 +60,11 @@ export interface Ipo {
   applyDate: string;                 // Date of application
   openDate?: string;                 // IPO subscription open date
   closeDate?: string;                // IPO subscription close date
+  allotmentDate?: string;            // Scheduled allotment date in India
   contributions: IpoContribution[];  // Money taken from people
   returnAmount: number;              // Refund amount — used when status is 'Not Allotted'
   returnDate?: string;               // Date the refund was / will be credited back
-  listingDate?: string;              // Listing date — used when status is 'Allotted'
+  listingDate?: string;              // Scheduled listing date
   profitAmount: number;              // Profit/loss booked on listing — used when status is 'Allotted'
   notes?: string;
   createdAt: string;

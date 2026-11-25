@@ -46,6 +46,7 @@ const IpoSchema = new Schema({
     type: String,
     trim: true,
   },
+  allotmentDate: { type: Date },
   contributions: {
     type: [ContributionSchema],
     default: [],
@@ -59,7 +60,7 @@ const IpoSchema = new Schema({
   returnDate: {
     type: Date,
   },
-  // Listing date — used when status is "Allotted"
+  // Keep the scheduled listing date while the application is pending.
   listingDate: {
     type: Date,
   },

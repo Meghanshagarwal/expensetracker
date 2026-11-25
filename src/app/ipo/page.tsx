@@ -8,12 +8,12 @@ import {
   TrendingUp, Plus, Pencil, Trash2, Loader2, Calendar, User,
   X, CheckCircle2, Clock, XCircle, Wallet, ArrowDownLeft
 } from 'lucide-react';
-import { Ipo, IpoContribution } from '@/types';
+import type { Ipo } from '@/types';
+import { findIpoSchedule, indiaDate, ipoDate, type IpoSchedule } from '@/lib/ipoDates';
+import { ipoDemo } from './demo';
 
-// Preset IPO shape. The list is loaded live from /api/ipo-list (NSE-backed) —
-// only real, currently open/upcoming IPOs. No hardcoded names.
-type PresetIpo = {
-  name: string;
+// Open and upcoming IPOs from the live list, or a sample issue in demo mode.
+type PresetIpo = IpoSchedule & {
   amount: number;
   priceBand?: string;
   openDate?: string;
@@ -25,7 +25,13 @@ type PresetIpo = {
 };
 
 const APPLIED_FROM = ['Me', 'Mummy', 'Papa', 'Anshshikha'];
-const TAKEN_FROM_OPTIONS = ['Mummy', 'Papa', 'Anshshikha', 'My Salaried Account', 'Other'];
+const TAKEN_FROM_OPTIONS = [
+  { value: 'Mummy', label: 'Mummy' },
+  { value: 'Papa', label: 'Papa' },
+  { value: 'My Salaried Account', label: 'My Salary Account' },
+  { value: 'Me', label: 'My Self' },
+  { value: 'Anshshikha', label: 'Anshu' },
+];
 const STATUSES = ['Applied', 'Allotted', 'Not Allotted'] as const;
 
 // 'My Salaried Account' funding and 'Me' as the applicant both mean "self" —
@@ -33,7 +39,20 @@ const STATUSES = ['Applied', 'Allotted', 'Not Allotted'] as const;
 const normalizePerson = (name: string) =>
   name === 'My Salaried Account' ? 'me' : name.trim().toLowerCase();
 
-const todayStr = () => new Date().toISOString().split('T')[0];
+const todayStr = indiaDate;
+
+type FundingRow = { from: string; amount: string | number | null; date: string; returnDate: string };
+
+function emptyFundingRow(): FundingRow {
+  return { from: '', amount: null, date: todayStr(), returnDate: '' };
+}
+
+function canSetResult(allotmentDate?: string, closeDate?: string) {
+  const today = todayStr();
+  if (allotmentDate) return today >= allotmentDate;
+  const close = ipoDate(closeDate);
+  return !close || today > close;
+}
 
 const emptyForm = () => ({
   ipoName: '',
@@ -46,7 +65,8 @@ const emptyForm = () => ({
   applyDate: todayStr(),
   openDate: '',
   closeDate: '',
-  contributions: [] as { from: string; amount: string | number; date: string; returnDate: string }[],
+  allotmentDate: '',
+  contributions: [emptyFundingRow()],
   returnAmount: '' as string | number,
   returnDate: '',
   listingDate: '',
@@ -57,14 +77,25 @@ const emptyForm = () => ({
 export default function IpoPage() {
   const [ipos, setIpos] = useState<Ipo[]>([]);
   const [presetIpos, setPresetIpos] = useState<PresetIpo[]>([]);
+  const [schedules, setSchedules] = useState<IpoSchedule[]>([]);
+  const [isDemo, setIsDemo] = useState(false);
   const [presetSource, setPresetSource] = useState<'live' | 'empty' | 'unavailable' | 'loading'>('loading');
   const [loading, setLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [resultOnly, setResultOnly] = useState(false);
   const [form, setForm] = useState(emptyForm());
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [filter, setFilter] = useState<'all' | 'Applied' | 'Allotted' | 'Not Allotted'>('all');
+  const fundingAmounts = useMemo(() => {
+    let unassigned = Math.max(0, Math.round(Number(form.amount) * 100) || 0);
+    return form.contributions.map(({ amount }) => {
+      const value = amount ?? unassigned / 100;
+      unassigned = Math.max(0, unassigned - (Math.round(Math.max(0, Number(value)) * 100) || 0));
+      return value;
+    });
+  }, [form.amount, form.contributions]);
 
   const loadData = useCallback(async () => {
     setLoading(true);
@@ -85,6 +116,7 @@ export default function IpoPage() {
       if (res.ok) {
         const data = await res.json();
         setPresetIpos(Array.isArray(data.ipos) ? data.ipos : []);
+        setSchedules(Array.isArray(data.schedules) ? data.schedules : []);
         setPresetSource(data.source === 'live' ? 'live' : data.source === 'empty' ? 'empty' : 'unavailable');
       } else {
         setPresetSource('unavailable');
@@ -96,15 +128,39 @@ export default function IpoPage() {
   }, []);
 
   useEffect(() => {
+    if (new URLSearchParams(window.location.search).get('demo') === '1') {
+      const { entries, preset } = ipoDemo();
+      setIsDemo(true);
+      setIpos(entries);
+      setPresetIpos([preset]);
+      setPresetSource('live');
+      setLoading(false);
+      return;
+    }
     loadData();
     loadPresets();
   }, [loadData, loadPresets]);
+
+  useEffect(() => {
+    if (!isModalOpen) return;
+    const overflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => { document.body.style.overflow = overflow; };
+  }, [isModalOpen]);
 
   const formatRupee = (num: number) =>
     new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 }).format(num || 0);
 
   const formatDate = (d: string) =>
-    new Date(d).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' });
+    new Date(d).toLocaleDateString('en-IN', { timeZone: 'Asia/Kolkata', day: 'numeric', month: 'short', year: 'numeric' });
+
+  const scheduleFor = (ipo: Ipo) => {
+    const calendar = findIpoSchedule(schedules, ipo.ipoName, ipo.closeDate);
+    return {
+      allotmentDate: ipoDate(ipo.allotmentDate) ?? calendar?.allotmentDate,
+      listingDate: ipoDate(ipo.listingDate) ?? calendar?.listingDate,
+    };
+  };
 
   // ---- Summary metrics ----
   const summary = useMemo(() => {
@@ -154,14 +210,17 @@ export default function IpoPage() {
   // ---- Form helpers ----
   const openAdd = () => {
     setEditingId(null);
+    setResultOnly(false);
     setForm(emptyForm());
     setError(null);
     setIsModalOpen(true);
   };
 
-  const openEdit = (ipo: Ipo) => {
+  const openEdit = (ipo: Ipo, result?: 'Allotted' | 'Not Allotted') => {
     setEditingId(ipo._id);
+    setResultOnly(Boolean(result));
     const preset = presetIpos.find(p => p.name === ipo.ipoName);
+    const schedule = scheduleFor(ipo);
     const lots = ipo.lots && ipo.lots > 0 ? ipo.lots : 1;
     setForm({
       ipoName: ipo.ipoName,
@@ -170,19 +229,20 @@ export default function IpoPage() {
       perLotAmount: preset ? preset.amount : Math.round((ipo.amount || 0) / lots),
       amount: ipo.amount,
       appliedFrom: ipo.appliedFrom || 'Me',
-      status: ipo.status,
+      status: result ?? ipo.status,
       applyDate: ipo.applyDate ? ipo.applyDate.split('T')[0] : todayStr(),
       openDate: ipo.openDate || '',
       closeDate: ipo.closeDate || '',
-      contributions: (ipo.contributions || []).map(c => ({
+      allotmentDate: schedule.allotmentDate || '',
+      contributions: ipo.contributions?.length ? ipo.contributions.map(c => ({
         from: c.from,
         amount: c.amount,
         date: c.date ? c.date.split('T')[0] : todayStr(),
         returnDate: c.returnDate ? c.returnDate.split('T')[0] : '',
-      })),
-      returnAmount: ipo.returnAmount || '',
+      })) : [emptyFundingRow()],
+      returnAmount: ipo.returnAmount || (result === 'Not Allotted' ? ipo.amount : ''),
       returnDate: ipo.returnDate ? ipo.returnDate.split('T')[0] : '',
-      listingDate: ipo.listingDate ? ipo.listingDate.split('T')[0] : '',
+      listingDate: schedule.listingDate || '',
       profitAmount: ipo.profitAmount || '',
       notes: ipo.notes || '',
     });
@@ -193,7 +253,10 @@ export default function IpoPage() {
   // Selecting a preset IPO auto-fills its name + amount
   const handlePresetChange = (val: string) => {
     if (val === '__custom__') {
-      setForm(f => ({ ...f, presetKey: val, ipoName: '', perLotAmount: 0, amount: '', openDate: '', closeDate: '' }));
+      setForm(f => ({
+        ...f, presetKey: val, ipoName: '', perLotAmount: 0, amount: '',
+        openDate: '', closeDate: '', allotmentDate: '', listingDate: '',
+      }));
       return;
     }
     const preset = presetIpos.find(p => p.name === val);
@@ -206,6 +269,8 @@ export default function IpoPage() {
         amount: preset.amount * f.lots, // lots × per-lot
         openDate: preset.openDate || '',
         closeDate: preset.closeDate || '',
+        allotmentDate: preset.allotmentDate || '',
+        listingDate: preset.listingDate || '',
       }));
     }
   };
@@ -223,7 +288,7 @@ export default function IpoPage() {
   const addContribution = () =>
     setForm(f => ({
       ...f,
-      contributions: [...f.contributions, { from: 'Mummy', amount: '', date: todayStr(), returnDate: '' }],
+      contributions: [...f.contributions, emptyFundingRow()],
     }));
 
   const updateContribution = (idx: number, key: 'from' | 'amount' | 'date' | 'returnDate', value: string) =>
@@ -233,12 +298,19 @@ export default function IpoPage() {
     }));
 
   const removeContribution = (idx: number) =>
-    setForm(f => ({ ...f, contributions: f.contributions.filter((_, i) => i !== idx) }));
+    setForm(f => ({
+      ...f,
+      contributions: f.contributions.length > 1 ? f.contributions.filter((_, i) => i !== idx) : [emptyFundingRow()],
+    }));
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!form.ipoName.trim()) {
       setError('Please select or enter an IPO name');
+      return;
+    }
+    if (!form.applyDate) {
+      setError('Please enter the application date');
       return;
     }
     setSaving(true);
@@ -253,22 +325,30 @@ export default function IpoPage() {
       applyDate: new Date(form.applyDate).toISOString(),
       openDate: form.openDate || undefined,
       closeDate: form.closeDate || undefined,
+      allotmentDate: form.allotmentDate || undefined,
       contributions: form.contributions
+        .map((c, i) => ({ ...c, amount: fundingAmounts[i] }))
         .filter(c => c.from && Number(c.amount) > 0)
         .map(c => ({
           from: c.from,
           amount: Number(c.amount) || 0,
-          date: new Date(c.date).toISOString(),
+          date: new Date(c.date || form.applyDate).toISOString(),
           returnDate: c.returnDate ? new Date(c.returnDate).toISOString() : undefined,
         })),
       returnAmount: form.status === 'Not Allotted' && !isSelfFunded ? Number(form.returnAmount) || 0 : 0,
       returnDate: form.status === 'Not Allotted' && !isSelfFunded && form.returnDate ? new Date(form.returnDate).toISOString() : undefined,
-      listingDate: form.status === 'Allotted' && form.listingDate ? new Date(form.listingDate).toISOString() : undefined,
+      listingDate: form.listingDate || undefined,
       profitAmount: form.status === 'Allotted' ? Number(form.profitAmount) || 0 : 0,
       notes: form.notes.trim(),
     };
 
     try {
+      if (isDemo) {
+        const entry = { ...payload, _id: editingId ?? crypto.randomUUID(), createdAt: new Date().toISOString() };
+        setIpos(prev => editingId ? prev.map(ipo => ipo._id === editingId ? { ...ipo, ...payload } : ipo) : [entry, ...prev]);
+        setIsModalOpen(false);
+        return;
+      }
       const res = await fetch('/api/ipos', {
         method: editingId ? 'PUT' : 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -291,6 +371,10 @@ export default function IpoPage() {
 
   const handleDelete = async (ipo: Ipo) => {
     if (!window.confirm(`Delete IPO entry "${ipo.ipoName}"?`)) return;
+    if (isDemo) {
+      setIpos(prev => prev.filter(i => i._id !== ipo._id));
+      return;
+    }
     try {
       const res = await fetch(`/api/ipos?id=${ipo._id}`, { method: 'DELETE' });
       if (res.ok) {
@@ -306,9 +390,9 @@ export default function IpoPage() {
 
   // No refund to track when the money never actually left the applicant's own pocket —
   // i.e. every contribution's source is the same person as who the IPO was applied from.
-  const isSelfFunded =
-    form.contributions.length === 0 ||
-    form.contributions.every(c => normalizePerson(c.from) === normalizePerson(form.appliedFrom));
+  const isSelfFunded = form.contributions.every((c, i) =>
+    !c.from || Number(fundingAmounts[i]) <= 0 || normalizePerson(c.from) === normalizePerson(form.appliedFrom),
+  );
 
   const setAllotment = (result: 'Allotted' | 'Not Allotted') => {
     setForm(f => ({
@@ -338,14 +422,25 @@ export default function IpoPage() {
             <h1 className={style.title}>IPO portfolio</h1>
             <p className={style.sub}>Applications, allotments and returns.</p>
           </div>
-          <button
-            onClick={openAdd}
-            className={`${style.action} flex items-center justify-center gap-1.5 text-sm font-semibold bg-gold-400 text-black hover:bg-gold-500`}
-          >
-            <Plus className="h-4 w-4" />
-            Add IPO
-          </button>
+          <div className="flex flex-wrap items-center gap-2">
+            <a href={isDemo ? '/ipo' : '/ipo?demo=1'} className={style.tool}>
+              {isDemo ? 'Back to portfolio' : 'Try IPO demo'}
+            </a>
+            <button
+              onClick={openAdd}
+              className={`${style.action} flex items-center justify-center gap-1.5 text-sm font-semibold bg-gold-400 text-black hover:bg-gold-500`}
+            >
+              <Plus className="h-4 w-4" />
+              Add IPO
+            </button>
+          </div>
         </div>
+
+        {isDemo && (
+          <p className="mb-5 rounded-xl border border-gold-400/25 bg-gold-400/5 px-4 py-3 text-sm text-gold-400">
+            Demo portfolio. Add Cedar Grid or update a sample result. Changes reset when you reload.
+          </p>
+        )}
 
         {/* Summary cards */}
         <div className={style.metricStrip}>
@@ -423,6 +518,8 @@ export default function IpoPage() {
           <div className="space-y-3">
             {filteredIpos.map(ipo => {
               const { cls, Icon } = statusStyle(ipo.status);
+              const { allotmentDate, listingDate } = scheduleFor(ipo);
+              const resultReady = ipo.status === 'Applied' && canSetResult(allotmentDate, ipo.closeDate);
               const takenTotal = (ipo.contributions || []).reduce((s, c) => s + (c.amount || 0), 0);
               const preset = presetIpos.find(p => {
                 const n1 = p.name.toLowerCase().replace(/[^a-z0-9]/g, '');
@@ -467,6 +564,31 @@ export default function IpoPage() {
                           </span>
                         )}
                       </div>
+
+                      {ipo.status === 'Applied' && (
+                        <div className={style.ipoResultBar}>
+                          <span className="flex items-center gap-2">
+                            <Calendar size={15} aria-hidden="true" />
+                            {allotmentDate ? `Allotment · ${formatDate(allotmentDate)}` : 'Allotment date unavailable'}
+                          </span>
+                          {resultReady && (
+                            <div className="flex flex-wrap gap-2">
+                              <button type="button" className={style.ipoOutcome} data-outcome="yes"
+                                onClick={() => openEdit(ipo, 'Allotted')}>Allotted</button>
+                              <button type="button" className={style.ipoOutcome} data-outcome="no"
+                                onClick={() => openEdit(ipo, 'Not Allotted')}>Not Allotted</button>
+                            </div>
+                          )}
+                        </div>
+                      )}
+                      {ipo.status === 'Allotted' && (
+                        <div className={style.ipoResultBar}>
+                          <span className="flex items-center gap-2">
+                            <Calendar size={15} aria-hidden="true" />
+                            {listingDate ? `Listing · ${formatDate(listingDate)}` : 'Listing date unavailable'}
+                          </span>
+                        </div>
+                      )}
 
                       {/* Contributions */}
                       {ipo.contributions && ipo.contributions.length > 0 && (
@@ -520,11 +642,6 @@ export default function IpoPage() {
                             {ipo.profitAmount >= 0 ? '+' : ''}{formatRupee(ipo.profitAmount)} profit
                           </span>
                         )}
-                        {ipo.status === 'Allotted' && ipo.listingDate && (
-                          <span className="block text-[10px] text-[#8A8A8A] mt-0.5">
-                            listed {formatDate(ipo.listingDate)}
-                          </span>
-                        )}
                       </div>
                       <div className="flex items-center gap-1.5">
                         <button
@@ -554,7 +671,7 @@ export default function IpoPage() {
       {/* Add / Edit Modal */}
       <AnimatePresence>
         {isModalOpen && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center sm:p-4">
             <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
@@ -570,29 +687,31 @@ export default function IpoPage() {
               transition={{ type: 'spring', stiffness: 320, damping: 28 }}
               role="dialog" aria-modal="true" aria-label="IPO application"
               onKeyDown={event => { if (event.key === 'Escape') setIsModalOpen(false); }}
-              className="relative w-full max-w-lg max-h-[90dvh] overflow-y-auto rounded-3xl bg-[#111111] border border-white/[0.08] text-white shadow-luxury z-10"
+              className={`${style.sheet} ${style.ipoSheet}`}
             >
               {/* Sticky header */}
-              <div className="sticky top-0 z-10 flex items-center justify-between px-6 py-4 bg-[#111111]/95 backdrop-blur-xl border-b border-white/[0.06]">
+              <div className={`${style.sheetHead} ${style.ipoSheetHead}`}>
                 <div className="flex items-center gap-2.5">
                   <div className="h-9 w-9 rounded-xl bg-gold-400/10 border border-gold-400/25 flex items-center justify-center shrink-0">
                     <TrendingUp className="h-4.5 w-4.5 text-gold-400" />
                   </div>
                   <div>
                     <h3 className="text-base font-bold leading-tight">
-                      {editingId ? 'Edit IPO' : 'Add IPO'}
+                      {resultOnly ? 'Update result' : editingId ? 'Edit IPO' : 'Add IPO'}
                     </h3>
                   </div>
                 </div>
                 <button
                   onClick={() => setIsModalOpen(false)}
+                  aria-label="Close IPO form"
+                  autoFocus
                   className="p-2 rounded-xl text-[#8A8A8A] hover:text-white hover:bg-white/[0.06] transition-colors shrink-0"
                 >
                   <X className="h-4 w-4" />
                 </button>
               </div>
 
-              <div className="p-6 pt-5">
+              <div className={style.ipoSheetBody}>
                 <AnimatePresence>
                   {error && (
                     <motion.div
@@ -606,18 +725,14 @@ export default function IpoPage() {
                   )}
                 </AnimatePresence>
 
-              <form onSubmit={handleSubmit} className="space-y-4">
-                {/* Step 1 — Application */}
-                <div className="rounded-2xl border border-white/[0.06] bg-white/[0.015] p-4 space-y-3.5">
-                  <div className="flex items-center gap-2">
-                    <span className="h-5 w-5 shrink-0 rounded-full bg-gold-400/15 border border-gold-400/30 text-gold-400 text-[10px] font-bold flex items-center justify-center">1</span>
-                    <span className="text-[11px] font-semibold text-white/90 uppercase tracking-wider">Application</span>
-                  </div>
+              <form onSubmit={handleSubmit} className={style.ipoForm}>
+                <section hidden={resultOnly} className={style.ipoSection}>
+                  <h4>Application</h4>
 
                 {/* IPO select */}
                 <div>
                   <div className="flex items-center justify-between mb-1.5">
-                    <label className="block text-[10px] text-[#8A8A8A] uppercase tracking-wider font-medium">
+                    <label htmlFor="ipo-preset">
                       Select IPO
                     </label>
                     <span className={`text-[9px] font-semibold px-1.5 py-0.5 rounded border flex items-center gap-1 ${
@@ -632,13 +747,14 @@ export default function IpoPage() {
                         : presetSource === 'loading' ? 'bg-[#555555] animate-pulse'
                         : 'bg-gold-400'
                       }`} />
-                      {presetSource === 'live' ? `LIVE · NSE (${presetIpos.length})`
+                      {presetSource === 'live' ? (isDemo ? 'DEMO' : `LIVE · ${presetIpos.length}`)
                         : presetSource === 'loading' ? 'LOADING…'
                         : presetSource === 'empty' ? 'NO OPEN IPO'
                         : 'LIVE UNAVAILABLE'}
                     </span>
                   </div>
                   <select
+                    id="ipo-preset"
                     value={form.presetKey}
                     onChange={e => handlePresetChange(e.target.value)}
                     className="w-full rounded-xl bg-black border border-white/[0.08] px-3.5 py-2.5 text-sm text-white focus:border-gold-400/40 focus:outline-none"
@@ -659,8 +775,8 @@ export default function IpoPage() {
                   {presetSource !== 'live' && presetSource !== 'loading' && (
                     <p className="mt-1.5 text-[10px] text-[#8A8A8A]">
                       {presetSource === 'empty'
-                        ? 'No IPO open on NSE right now. Pick "Other" to add one manually.'
-                        : 'Couldn\'t load the live NSE list. Pick "Other" to add manually.'}
+                        ? 'No live IPOs are available right now. Pick "Other" to add one manually.'
+                        : 'Couldn\'t load the live IPO list. Pick "Other" to add manually.'}
                     </p>
                   )}
                   {(() => {
@@ -691,13 +807,14 @@ export default function IpoPage() {
                   </div>
                 )}
 
-                <div className="grid grid-cols-3 gap-3">
+                <div className={style.ipoApplicationGrid}>
                   {/* Lots (default 1) */}
                   <div>
-                    <label className="block text-[10px] text-[#8A8A8A] uppercase tracking-wider mb-1.5 font-medium">
+                    <label htmlFor="ipo-lots">
                       Lots
                     </label>
                     <select
+                      id="ipo-lots"
                       value={form.lots}
                       onChange={e => handleLotsChange(e.target.value)}
                       className="w-full rounded-xl bg-black border border-white/[0.08] px-3 py-2.5 text-sm text-white focus:border-gold-400/40 focus:outline-none"
@@ -709,13 +826,15 @@ export default function IpoPage() {
                   </div>
                   {/* Amount (auto = lots × per-lot) */}
                   <div>
-                    <label className="block text-[10px] text-[#8A8A8A] uppercase tracking-wider mb-1.5 font-medium">
+                    <label htmlFor="ipo-amount">
                       Amount (₹)
                     </label>
                     <input
                       type="number"
                       min="0"
-                      placeholder="Auto"
+                      id="ipo-amount"
+                      step="0.01"
+                      placeholder="Application amount"
                       value={form.amount}
                       onChange={e => setForm(f => ({ ...f, amount: e.target.value }))}
                       className="w-full rounded-xl bg-black border border-white/[0.08] px-3 py-2.5 text-sm text-white font-mono placeholder:text-[#555555] focus:border-gold-400/40 focus:outline-none"
@@ -723,10 +842,11 @@ export default function IpoPage() {
                   </div>
                   {/* Applied From */}
                   <div>
-                    <label className="block text-[10px] text-[#8A8A8A] uppercase tracking-wider mb-1.5 font-medium">
+                    <label htmlFor="ipo-applied-from">
                       Applied From
                     </label>
                     <select
+                      id="ipo-applied-from"
                       value={form.appliedFrom}
                       onChange={e => setForm(f => ({ ...f, appliedFrom: e.target.value }))}
                       className="w-full rounded-xl bg-black border border-white/[0.08] px-3 py-2.5 text-sm text-white focus:border-gold-400/40 focus:outline-none"
@@ -744,128 +864,58 @@ export default function IpoPage() {
                 </div>
                 {form.perLotAmount > 0 && (
                   <p className="-mt-2 text-[10px] text-[#8A8A8A]">
-                    {form.lots} lot{form.lots > 1 ? 's' : ''} × {formatRupee(form.perLotAmount)} = {formatRupee(form.perLotAmount * form.lots)}
+                    Suggested · {form.lots} lot{form.lots > 1 ? 's' : ''} × {formatRupee(form.perLotAmount)} = {formatRupee(form.perLotAmount * form.lots)}
                   </p>
                 )}
 
-                <div className="grid grid-cols-2 gap-3">
-                  {/* Status — result (Allotted/Not Allotted) can only be set once the IPO already exists, via Edit */}
-                  <div>
-                    <label className="block text-[10px] text-[#8A8A8A] uppercase tracking-wider mb-1.5 font-medium">
-                      Applied
-                    </label>
-                    <div className="w-full rounded-xl bg-green-500/[0.06] border border-green-500/20 px-3.5 py-2.5 text-sm text-green-400 flex items-center gap-1.5">
-                      <CheckCircle2 className="h-3.5 w-3.5" /> Yes
-                    </div>
-                  </div>
-                  {/* Apply date */}
-                  <div>
-                    <label className="block text-[10px] text-[#8A8A8A] uppercase tracking-wider mb-1.5 font-medium">
-                      Apply Date
-                    </label>
-                    <input
-                      type="date"
-                      value={form.applyDate}
-                      onChange={e => setForm(f => ({ ...f, applyDate: e.target.value }))}
-                      className="w-full rounded-xl bg-black border border-white/[0.08] px-3.5 py-2.5 text-sm text-white focus:border-gold-400/40 focus:outline-none"
-                    />
-                  </div>
-                </div>
-                </div>
+                </section>
 
-                {/* Step 2 — Funding */}
-                <div className="rounded-2xl border border-white/[0.06] bg-white/[0.015] p-4 space-y-3">
-                  <div className="flex items-center gap-2">
-                    <span className="h-5 w-5 shrink-0 rounded-full bg-gold-400/15 border border-gold-400/30 text-gold-400 text-[10px] font-bold flex items-center justify-center">2</span>
-                    <span className="text-[11px] font-semibold text-white/90 uppercase tracking-wider">Funding</span>
-                  </div>
+                <section hidden={resultOnly} className={style.ipoSection}>
+                  <h4>Funding</h4>
 
-                {/* Contributions — amount taken from */}
-                <div className="rounded-xl border border-white/[0.06] bg-black/40 p-3.5">
-                  <div className="flex items-center justify-between mb-2.5">
-                    <label className="text-[10px] text-[#8A8A8A] uppercase tracking-wider font-medium">
-                      Amount Taken From
-                    </label>
-                    <motion.button
-                      whileTap={{ scale: 0.95 }}
-                      type="button"
-                      onClick={addContribution}
-                      className="flex items-center gap-1 text-[11px] font-semibold text-gold-400 hover:text-gold-500"
-                    >
-                      <Plus className="h-3 w-3" /> Add person
-                    </motion.button>
-                  </div>
 
-                  {form.contributions.length === 0 ? (
-                    <p className="text-[11px] text-[#555555]">No one added. Add if money was taken from someone.</p>
-                  ) : (
-                    <div className="space-y-3">
-                      <AnimatePresence initial={false}>
-                      {form.contributions.map((c, idx) => (
-                        <motion.div
-                          key={idx}
-                          initial={{ opacity: 0, height: 0, marginBottom: 0 }}
-                          animate={{ opacity: 1, height: 'auto', marginBottom: 0 }}
-                          exit={{ opacity: 0, height: 0, marginBottom: 0 }}
-                          transition={{ duration: 0.18 }}
-                          className="rounded-lg border border-white/[0.06] bg-black/50 p-2.5 relative overflow-hidden"
-                        >
-                          <button
-                            type="button"
-                            onClick={() => removeContribution(idx)}
-                            className="absolute top-2 right-2 text-[#555555] hover:text-[#FF5A5F] transition-colors"
-                          >
-                            <X className="h-3.5 w-3.5" />
-                          </button>
-                          <div className="grid grid-cols-2 gap-2 pr-5">
-                            <div>
-                              <label className="block text-[9px] text-[#8A8A8A] uppercase tracking-wide mb-1">From</label>
-                              <select
-                                value={TAKEN_FROM_OPTIONS.includes(c.from) ? c.from : 'Other'}
-                                onChange={e => updateContribution(idx, 'from', e.target.value === 'Other' ? '' : e.target.value)}
-                                className="w-full rounded-lg bg-black border border-white/[0.08] px-2 py-1.5 text-xs text-white focus:border-gold-400/40 focus:outline-none"
-                              >
-                                {TAKEN_FROM_OPTIONS.map(p => (
-                                  <option key={p} value={p}>{p}</option>
-                                ))}
-                              </select>
-                              {!TAKEN_FROM_OPTIONS.includes(c.from) && (
-                                <input
-                                  type="text"
-                                  placeholder="Enter name"
-                                  value={c.from}
-                                  onChange={e => updateContribution(idx, 'from', e.target.value)}
-                                  className="w-full mt-1.5 rounded-lg bg-black border border-white/[0.08] px-2 py-1.5 text-xs text-white placeholder:text-[#555555] focus:border-gold-400/40 focus:outline-none"
-                                />
-                              )}
-                            </div>
-                            <div>
-                              <label className="block text-[9px] text-[#8A8A8A] uppercase tracking-wide mb-1">Amount ₹</label>
-                              <input
-                                type="number"
-                                min="0"
-                                placeholder="Amount"
-                                value={c.amount}
-                                onChange={e => updateContribution(idx, 'amount', e.target.value)}
-                                className="w-full rounded-lg bg-black border border-white/[0.08] px-2 py-1.5 text-xs text-white font-mono placeholder:text-[#555555] focus:border-gold-400/40 focus:outline-none"
-                              />
-                            </div>
-                            <div className="col-span-2">
-                              <label className="block text-[9px] text-[#8A8A8A] uppercase tracking-wide mb-1">Taken On</label>
-                              <input
-                                type="date"
-                                value={c.date}
-                                onChange={e => updateContribution(idx, 'date', e.target.value)}
-                                className="w-full rounded-lg bg-black border border-white/[0.08] px-1.5 py-1.5 text-[11px] text-white focus:border-gold-400/40 focus:outline-none"
-                              />
-                            </div>
+                  {form.contributions.map((row, i) => {
+                    const legacyName = row.from && !TAKEN_FROM_OPTIONS.some(option => option.value === row.from);
+                    return (
+                      <div key={i} className={style.ipoFundingRow}>
+                        <div className={style.ipoFieldGrid}>
+                          <div>
+                            <label htmlFor={`funding-from-${i}`}>Amount taken from</label>
+                            <select id={`funding-from-${i}`} value={row.from}
+                              onChange={e => updateContribution(i, 'from', e.target.value)}>
+                              <option value="">Select person</option>
+                              {TAKEN_FROM_OPTIONS.map(option => (
+                                <option key={option.value} value={option.value}>{option.label}</option>
+                              ))}
+                              {legacyName && <option value={row.from}>{row.from}</option>}
+                            </select>
                           </div>
-                        </motion.div>
-                      ))}
-                      </AnimatePresence>
-                    </div>
-                  )}
-                </div>
+                          <div>
+                            <label htmlFor={`funding-amount-${i}`}>Amount (₹)</label>
+                            <input id={`funding-amount-${i}`} type="number" min="0" step="0.01"
+                              value={fundingAmounts[i] === 0 && row.amount === null && !form.amount ? '' : fundingAmounts[i]}
+                              onChange={e => updateContribution(i, 'amount', e.target.value)} />
+                          </div>
+                        </div>
+                        {(row.from || i > 0) && (
+                          <div className="flex items-end gap-3">
+                            {row.from && <div>
+                              <label htmlFor={`funding-date-${i}`}>Taken on</label>
+                              <input id={`funding-date-${i}`} type="date" value={row.date}
+                                onChange={e => updateContribution(i, 'date', e.target.value)} />
+                            </div>}
+                            <button type="button" onClick={() => removeContribution(i)}
+                              className={style.ipoRemovePerson} aria-label={`Remove funding person ${i + 1}`}>
+                              <X size={16} aria-hidden="true" />
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                  <button type="button" onClick={addContribution} className={style.ipoAddPerson}>
+                    <Plus size={16} aria-hidden="true" /> Add person
+                  </button>
 
                 {/* Available balance tip */}
                 <AnimatePresence>
@@ -882,66 +932,45 @@ export default function IpoPage() {
                     </motion.div>
                   )}
                 </AnimatePresence>
-                </div>
+                </section>
 
-                {/* Step 3 — Result */}
-                <div className="rounded-2xl border border-white/[0.06] bg-white/[0.015] p-4 space-y-3.5">
-                  <div className="flex items-center gap-2">
-                    <span className="h-5 w-5 shrink-0 rounded-full bg-gold-400/15 border border-gold-400/30 text-gold-400 text-[10px] font-bold flex items-center justify-center">3</span>
-                    <span className="text-[11px] font-semibold text-white/90 uppercase tracking-wider">Result</span>
-                  </div>
-
-                {/* Allotment result — only relevant once the IPO application already exists */}
-                {editingId ? (
+                <section hidden={resultOnly} className={style.ipoSection}>
+                <div className={style.ipoFieldGrid}>
                   <div>
-                    <label className="block text-[10px] text-[#8A8A8A] uppercase tracking-wider mb-1.5 font-medium">
-                      Allotment
-                    </label>
-                    <div className="grid grid-cols-3 gap-2">
-                      <motion.button
-                        whileTap={{ scale: 0.96 }}
-                        type="button"
-                        onClick={() => setForm(f => ({ ...f, status: 'Applied' }))}
-                        className={`px-3 py-2.5 rounded-xl text-xs font-semibold border transition-all ${
-                          form.status === 'Applied'
-                            ? 'bg-gold-400/10 border-gold-400/30 text-gold-400'
-                            : 'bg-black border-white/[0.08] text-[#8A8A8A] hover:text-white'
-                        }`}
-                      >
-                        Pending
-                      </motion.button>
-                      <motion.button
-                        whileTap={{ scale: 0.96 }}
-                        type="button"
-                        onClick={() => setAllotment('Allotted')}
-                        className={`px-3 py-2.5 rounded-xl text-xs font-semibold border transition-all ${
-                          form.status === 'Allotted'
-                            ? 'bg-green-500/10 border-green-500/30 text-green-400'
-                            : 'bg-black border-white/[0.08] text-[#8A8A8A] hover:text-white'
-                        }`}
-                      >
-                        Allotted: Yes
-                      </motion.button>
-                      <motion.button
-                        whileTap={{ scale: 0.96 }}
-                        type="button"
-                        onClick={() => setAllotment('Not Allotted')}
-                        className={`px-3 py-2.5 rounded-xl text-xs font-semibold border transition-all ${
-                          form.status === 'Not Allotted'
-                            ? 'bg-[#FF5A5F]/10 border-[#FF5A5F]/30 text-[#FF5A5F]'
-                            : 'bg-black border-white/[0.08] text-[#8A8A8A] hover:text-white'
-                        }`}
-                      >
-                        Allotted: No
-                      </motion.button>
-                    </div>
+                    <label htmlFor="ipo-apply-date">Application date</label>
+                    <input id="ipo-apply-date" type="date" required value={form.applyDate}
+                      onChange={e => setForm(f => ({ ...f, applyDate: e.target.value }))} />
                   </div>
-                ) : (
-                  <div className="rounded-xl border border-dashed border-white/[0.1] bg-black/30 p-3.5 text-center">
-                    <Clock className="h-4 w-4 text-[#555555] mx-auto mb-1.5" />
-                    <p className="text-[11px] text-[#8A8A8A]">Result pending. Come back and hit <span className="text-white/80 font-medium">Edit</span> once allotment is out.</p>
+                  <div>
+                    <label htmlFor="ipo-allotment-date">Allotment date</label>
+                    <input id="ipo-allotment-date" type="date" value={form.allotmentDate}
+                      onChange={e => setForm(f => ({ ...f, allotmentDate: e.target.value }))} />
                   </div>
-                )}
+                </div>
+                </section>
+
+                {editingId && (
+                  <section className={style.ipoSection}>
+                    <h4>{resultOnly ? form.ipoName : 'Allotment result'}</h4>
+                    {form.allotmentDate && (
+                      <p className="text-sm text-[#a8b8ab]">
+                        Allotment · {formatDate(form.allotmentDate)}
+                      </p>
+                    )}
+                    {form.status !== 'Applied' || canSetResult(form.allotmentDate, form.closeDate) ? (
+                      <div className="flex flex-wrap gap-2">
+                        <button type="button" className={style.ipoOutcome} aria-pressed={form.status === 'Applied'}
+                          onClick={() => setForm(f => ({ ...f, status: 'Applied' }))}>Pending</button>
+                        <button type="button" className={style.ipoOutcome} data-outcome="yes"
+                          aria-pressed={form.status === 'Allotted'}
+                          onClick={() => setAllotment('Allotted')}>Allotted</button>
+                        <button type="button" className={style.ipoOutcome} data-outcome="no"
+                          aria-pressed={form.status === 'Not Allotted'}
+                          onClick={() => setAllotment('Not Allotted')}>Not Allotted</button>
+                      </div>
+                    ) : (
+                      <p className="text-sm text-[#a8b8ab]">Result can be updated when allotment is due.</p>
+                    )}
 
                 <AnimatePresence mode="wait">
                 {/* Not Allotted → refund tracking (skipped when the money never left the applicant's own pocket) */}
@@ -1018,11 +1047,12 @@ export default function IpoPage() {
                       />
                     </div>
                     <div>
-                      <label className="block text-[10px] text-[#8A8A8A] uppercase tracking-wider mb-1.5 font-medium">
+                      <label htmlFor="ipo-listing-date">
                         Listing Date
                       </label>
                       <input
                         type="date"
+                        id="ipo-listing-date"
                         value={form.listingDate}
                         onChange={e => setForm(f => ({ ...f, listingDate: e.target.value }))}
                         className="w-full rounded-xl bg-black border border-white/[0.08] px-3 py-2.5 text-sm text-white focus:border-gold-400/40 focus:outline-none"
@@ -1031,7 +1061,8 @@ export default function IpoPage() {
                   </motion.div>
                 )}
                 </AnimatePresence>
-                </div>
+                  </section>
+                )}
 
                 {/* Notes */}
                 <div>
@@ -1047,7 +1078,7 @@ export default function IpoPage() {
                   />
                 </div>
 
-                <div className="flex gap-2 justify-end pt-2 sticky bottom-0 -mx-6 -mb-6 px-6 py-4 bg-gradient-to-t from-[#111111] via-[#111111]/95 to-transparent">
+                <div className={style.ipoSheetFooter}>
                   <motion.button
                     whileTap={{ scale: 0.96 }}
                     type="button"
