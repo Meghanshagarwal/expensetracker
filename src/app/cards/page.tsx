@@ -7,7 +7,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import {
   CreditCard, Calendar, CheckCircle2, XCircle,
   Loader2, ArrowUpRight, Search, Undo2, Filter, User, Plus, Pencil, Trash2,
-  Bell, BellRing, BellOff, AlertCircle
+  Bell, BellRing, BellOff, AlertCircle, ChevronLeft, ChevronRight
 } from 'lucide-react';
 import { getLocalExpenses, getLocalPersons, getLocalCards, saveLocalExpenses, saveLocalCards, addToSyncQueue } from '@/lib/offlineDb';
 import { useOfflineSync } from '@/hooks/useOfflineSync';
@@ -16,6 +16,13 @@ import { Expense, Person, Card } from '@/types';
 import { isSelfPerson } from '@/utils/person';
 
 type CardType = 'ICICI' | 'OneCard' | 'Yes Bank';
+
+function getCardTheme(card: Card) {
+  const name = card.name.toLowerCase();
+  if (card.colorTheme === 'coral' || name === 'icici') return 'coral';
+  if (card.colorTheme === 'cobalt' || name === 'yes bank') return 'cobalt';
+  return card.colorTheme;
+}
 
 export default function CardsPage() {
   const [expenses, setExpenses] = useState<Expense[]>([]);
@@ -697,116 +704,131 @@ export default function CardsPage() {
             <span className={style.metricLabel}><CreditCard size={16} /> Total outstanding</span>
             <strong className={style.walletTotal}>{formatRupee(totalOutstandingAllCards)}</strong>
           </div>
-        {/* Vertical wallet card stack (swipe up/down) */}
-        <div className="relative h-[290px] md:h-[330px] w-full max-w-[480px] mx-auto flex items-center justify-center overflow-visible">
-          {cards.length === 0 ? (
-            <div className="text-[#555555] text-xs py-8">Loading credit cards...</div>
-          ) : (
-            cards.map((card, idx) => {
-              const isActive = selectedCardId === card._id;
+          <div className={style.walletGallery}>
+            {/* Vertical wallet card stack (swipe up/down) */}
+            <div className={style.walletStack}>
+              {cards.length === 0 ? (
+                <div className="text-[#555555] text-xs py-8">Loading credit cards...</div>
+              ) : (
+                cards.map((card, idx) => {
+                  const isActive = selectedCardId === card._id;
               
-              // Define dynamic gradient themes based on colorTheme or name
-              let gradient = 'bg-gradient-to-br from-[#41553f] via-[#283626] to-[#19241b] border border-white/[0.08]'; // Default OneCard
-              let textAccent = 'text-gold-400';
-              let chipTheme = 'from-yellow-300 via-yellow-500 to-amber-600';
-              const cardNum = `•••• •••• •••• ${card.last4}`;
+                  // Define dynamic gradient themes based on colorTheme or name
+                  const theme = getCardTheme(card);
+                  let gradient = 'bg-gradient-to-br from-[#41553f] via-[#283626] to-[#19241b] border border-white/[0.08]'; // Default OneCard
+                  let textAccent = 'text-gold-400';
+                  const cardNum = `•••• •••• •••• ${card.last4}`;
 
-              if (card.colorTheme === 'coral' || card.name.toLowerCase() === 'icici') {
-                gradient = 'bg-gradient-to-br from-[#E75B3F] via-[#C93E23] to-[#7A1200] border border-orange-500/10';
-                textAccent = 'text-white';
-                chipTheme = 'from-slate-200 to-slate-400';
-              } else if (card.colorTheme === 'cobalt' || card.name.toLowerCase() === 'yes bank') {
-                gradient = 'bg-gradient-to-br from-[#003C8F] via-[#002171] to-[#000A21] border border-blue-500/10';
-                textAccent = 'text-[#90CAF9]';
-                chipTheme = 'from-yellow-200 via-yellow-400 to-amber-600';
-              } else if (card.colorTheme === 'emerald') {
-                gradient = 'bg-gradient-to-br from-[#004D40] via-[#00701a] to-[#00251a] border border-emerald-500/15';
-                textAccent = 'text-emerald-300';
-                chipTheme = 'from-yellow-200 via-yellow-400 to-amber-500';
-              }
+                  if (theme === 'coral') {
+                    gradient = 'bg-gradient-to-br from-[#E75B3F] via-[#C93E23] to-[#7A1200] border border-orange-500/10';
+                    textAccent = 'text-white';
+                  } else if (theme === 'cobalt') {
+                    gradient = 'bg-gradient-to-br from-[#003C8F] via-[#002171] to-[#000A21] border border-blue-500/10';
+                    textAccent = 'text-[#90CAF9]';
+                  } else if (theme === 'emerald') {
+                    gradient = 'bg-gradient-to-br from-[#004D40] via-[#00701a] to-[#00251a] border border-emerald-500/15';
+                    textAccent = 'text-emerald-300';
+                  }
 
-              return (
-                <motion.div
-                  key={card._id}
-                  style={{ touchAction: 'pan-x' }}
-                  animate={getCardStyle(idx, cards.length)}
-                  transition={{ type: 'spring', stiffness: 320, damping: 30, mass: 0.9 }}
-                  drag="y"
-                  dragConstraints={{ top: 0, bottom: 0 }}
-                  dragElastic={0.5}
-                  whileDrag={{ scale: isActive ? 1.03 : 0.88, cursor: 'grabbing' }}
-                  whileTap={{ scale: isActive ? 0.98 : 0.84 }}
-                  onDragEnd={(event, info) => {
-                    const threshold = 45;
-                    const velocity = info.velocity.y;
-                    // Swipe up → next card, swipe down → previous card
-                    if (info.offset.y < -threshold || velocity < -350) {
-                      handleNextCard();
-                    } else if (info.offset.y > threshold || velocity > 350) {
-                      handlePrevCard();
-                    }
-                  }}
-                  onClick={() => {
-                    setSelectedCardId(card._id);
-                    setExpandedTxId(null);
-                  }}
-                  className={`${style.bankCard} absolute cursor-pointer rounded-2xl p-5 md:p-6 w-[min(100%,280px)] md:w-[min(100%,325px)] h-[175px] md:h-[200px] flex flex-col justify-between select-none shadow-2xl transition-shadow overflow-hidden ${gradient} ${
-                    isActive ? 'ring-2 ring-gold-400 ring-offset-0 shadow-[0_14px_30px_rgba(8,18,9,0.45)]' : ''
-                  }`}
-                >
-                  {/* CRED-style glossy light sweep on the active card */}
-                  {isActive && (
-                    <div className="card-sheen pointer-events-none absolute inset-0 z-20">
-                      <span className="card-sheen-beam" />
-                    </div>
-                  )}
+                  return (
+                    <motion.div
+                      key={card._id}
+                      style={{ touchAction: 'pan-x' }}
+                      animate={getCardStyle(idx, cards.length)}
+                      transition={{ type: 'spring', stiffness: 320, damping: 30, mass: 0.9 }}
+                      drag="y"
+                      dragConstraints={{ top: 0, bottom: 0 }}
+                      dragElastic={0.5}
+                      whileDrag={{ scale: isActive ? 1.03 : 0.88, cursor: 'grabbing' }}
+                      whileTap={{ scale: isActive ? 0.98 : 0.84 }}
+                      onDragEnd={(event, info) => {
+                        const threshold = 45;
+                        const velocity = info.velocity.y;
+                        // Swipe up → next card, swipe down → previous card
+                        if (info.offset.y < -threshold || velocity < -350) {
+                          handleNextCard();
+                        } else if (info.offset.y > threshold || velocity > 350) {
+                          handlePrevCard();
+                        }
+                      }}
+                      onClick={() => {
+                        setSelectedCardId(card._id);
+                        setExpandedTxId(null);
+                      }}
+                      className={`${style.bankCard} absolute cursor-pointer rounded-2xl p-5 md:p-6 w-[min(100%,280px)] md:w-[min(100%,325px)] h-[175px] md:h-[200px] flex flex-col justify-between select-none shadow-2xl transition-shadow overflow-hidden ${gradient} ${
+                        isActive ? 'ring-2 ring-gold-400 ring-offset-0 shadow-[0_14px_30px_rgba(8,18,9,0.45)]' : ''
+                      }`}
+                    >
+                      {/* CRED-style glossy light sweep on the active card */}
+                      {isActive && (
+                        <div className="card-sheen pointer-events-none absolute inset-0 z-20">
+                          <span className="card-sheen-beam" />
+                        </div>
+                      )}
 
-                  <div className="relative z-10 flex justify-between items-start">
-                    <div>
-                      <span className={`text-xs font-semibold tracking-widest uppercase ${textAccent}`}>
-                        {card.name}
-                      </span>
-                      <span className="block text-[8px] text-white/50 uppercase tracking-wide mt-0.5">
-                        {card.cardNetwork} Edition
-                      </span>
-                    </div>
+                      <div className="relative z-10 flex justify-between items-start">
+                        <div>
+                          <span className={`text-xs font-semibold tracking-widest uppercase ${textAccent}`}>
+                            {card.name}
+                          </span>
+                          <span className="block text-[8px] text-white/50 uppercase tracking-wide mt-0.5">
+                            {card.cardNetwork} Edition
+                          </span>
+                        </div>
                     
-                    <div className="flex flex-col items-end gap-1.5">
-                      <div className="w-9 h-6 bg-gradient-to-br from-yellow-300 via-yellow-500 to-amber-600 rounded border border-amber-800/10 shadow-inner flex items-center justify-center overflow-hidden opacity-40">
-                        <div className="grid grid-cols-3 gap-0.5 w-full h-full p-0.5">
-                          <div className="border border-black/20" /><div className="border border-black/20" /><div className="border border-black/20" />
-                          <div className="border border-black/20" /><div className="border border-black/20" /><div className="border border-black/20" />
+                        <div className="flex flex-col items-end gap-1.5">
+                          <div className="w-9 h-6 bg-gradient-to-br from-yellow-300 via-yellow-500 to-amber-600 rounded border border-amber-800/10 shadow-inner flex items-center justify-center overflow-hidden opacity-40">
+                            <div className="grid grid-cols-3 gap-0.5 w-full h-full p-0.5">
+                              <div className="border border-black/20" /><div className="border border-black/20" /><div className="border border-black/20" />
+                              <div className="border border-black/20" /><div className="border border-black/20" /><div className="border border-black/20" />
+                            </div>
+                          </div>
+                          {card.dueDate && (
+                            <span className="text-[8px] font-mono font-semibold uppercase tracking-wider text-white/80 bg-black/30 border border-white/10 px-1.5 py-0.5 rounded">
+                              Due {ordinalDay(card.dueDate)}
+                            </span>
+                          )}
                         </div>
                       </div>
-                      {card.dueDate && (
-                        <span className="text-[8px] font-mono font-semibold uppercase tracking-wider text-white/80 bg-black/30 border border-white/10 px-1.5 py-0.5 rounded">
-                          Due {ordinalDay(card.dueDate)}
+
+                      <div>
+                        <span className="text-[10px] text-white/75 uppercase tracking-wider block">
+                          Outstanding Balance
                         </span>
-                      )}
-                    </div>
-                  </div>
+                        <span className="text-xl md:text-2xl font-bold font-mono tabular-nums tracking-tight text-white mt-0.5 block">
+                          {formatRupee(cardMetrics[card.name]?.outstanding || 0)}
+                        </span>
+                      </div>
 
-                  <div>
-                    <span className="text-[10px] text-white/75 uppercase tracking-wider block">
-                      Outstanding Balance
-                    </span>
-                    <span className="text-xl md:text-2xl font-bold font-mono tabular-nums tracking-tight text-white mt-0.5 block">
-                      {formatRupee(cardMetrics[card.name]?.outstanding || 0)}
-                    </span>
-                  </div>
-
-                  <div className="relative z-10 flex justify-between items-end text-[10px] text-white/80 font-mono tabular-nums tracking-wider">
-                    <span>{cardNum}</span>
-                    <span className="text-white/75">Total: {formatRupee(cardMetrics[card.name]?.spent || 0)}</span>
-                  </div>
-                </motion.div>
-              );
-            })
-          )}
-        </div>
-        <p className="-mt-5 mb-5 text-center text-sm font-semibold tracking-wide text-gold-400" aria-live="polite">
-          {selectedCardName}
-        </p>
+                      <div className="relative z-10 flex justify-between items-end text-[10px] text-white/80 font-mono tabular-nums tracking-wider">
+                        <span>{cardNum}</span>
+                        <span className="text-white/75">Total: {formatRupee(cardMetrics[card.name]?.spent || 0)}</span>
+                      </div>
+                    </motion.div>
+                  );
+                })
+              )}
+            </div>
+            {selectedCardObj && (
+              <div className={style.walletCaption} data-theme={getCardTheme(selectedCardObj)}>
+                {cards.length > 1 && (
+                  <button type="button" className={style.walletArrow} onClick={handlePrevCard}
+                    aria-label="Previous card">
+                    <ChevronLeft size={17} aria-hidden="true" />
+                  </button>
+                )}
+                <div className={style.walletName} aria-live="polite" aria-atomic="true">
+                  <span key={selectedCardObj._id}>{selectedCardObj.name}</span>
+                </div>
+                {cards.length > 1 && (
+                  <button type="button" className={style.walletArrow} onClick={handleNextCard}
+                    aria-label="Next card">
+                    <ChevronRight size={17} aria-hidden="true" />
+                  </button>
+                )}
+              </div>
+            )}
+          </div>
 
         </section>
 
