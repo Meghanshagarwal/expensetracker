@@ -42,12 +42,19 @@ export interface Expense {
   mileage?: number;
 }
 
+export interface IpoRepayment {
+  amount: number;
+  date: string;
+}
+
 export interface IpoContribution {
   _id?: string;
   from: string;         // Whose money — 'Me' | 'Mummy' | 'Papa' | custom
   amount: number;       // Amount taken from that person
   date: string;         // Date the amount was taken
-  returnDate?: string;  // Date the money was / will be returned to them
+  returnAmount?: number; // Amount set aside or paid back to this contributor
+  returnDate?: string;   // Recorded date of repayment
+  repayments?: IpoRepayment[];
 }
 
 export interface Ipo {
@@ -65,6 +72,7 @@ export interface Ipo {
   returnAmount: number;              // Refund amount — used when status is 'Not Allotted'
   returnDate?: string;               // Date the refund was / will be credited back
   listingDate?: string;              // Scheduled listing date
+  withdrawnAmount?: number;          // Actual proceeds recorded after allotment
   profitAmount: number;              // Profit/loss booked on listing — used when status is 'Allotted'
   notes?: string;
   createdAt: string;

@@ -1,10 +1,17 @@
 import { Schema, model, models } from "mongoose";
 
+const RepaymentSchema = new Schema({
+  amount: { type: Number, required: true, min: 0.01 },
+  date: { type: Date, required: true },
+}, { _id: false });
+
 const ContributionSchema = new Schema({
   from: { type: String, required: true, trim: true },
   amount: { type: Number, required: true, min: 0 },
   date: { type: Date, default: Date.now },
+  returnAmount: { type: Number, min: 0 },
   returnDate: { type: Date },
+  repayments: { type: [RepaymentSchema], default: undefined },
 });
 
 const IpoSchema = new Schema({
@@ -64,7 +71,8 @@ const IpoSchema = new Schema({
   listingDate: {
     type: Date,
   },
-  // Profit/loss booked on listing — used when status is "Allotted" (can be negative)
+  withdrawnAmount: { type: Number, min: 0 },
+  // Difference between the withdrawal and application amount.
   profitAmount: {
     type: Number,
     default: 0,

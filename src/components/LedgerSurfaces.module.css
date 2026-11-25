@@ -228,6 +228,64 @@
 .ipoOutcome[data-outcome="yes"] { --outcome-color: 178 236 159; }
 .ipoOutcome[data-outcome="no"] { --outcome-color: 255 175 169; }
 .ipoOutcome:hover, .ipoOutcome[aria-pressed="true"] { background: rgb(var(--outcome-color) / .17); }
+.ipoOutcome:disabled { opacity: .45; cursor: not-allowed; }
+.ipoLockedDetails {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: .75rem;
+  padding: .8rem 1rem;
+  border: 1px solid #36443a;
+  border-radius: .9rem;
+  background: #151e18;
+}
+.ipoLockedDetails dt { color: #bfcbbf; font-size: .75rem; }
+.ipoLockedDetails dd { margin-top: .2rem; font-size: .9rem; font-weight: 600; overflow-wrap: anywhere; }
+.ipoSettlement {
+  display: grid;
+  gap: .75rem;
+  padding: .85rem;
+  border: 1px solid #3e5343;
+  border-radius: .9rem;
+  background: #151e18;
+  font-size: .875rem;
+}
+p.ipoSettlement, .ipoProfitLine { display: flex; justify-content: space-between; flex-wrap: wrap; gap: .4rem 1rem; }
+.ipoProfitLine { color: #bccbbb; font-size: .8125rem; }
+.ipoProfitLine strong { margin-left: .25rem; color: #f0f5ed; }
+.ipoProfitLine output { font-weight: 600; }
+.ipoProfitLine output[data-tone="profit"] { color: #bdff82; }
+.ipoProfitLine output[data-tone="loss"] { color: #ffaaa4; }
+.ipoRepayments { display: grid; gap: .8rem; padding-top: .35rem; }
+.ipoRepayment {
+  display: grid;
+  gap: .7rem;
+  padding-top: .8rem;
+  border-top: 1px solid #36443a;
+}
+.ipoRepaymentHeading, .ipoRepaymentHeading > div {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: .35rem .65rem;
+}
+.ipoRepaymentHeading { justify-content: space-between; }
+.ipoRepaymentHeading span { color: #bfcbbf; font-size: .8rem; }
+.ipoRepaymentHeading [data-state="returned"] { color: #bdff82; font-weight: 600; }
+.ipoRepaymentHeading [data-state="partial"] { color: #f5cf95; }
+.ipoRepayment .ipoOutcome { justify-self: start; min-height: 44px; }
+.ipoRepayment[data-returned="true"] input { color: #b5c8b6; }
+.ipoPaymentHistory {
+  display: grid;
+  gap: .35rem;
+  margin: 0;
+  padding: .6rem .75rem;
+  border-radius: .65rem;
+  background: #151e18;
+  color: #d7e7d1;
+  font-size: .8rem;
+}
+.ipoPaymentHistory li { display: flex; justify-content: space-between; flex-wrap: wrap; gap: .25rem .75rem; }
+.ipoPaymentHistory time { color: #acbeaf; }
 @media (min-width: 640px) {
   .ipoSheet { max-height: 90dvh; border-radius: 1.5rem; }
 }

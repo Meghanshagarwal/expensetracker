@@ -6,10 +6,14 @@ import { useEffect, useState, useCallback, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   TrendingUp, Plus, Pencil, Trash2, Loader2, Calendar, User,
-  X, CheckCircle2, Clock, XCircle, Wallet, ArrowDownLeft
+  X, CheckCircle2, Clock, XCircle, Wallet, ArrowDownLeft, LockKeyhole
 } from 'lucide-react';
-import type { Ipo } from '@/types';
+import type { Ipo, IpoRepayment } from '@/types';
 import { findIpoSchedule, indiaDate, ipoDate, type IpoSchedule } from '@/lib/ipoDates';
+import {
+  IPO_REFUND_ACCOUNTS, ipoProfit, ipoRefundBalances, ipoRepaymentFields, ipoRepaymentTotal,
+  ipoRepayments, ipoReturnRemaining,
+} from '@/lib/ipoSettlement';
 import { ipoDemo } from './demo';
 
 // Open and upcoming IPOs from the live list, or a sample issue in demo mode.
@@ -34,17 +38,19 @@ const TAKEN_FROM_OPTIONS = [
 ];
 const STATUSES = ['Applied', 'Allotted', 'Not Allotted'] as const;
 
-// 'My Salaried Account' funding and 'Me' as the applicant both mean "self" —
-// used to decide whether a refund needs to be tracked at all.
-const normalizePerson = (name: string) =>
-  name === 'My Salaried Account' ? 'me' : name.trim().toLowerCase();
-
 const todayStr = indiaDate;
 
-type FundingRow = { from: string; amount: string | number | null; date: string; returnDate: string };
+type FundingRow = {
+  from: string;
+  amount: string | number | null;
+  date: string;
+  paymentAmount: string | number | null;
+  paymentDate: string;
+  repayments: IpoRepayment[];
+};
 
 function emptyFundingRow(): FundingRow {
-  return { from: '', amount: null, date: todayStr(), returnDate: '' };
+  return { from: '', amount: null, date: todayStr(), paymentAmount: null, paymentDate: '', repayments: [] };
 }
 
 function canSetResult(allotmentDate?: string, closeDate?: string) {
@@ -67,10 +73,8 @@ const emptyForm = () => ({
   closeDate: '',
   allotmentDate: '',
   contributions: [emptyFundingRow()],
-  returnAmount: '' as string | number,
-  returnDate: '',
   listingDate: '',
-  profitAmount: '' as string | number,
+  withdrawnAmount: '',
   notes: '',
 });
 
@@ -88,6 +92,11 @@ export default function IpoPage() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [filter, setFilter] = useState<'all' | 'Applied' | 'Allotted' | 'Not Allotted'>('all');
+  const editingIpo = ipos.find(ipo => ipo._id === editingId);
+  const withdrawnAmount = form.withdrawnAmount === '' ? undefined : Number(form.withdrawnAmount);
+  const profitAmount = withdrawnAmount === undefined
+    ? editingIpo?.withdrawnAmount == null ? editingIpo?.profitAmount ?? 0 : 0
+    : ipoProfit(withdrawnAmount, Number(form.amount));
   const fundingAmounts = useMemo(() => {
     let unassigned = Math.max(0, Math.round(Number(form.amount) * 100) || 0);
     return form.contributions.map(({ amount }) => {
@@ -149,7 +158,7 @@ export default function IpoPage() {
   }, [isModalOpen]);
 
   const formatRupee = (num: number) =>
-    new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 }).format(num || 0);
+    new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', minimumFractionDigits: 0, maximumFractionDigits: 2 }).format(num || 0);
 
   const formatDate = (d: string) =>
     new Date(d).toLocaleDateString('en-IN', { timeZone: 'Asia/Kolkata', day: 'numeric', month: 'short', year: 'numeric' });
@@ -176,36 +185,8 @@ export default function IpoPage() {
     [ipos, filter]
   );
 
-  // ---- Dynamic Account Balances (Refund Tracking) ----
-  const accountBalances = useMemo(() => {
-    const balances: Record<string, number> = { Mummy: 0, Papa: 0, Anshshikha: 0 };
-    
-    // Sort chronologically (oldest first) to compute running ledger
-    const sorted = [...ipos].sort((a, b) => new Date(a.applyDate).getTime() - new Date(b.applyDate).getTime());
-    
-    sorted.forEach(ipo => {
-      const applicant = ipo.appliedFrom;
-      if (applicant === 'Mummy' || applicant === 'Papa' || applicant === 'Anshshikha') {
-        // Funding that did NOT come from the applicant's own pending balance
-        // (i.e. fresh money — self-funded or from someone else) reduces how much of
-        // their existing balance this application actually used up.
-        const newFunding = (ipo.contributions || [])
-          .filter(c => normalizePerson(c.from) !== normalizePerson(applicant))
-          .reduce((sum, c) => sum + (c.amount || 0), 0);
-          
-        // The remaining amount must come from the person's existing balance
-        const usedFromBalance = Math.max(0, ipo.amount - newFunding);
-        balances[applicant] = Math.max(0, balances[applicant] - usedFromBalance);
-        
-        // Refund keeps showing as an available balance until it's explicitly marked as returned
-        if (!ipo.returnDate) {
-          balances[applicant] += (ipo.returnAmount || 0);
-        }
-      }
-    });
-    
-    return balances;
-  }, [ipos]);
+  const accountBalances = useMemo(() => ipoRefundBalances(ipos), [ipos]);
+  const availableForApplicant = accountBalances[form.appliedFrom] ?? 0;
 
   // ---- Form helpers ----
   const openAdd = () => {
@@ -238,12 +219,12 @@ export default function IpoPage() {
         from: c.from,
         amount: c.amount,
         date: c.date ? c.date.split('T')[0] : todayStr(),
-        returnDate: c.returnDate ? c.returnDate.split('T')[0] : '',
+        paymentAmount: c.returnDate ? null : c.returnAmount ?? null,
+        paymentDate: '',
+        repayments: ipoRepayments(c),
       })) : [emptyFundingRow()],
-      returnAmount: ipo.returnAmount || (result === 'Not Allotted' ? ipo.amount : ''),
-      returnDate: ipo.returnDate ? ipo.returnDate.split('T')[0] : '',
       listingDate: schedule.listingDate || '',
-      profitAmount: ipo.profitAmount || '',
+      withdrawnAmount: ipo.withdrawnAmount?.toString() ?? '',
       notes: ipo.notes || '',
     });
     setError(null);
@@ -291,7 +272,7 @@ export default function IpoPage() {
       contributions: [...f.contributions, emptyFundingRow()],
     }));
 
-  const updateContribution = (idx: number, key: 'from' | 'amount' | 'date' | 'returnDate', value: string) =>
+  const updateContribution = (idx: number, key: 'from' | 'amount' | 'date', value: string) =>
     setForm(f => ({
       ...f,
       contributions: f.contributions.map((c, i) => (i === idx ? { ...c, [key]: value } : c)),
@@ -301,6 +282,12 @@ export default function IpoPage() {
     setForm(f => ({
       ...f,
       contributions: f.contributions.length > 1 ? f.contributions.filter((_, i) => i !== idx) : [emptyFundingRow()],
+    }));
+
+  const updateRepayment = (idx: number, change: Partial<Pick<FundingRow, 'paymentAmount' | 'paymentDate' | 'repayments'>>) =>
+    setForm(f => ({
+      ...f,
+      contributions: f.contributions.map((row, i) => i === idx ? { ...row, ...change } : row),
     }));
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -316,43 +303,82 @@ export default function IpoPage() {
     setSaving(true);
     setError(null);
 
-    const payload = {
-      ipoName: form.ipoName.trim(),
-      lots: Math.max(1, Math.floor(Number(form.lots) || 1)),
-      amount: Number(form.amount) || 0,
-      appliedFrom: form.appliedFrom,
-      status: form.status,
-      applyDate: new Date(form.applyDate).toISOString(),
-      openDate: form.openDate || undefined,
-      closeDate: form.closeDate || undefined,
-      allotmentDate: form.allotmentDate || undefined,
-      contributions: form.contributions
-        .map((c, i) => ({ ...c, amount: fundingAmounts[i] }))
-        .filter(c => c.from && Number(c.amount) > 0)
-        .map(c => ({
-          from: c.from,
-          amount: Number(c.amount) || 0,
-          date: new Date(c.date || form.applyDate).toISOString(),
-          returnDate: c.returnDate ? new Date(c.returnDate).toISOString() : undefined,
-        })),
-      returnAmount: form.status === 'Not Allotted' && !isSelfFunded ? Number(form.returnAmount) || 0 : 0,
-      returnDate: form.status === 'Not Allotted' && !isSelfFunded && form.returnDate ? new Date(form.returnDate).toISOString() : undefined,
-      listingDate: form.listingDate || undefined,
-      profitAmount: form.status === 'Allotted' ? Number(form.profitAmount) || 0 : 0,
-      notes: form.notes.trim(),
-    };
-
     try {
-      if (isDemo) {
-        const entry = { ...payload, _id: editingId ?? crypto.randomUUID(), createdAt: new Date().toISOString() };
-        setIpos(prev => editingId ? prev.map(ipo => ipo._id === editingId ? { ...ipo, ...payload } : ipo) : [entry, ...prev]);
-        setIsModalOpen(false);
-        return;
+      if (editingId && !editingIpo) throw new Error('Saved IPO no longer exists');
+      const details = {
+        allotmentDate: form.allotmentDate || undefined,
+        listingDate: form.listingDate || undefined,
+        notes: form.notes.trim(),
+      };
+      let payload;
+      if (editingIpo) {
+        const originalContributions = editingIpo.contributions || [];
+        const contributionReturns = form.status === 'Applied' ? [] : originalContributions.flatMap((saved, index) => {
+          const previousRepayments = ipoRepayments(saved);
+          const repayments = form.contributions[index].repayments;
+          if (JSON.stringify(previousRepayments) === JSON.stringify(repayments)) return [];
+          return [{ index, previousRepayments, repayments }];
+        });
+        const outcome = {
+          ...details,
+          status: form.status,
+          withdrawnAmount: form.status === 'Allotted' ? withdrawnAmount : undefined,
+          profitAmount: form.status === 'Allotted' ? profitAmount : 0,
+          returnAmount: form.status === 'Not Allotted'
+            ? editingIpo.status === 'Not Allotted' ? editingIpo.returnAmount : editingIpo.amount
+            : 0,
+          returnDate: form.status === 'Not Allotted' ? editingIpo.returnDate : undefined,
+        };
+        if (isDemo) {
+          const contributions = [...originalContributions];
+          for (const change of contributionReturns) {
+            contributions[change.index] = {
+              ...contributions[change.index], ...ipoRepaymentFields(change.repayments),
+            };
+          }
+          setIpos(prev => prev.map(ipo => ipo._id === editingIpo._id ? { ...ipo, ...outcome, contributions } : ipo));
+          setIsModalOpen(false);
+          return;
+        }
+        payload = {
+          id: editingIpo._id,
+          ...details,
+          status: outcome.status,
+          allotmentDate: details.allotmentDate ?? null,
+          listingDate: details.listingDate ?? null,
+          withdrawnAmount: outcome.withdrawnAmount ?? null,
+          contributionReturns,
+        };
+      } else {
+        const application = {
+          ...details,
+          ipoName: form.ipoName.trim(),
+          lots: form.lots,
+          amount: Number(form.amount) || 0,
+          appliedFrom: form.appliedFrom,
+          status: 'Applied' as const,
+          applyDate: new Date(form.applyDate).toISOString(),
+          openDate: form.openDate || undefined,
+          closeDate: form.closeDate || undefined,
+          contributions: form.contributions.flatMap((row, i) => row.from && Number(fundingAmounts[i]) > 0
+            ? [{ from: row.from, amount: Number(fundingAmounts[i]), date: new Date(row.date || form.applyDate).toISOString() }]
+            : []),
+        };
+        if (isDemo) {
+          const entry: Ipo = {
+            ...application, _id: crypto.randomUUID(), createdAt: new Date().toISOString(),
+            returnAmount: 0, profitAmount: 0,
+          };
+          setIpos(prev => [entry, ...prev]);
+          setIsModalOpen(false);
+          return;
+        }
+        payload = application;
       }
       const res = await fetch('/api/ipos', {
         method: editingId ? 'PUT' : 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(editingId ? { id: editingId, ...payload } : payload),
+        body: JSON.stringify(payload),
       });
       if (res.ok) {
         await loadData();
@@ -386,20 +412,6 @@ export default function IpoPage() {
       console.error(err);
       alert('Error deleting IPO');
     }
-  };
-
-  // No refund to track when the money never actually left the applicant's own pocket —
-  // i.e. every contribution's source is the same person as who the IPO was applied from.
-  const isSelfFunded = form.contributions.every((c, i) =>
-    !c.from || Number(fundingAmounts[i]) <= 0 || normalizePerson(c.from) === normalizePerson(form.appliedFrom),
-  );
-
-  const setAllotment = (result: 'Allotted' | 'Not Allotted') => {
-    setForm(f => ({
-      ...f,
-      status: result,
-      returnAmount: result === 'Not Allotted' && !f.returnAmount ? f.amount : f.returnAmount,
-    }));
   };
 
   const statusStyle = (status: string) => {
@@ -438,7 +450,7 @@ export default function IpoPage() {
 
         {isDemo && (
           <p className="mb-5 rounded-xl border border-gold-400/25 bg-gold-400/5 px-4 py-3 text-sm text-gold-400">
-            Demo portfolio. Add Cedar Grid or update a sample result. Changes reset when you reload.
+            Demo portfolio. Try Aster Diagnostics for a new result or edit Juniper Energy and Harbor Robotics to try returns. Changes reset on reload.
           </p>
         )}
 
@@ -461,13 +473,13 @@ export default function IpoPage() {
         </div>
 
         {/* Active Account Balances (Refunds sitting in accounts) */}
-        <div className="bg-[#111111] border border-white/[0.06] rounded-2xl p-4 mb-6 shadow-luxury">
-          <h2 className="text-[10px] uppercase tracking-wider text-[#8A8A8A] font-bold mb-3 flex items-center gap-1.5">
+        <section aria-labelledby="ipo-refunds-heading" className="bg-[#111111] border border-white/[0.06] rounded-2xl p-4 mb-6 shadow-luxury">
+          <h2 id="ipo-refunds-heading" className="text-[10px] uppercase tracking-wider text-[#8A8A8A] font-bold mb-3 flex items-center gap-1.5">
             <Wallet className="h-4 w-4 text-gold-400" />
             Available refunds
           </h2>
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
-            {['Mummy', 'Papa', 'Anshshikha'].map(acc => {
+            {IPO_REFUND_ACCOUNTS.map(acc => {
               const bal = accountBalances[acc] || 0;
               return (
                 <div key={acc} className="bg-white/[0.02] border border-white/[0.04] rounded-xl p-3.5 flex flex-wrap gap-2 items-center justify-between">
@@ -482,7 +494,7 @@ export default function IpoPage() {
               );
             })}
           </div>
-        </div>
+        </section>
 
         {/* Filter tabs */}
         <div className="flex bg-black p-1 rounded-xl border border-white/[0.08] w-full sm:w-fit mb-5 overflow-x-auto">
@@ -521,6 +533,9 @@ export default function IpoPage() {
               const { allotmentDate, listingDate } = scheduleFor(ipo);
               const resultReady = ipo.status === 'Applied' && canSetResult(allotmentDate, ipo.closeDate);
               const takenTotal = (ipo.contributions || []).reduce((s, c) => s + (c.amount || 0), 0);
+              const hasRepaymentsDue = ipo.status !== 'Applied' && ipo.contributions?.some(row =>
+                ipoReturnRemaining(row.amount, ipoRepaymentTotal(ipoRepayments(row))) > 0,
+              );
               const preset = presetIpos.find(p => {
                 const n1 = p.name.toLowerCase().replace(/[^a-z0-9]/g, '');
                 const n2 = ipo.ipoName.toLowerCase().replace(/[^a-z0-9]/g, '');
@@ -593,25 +608,42 @@ export default function IpoPage() {
                       {/* Contributions */}
                       {ipo.contributions && ipo.contributions.length > 0 && (
                         <div className="mt-3 flex flex-wrap gap-1.5">
-                          {ipo.contributions.map((c, i) => (
-                            <span
-                              key={i}
-                              className="text-[10px] px-2 py-1 rounded-lg bg-white/[0.04] border border-white/[0.06] text-[#C9C9C9]"
-                            >
-                              <span className="text-gold-400 font-medium">{c.from}</span>{' '}
-                              {formatRupee(c.amount)}
-                              <span className="text-[#555555]"> · {formatDate(c.date)}</span>
-                              {c.returnDate && (
-                                <span className="text-green-400/80"> · return {formatDate(c.returnDate)}</span>
-                              )}
-                            </span>
-                          ))}
+                          {ipo.contributions.map((c, i) => {
+                            const repayments = ipoRepayments(c);
+                            const { returnAmount: returned = 0, returnDate } = ipoRepaymentFields(repayments);
+                            const remaining = ipoReturnRemaining(c.amount, returned);
+                            return (
+                              <span key={i} className="text-[10px] px-2 py-1 rounded-lg bg-white/[0.04] border border-white/[0.06] text-[#C9C9C9]">
+                                <span className="text-gold-400 font-medium">{c.from}</span>{' '}
+                                {formatRupee(c.amount)}
+                                <span className="text-[#8A8A8A]"> · {formatDate(c.date)}</span>
+                                {returnDate && (
+                                  <>
+                                    <span className="text-green-400/80">
+                                      {' '}· {formatRupee(returned)} returned {formatDate(returnDate)}
+                                    </span>
+                                    {remaining > 0 && (
+                                      <span className="ml-1.5 inline-block rounded bg-amber-400/10 px-1.5 py-0.5 font-semibold text-amber-300">
+                                        {formatRupee(remaining)} remaining
+                                      </span>
+                                    )}
+                                  </>
+                                )}
+                              </span>
+                            );
+                          })}
                           {takenTotal > 0 && (
                             <span className="text-[10px] px-2 py-1 rounded-lg bg-black text-[#8A8A8A] border border-white/[0.06]">
                               Taken: {formatRupee(takenTotal)}
                             </span>
                           )}
                         </div>
+                      )}
+                      {hasRepaymentsDue && (
+                        <button type="button" className={`${style.ipoOutcome} mt-3`} data-outcome="yes"
+                          onClick={() => openEdit(ipo, ipo.status === 'Allotted' ? 'Allotted' : 'Not Allotted')}>
+                          Record repayment
+                        </button>
                       )}
 
                       {ipo.notes && (
@@ -637,9 +669,16 @@ export default function IpoPage() {
                             by {formatDate(ipo.returnDate)}
                           </span>
                         )}
-                        {ipo.status === 'Allotted' && !!ipo.profitAmount && (
+                        {ipo.status === 'Allotted' && ipo.withdrawnAmount !== undefined && (
+                          <span className="block text-[11px] text-[#becbbf] mt-0.5">
+                            Withdrawn {formatRupee(ipo.withdrawnAmount)}
+                          </span>
+                        )}
+                        {ipo.status === 'Allotted' && (ipo.withdrawnAmount !== undefined || !!ipo.profitAmount) && (
                           <span className={`block text-[11px] font-mono mt-0.5 ${ipo.profitAmount >= 0 ? 'text-green-400' : 'text-[#FF5A5F]'}`}>
-                            {ipo.profitAmount >= 0 ? '+' : ''}{formatRupee(ipo.profitAmount)} profit
+                            {ipo.profitAmount === 0
+                              ? 'Break even'
+                              : `${formatRupee(Math.abs(ipo.profitAmount))} ${ipo.profitAmount > 0 ? 'profit' : 'loss'}`}
                           </span>
                         )}
                       </div>
@@ -726,7 +765,25 @@ export default function IpoPage() {
                 </AnimatePresence>
 
               <form onSubmit={handleSubmit} className={style.ipoForm}>
-                <section hidden={resultOnly} className={style.ipoSection}>
+                {editingIpo && !resultOnly && (
+                  <section className={style.ipoSection}>
+                    <h4 className="flex items-center gap-2"><LockKeyhole size={15} aria-hidden="true" /> Application locked</h4>
+                    <p className="text-sm">{editingIpo.ipoName}</p>
+                    <dl className={style.ipoLockedDetails}>
+                      <div><dt>Lots</dt><dd>{editingIpo.lots}</dd></div>
+                      <div><dt>Amount</dt><dd>{formatRupee(editingIpo.amount)}</dd></div>
+                      <div><dt>Applied from</dt><dd>{editingIpo.appliedFrom}</dd></div>
+                    </dl>
+                    {editingIpo.status === 'Applied' && Boolean(editingIpo.contributions?.length) && (
+                      <ul className="flex flex-wrap gap-2 text-xs text-[#bfcbbf]">
+                        {editingIpo.contributions.map((row, i) => (
+                          <li key={i}>{row.from} · {formatRupee(row.amount)}</li>
+                        ))}
+                      </ul>
+                    )}
+                  </section>
+                )}
+                {!editingId && <section className={style.ipoSection}>
                   <h4>Application</h4>
 
                 {/* IPO select */}
@@ -855,7 +912,7 @@ export default function IpoPage() {
                         const bal = accountBalances[a] || 0;
                         return (
                           <option key={a} value={a}>
-                            {a}{bal > 0 ? ` (Bal: ₹${bal})` : ''}
+                            {a}{bal > 0 ? ` (Bal: ${formatRupee(bal)})` : ''}
                           </option>
                         );
                       })}
@@ -868,9 +925,9 @@ export default function IpoPage() {
                   </p>
                 )}
 
-                </section>
+                </section>}
 
-                <section hidden={resultOnly} className={style.ipoSection}>
+                {!editingId && <section className={style.ipoSection}>
                   <h4>Funding</h4>
 
 
@@ -919,7 +976,7 @@ export default function IpoPage() {
 
                 {/* Available balance tip */}
                 <AnimatePresence>
-                  {(form.appliedFrom === 'Mummy' || form.appliedFrom === 'Papa' || form.appliedFrom === 'Anshshikha') && (accountBalances[form.appliedFrom] || 0) > 0 && (
+                  {availableForApplicant > 0 && (
                     <motion.div
                       initial={{ opacity: 0, height: 0 }}
                       animate={{ opacity: 1, height: 'auto' }}
@@ -927,20 +984,21 @@ export default function IpoPage() {
                       className="overflow-hidden"
                     >
                       <div className="text-[10px] leading-relaxed text-gold-400/90 bg-gold-400/[0.03] border border-gold-400/10 rounded-xl p-3">
-                        💡 <strong>Refund Balance Alert:</strong> {form.appliedFrom}'s account currently holds <strong>{formatRupee(accountBalances[form.appliedFrom])}</strong> of your money from previous unallotted IPO returns. If you are reusing this existing balance for this application, <strong>don't add a new "Amount Taken From" entry</strong> — it's already sitting there.
+                        <strong>{formatRupee(availableForApplicant)} available</strong> for {form.appliedFrom}&apos;s next IPO.
+                        Add funding entries for any fresh money used.
                       </div>
                     </motion.div>
                   )}
                 </AnimatePresence>
-                </section>
+                </section>}
 
                 <section hidden={resultOnly} className={style.ipoSection}>
                 <div className={style.ipoFieldGrid}>
-                  <div>
+                  {!editingId && <div>
                     <label htmlFor="ipo-apply-date">Application date</label>
                     <input id="ipo-apply-date" type="date" required value={form.applyDate}
                       onChange={e => setForm(f => ({ ...f, applyDate: e.target.value }))} />
-                  </div>
+                  </div>}
                   <div>
                     <label htmlFor="ipo-allotment-date">Allotment date</label>
                     <input id="ipo-allotment-date" type="date" value={form.allotmentDate}
@@ -963,104 +1021,127 @@ export default function IpoPage() {
                           onClick={() => setForm(f => ({ ...f, status: 'Applied' }))}>Pending</button>
                         <button type="button" className={style.ipoOutcome} data-outcome="yes"
                           aria-pressed={form.status === 'Allotted'}
-                          onClick={() => setAllotment('Allotted')}>Allotted</button>
+                          onClick={() => setForm(f => ({ ...f, status: 'Allotted' }))}>Allotted</button>
                         <button type="button" className={style.ipoOutcome} data-outcome="no"
                           aria-pressed={form.status === 'Not Allotted'}
-                          onClick={() => setAllotment('Not Allotted')}>Not Allotted</button>
+                          onClick={() => setForm(f => ({ ...f, status: 'Not Allotted' }))}>Not Allotted</button>
                       </div>
                     ) : (
                       <p className="text-sm text-[#a8b8ab]">Result can be updated when allotment is due.</p>
                     )}
 
-                <AnimatePresence mode="wait">
-                {/* Not Allotted → refund tracking (skipped when the money never left the applicant's own pocket) */}
-                {form.status === 'Not Allotted' && !isSelfFunded && (
-                  <motion.div
-                    key="refund"
-                    initial={{ opacity: 0, y: -6 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0, y: -6 }}
-                    className="grid grid-cols-2 gap-3 rounded-xl border border-[#FF5A5F]/15 bg-[#FF5A5F]/[0.03] p-3.5"
-                  >
-                    <div className="col-span-2 text-[10px] text-[#FF5A5F]/90 font-semibold uppercase tracking-wider -mb-1 flex items-center gap-1">
-                      <XCircle className="h-3 w-3" /> Refund
-                    </div>
-                    <div>
-                      <label className="block text-[10px] text-[#8A8A8A] uppercase tracking-wider mb-1.5 font-medium">
-                        Return Amount (₹)
-                      </label>
-                      <input
-                        type="number"
-                        min="0"
-                        placeholder="Refund amount"
-                        value={form.returnAmount}
-                        onChange={e => setForm(f => ({ ...f, returnAmount: e.target.value }))}
-                        className="w-full rounded-xl bg-black border border-white/[0.08] px-3 py-2.5 text-sm text-white font-mono placeholder:text-[#555555] focus:border-gold-400/40 focus:outline-none"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-[10px] text-[#8A8A8A] uppercase tracking-wider mb-1.5 font-medium">
-                        Return Date
-                      </label>
-                      <input
-                        type="date"
-                        value={form.returnDate}
-                        onChange={e => setForm(f => ({ ...f, returnDate: e.target.value }))}
-                        className="w-full rounded-xl bg-black border border-white/[0.08] px-3 py-2.5 text-sm text-white focus:border-gold-400/40 focus:outline-none"
-                      />
-                    </div>
-                    <motion.button
-                      whileHover={{ scale: 1.01 }}
-                      whileTap={{ scale: 0.97 }}
-                      type="button"
-                      onClick={() => setForm(f => ({ ...f, returnDate: todayStr() }))}
-                      className="col-span-2 flex items-center justify-center gap-1.5 py-2 rounded-lg text-[11px] font-semibold bg-[#FF5A5F]/10 border border-[#FF5A5F]/25 text-[#FF5A5F] hover:bg-[#FF5A5F]/20 transition-all"
-                    >
-                      {form.returnDate ? <CheckCircle2 className="h-3.5 w-3.5" /> : null}
-                      {form.returnDate ? `Marked Returned · ${form.returnDate}` : 'Mark as Returned'}
-                    </motion.button>
-                  </motion.div>
-                )}
 
-                {/* Allotted → listing profit tracking */}
-                {form.status === 'Allotted' && (
-                  <motion.div
-                    key="listing"
-                    initial={{ opacity: 0, y: -6 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0, y: -6 }}
-                    className="grid grid-cols-2 gap-3 rounded-xl border border-green-500/15 bg-green-500/[0.03] p-3.5"
-                  >
-                    <div className="col-span-2 text-[10px] text-green-400/90 font-semibold uppercase tracking-wider -mb-1 flex items-center gap-1">
-                      <CheckCircle2 className="h-3 w-3" /> Listing
-                    </div>
-                    <div>
-                      <label className="block text-[10px] text-[#8A8A8A] uppercase tracking-wider mb-1.5 font-medium">
-                        Profit Amount (₹)
-                      </label>
-                      <input
-                        type="number"
-                        placeholder="Profit (or negative for loss)"
-                        value={form.profitAmount}
-                        onChange={e => setForm(f => ({ ...f, profitAmount: e.target.value }))}
-                        className="w-full rounded-xl bg-black border border-white/[0.08] px-3 py-2.5 text-sm text-white font-mono placeholder:text-[#555555] focus:border-gold-400/40 focus:outline-none"
-                      />
-                    </div>
-                    <div>
-                      <label htmlFor="ipo-listing-date">
-                        Listing Date
-                      </label>
-                      <input
-                        type="date"
-                        id="ipo-listing-date"
-                        value={form.listingDate}
-                        onChange={e => setForm(f => ({ ...f, listingDate: e.target.value }))}
-                        className="w-full rounded-xl bg-black border border-white/[0.08] px-3 py-2.5 text-sm text-white focus:border-gold-400/40 focus:outline-none"
-                      />
-                    </div>
-                  </motion.div>
-                )}
-                </AnimatePresence>
+                    {form.status === 'Allotted' && (
+                      <div className={style.ipoSettlement}>
+                        <div className={style.ipoFieldGrid}>
+                          <div>
+                            <label htmlFor="ipo-withdrawn-amount">Withdrawn amount (₹)</label>
+                            <input id="ipo-withdrawn-amount" type="number" min="0" step="0.01" inputMode="decimal"
+                              placeholder="Enter proceeds" value={form.withdrawnAmount}
+                              onChange={e => setForm(f => ({ ...f, withdrawnAmount: e.target.value }))} />
+                          </div>
+                          <div>
+                            <label htmlFor="ipo-listing-date">Listing date</label>
+                            <input id="ipo-listing-date" type="date" value={form.listingDate}
+                              onChange={e => setForm(f => ({ ...f, listingDate: e.target.value }))} />
+                          </div>
+                        </div>
+                        <div className={style.ipoProfitLine}>
+                          <span>Applied amount <strong>{formatRupee(Number(form.amount))}</strong></span>
+                          <output htmlFor="ipo-withdrawn-amount" aria-live="polite"
+                            data-tone={profitAmount < 0 ? 'loss' : profitAmount > 0 ? 'profit' : undefined}>
+                            {withdrawnAmount === undefined && profitAmount === 0
+                              ? 'Profit or loss appears here'
+                              : profitAmount === 0
+                              ? 'Break even'
+                              : `${profitAmount > 0 ? 'Profit' : 'Loss'} · ${formatRupee(Math.abs(profitAmount))}`}
+                          </output>
+                        </div>
+                      </div>
+                    )}
+
+                    {form.status === 'Not Allotted' && (
+                      <p className={style.ipoSettlement}>
+                        IPO refund <strong>{formatRupee(editingIpo?.status === 'Not Allotted' ? editingIpo.returnAmount : Number(form.amount))}</strong>
+                      </p>
+                    )}
+
+                    {form.status !== 'Applied' && Boolean(editingIpo?.contributions?.length) && (
+                      <section className={style.ipoRepayments} aria-labelledby="ipo-return-heading">
+                        <h4 id="ipo-return-heading">Return funding</h4>
+                        {form.contributions.map((row, i) => {
+                          const person = TAKEN_FROM_OPTIONS.find(option => option.value === row.from)?.label ?? row.from;
+
+                          const paid = ipoRepaymentTotal(row.repayments);
+                          const remaining = ipoReturnRemaining(Number(row.amount), paid);
+                          const amount = row.paymentAmount ?? remaining;
+                          const date = row.paymentDate || todayStr();
+                          const payment = { amount: Number(amount), date };
+                          const canAdd = payment.amount > 0 && payment.amount <= remaining && date <= todayStr();
+                          return (
+                            <div key={i} className={style.ipoRepayment} data-returned={remaining === 0}>
+                              <div className={style.ipoRepaymentHeading}>
+                                <div>
+                                  <strong>{person}</strong>
+                                  <span>Taken {formatRupee(Number(row.amount))}</span>
+                                </div>
+                                <span data-state={remaining > 0 ? 'partial' : 'returned'}>
+                                  {remaining > 0 ? `${formatRupee(remaining)} remaining` : 'Returned in full'}
+                                </span>
+                              </div>
+
+                              {row.repayments.length > 0 && (
+                                <ul className={style.ipoPaymentHistory} aria-label={`Repayments for ${person}`}>
+                                  {row.repayments.map((repayment, index) => (
+                                    <li key={index}>
+                                      <span>{formatRupee(repayment.amount)} returned</span>
+                                      <time dateTime={repayment.date}>{formatDate(repayment.date)}</time>
+                                    </li>
+                                  ))}
+                                </ul>
+                              )}
+
+                              {remaining > 0 && (
+                                <div className={style.ipoFieldGrid}>
+                                  <div>
+                                    <label htmlFor={`ipo-return-amount-${i}`}>New repayment (₹)</label>
+                                    <input id={`ipo-return-amount-${i}`} type="number" min="0.01" max={remaining} step="0.01"
+                                      inputMode="decimal" value={amount}
+                                      onChange={e => updateRepayment(i, { paymentAmount: e.target.value })} />
+                                  </div>
+                                  <div>
+                                    <label htmlFor={`ipo-return-date-${i}`}>Repayment date</label>
+                                    <input id={`ipo-return-date-${i}`} type="date" max={todayStr()} value={date}
+                                      onChange={e => updateRepayment(i, { paymentDate: e.target.value })} />
+                                  </div>
+                                </div>
+                              )}
+
+                              <div className="flex flex-wrap gap-2">
+                                {remaining > 0 && (
+                                  <button type="button" className={style.ipoOutcome} data-outcome="yes"
+                                    aria-label={`Add repayment for ${person}`} disabled={!canAdd}
+                                    onClick={() => updateRepayment(i, {
+                                      repayments: [...row.repayments, payment], paymentAmount: null, paymentDate: '',
+                                    })}>
+                                    Add repayment
+                                  </button>
+                                )}
+                                {row.repayments.length > 0 && (
+                                  <button type="button" className={style.ipoOutcome}
+                                    aria-label={`Undo last repayment for ${person}`}
+                                    onClick={() => updateRepayment(i, {
+                                      repayments: row.repayments.slice(0, -1), paymentAmount: null, paymentDate: '',
+                                    })}>
+                                    Undo last repayment
+                                  </button>
+                                )}
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </section>
+                    )}
                   </section>
                 )}
 
