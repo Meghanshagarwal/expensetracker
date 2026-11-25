@@ -16,8 +16,7 @@ import ExpenseTable from '@/components/ExpenseTable';
 import { isSelfPerson } from '@/utils/person';
 
 const CATEGORIES = [
-  'Petrol', 'Food', 'Tea/Coffee', 'Travel', 'Shopping', 
-  'Bills', 'Entertainment', 'Education', 'Medical', 'Family', 'Other'
+  'Petrol', 'Food', 'Travel', 'Shopping', 'Bills', 'Family', 'Other'
 ];
 const PAYMENT_METHODS = ['Cash', 'UPI', 'Debit Card', 'Credit Card'];
 

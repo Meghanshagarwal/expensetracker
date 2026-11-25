@@ -31,7 +31,7 @@ export interface Expense {
   vehicle?: string;           // For Petrol: 'Car', 'Jupiter 125', 'Maestro Edge'
   sourceAccount?: string;     // 'Salary Account', 'Self Account'
   upiApp?: string;            // For UPI: 'GPay', 'Amazon Pay', 'Cred UPI'
-  upiLinkedAccount?: string;  // For UPI Linked: 'ICICI Credit Card', 'Yes Bank'
+  upiLinkedAccount?: string;  // Linked UPI or debit card account
   creditCardIssuer?: string;  // For Credit Card: 'ICICI', 'Yes Bank', 'OneCard'
   isCardPaid?: boolean;
   cardPaidDate?: string;

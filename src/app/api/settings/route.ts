@@ -4,8 +4,7 @@ import Settings from '@/models/Settings';
 
 const DEFAULT_SETTINGS = {
   categories: [
-    "Petrol", "Food", "Tea/Coffee", "Travel", "Shopping", 
-    "Bills", "Entertainment", "Education", "Medical", "Family", "Other"
+    "Petrol", "Food", "Travel", "Shopping", "Bills", "Family", "Other"
   ],
   upiApps: ["GPay", "Amazon Pay", "Cred UPI"],
   sourceAccounts: ["Self Account", "Salary Account"],
@@ -40,7 +39,7 @@ export async function PUT(request: Request) {
     const { categories, upiApps, sourceAccounts, upiAccounts, vehicles } = body;
 
     const updatePayload = {
-      categories: Array.isArray(categories) ? categories.filter(Boolean).map((s: string) => s.trim()) : undefined,
+      categories: Array.isArray(categories) ? categories.filter(Boolean).map((s: string) => s.trim()).filter((s: string) => !['entertainment', 'education', 'medical', 'tea/coffee'].includes(s.toLowerCase())) : undefined,
       upiApps: Array.isArray(upiApps) ? upiApps.filter(Boolean).map((s: string) => s.trim()) : undefined,
       sourceAccounts: Array.isArray(sourceAccounts) ? sourceAccounts.filter(Boolean).map((s: string) => s.trim()) : undefined,
       upiAccounts: Array.isArray(upiAccounts) ? upiAccounts.filter(Boolean).map((s: string) => s.trim()) : undefined,

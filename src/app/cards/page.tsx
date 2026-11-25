@@ -122,13 +122,14 @@ export default function CardsPage() {
 
   // Card Transaction Matching Logic
   const getCardExpenses = useCallback((cardName: string, list: Expense[]) => {
-    const targetName = cardName.toLowerCase();
+    const targetName = cardName.trim().toLowerCase().replace(/(?: credit card)+$/i, '');
+    const normalizeLinkedCard = (name?: string) => name?.trim().toLowerCase().replace(/(?: credit card)+$/i, '');
     return list.filter(exp => {
       const isCC = exp.paymentMethod === 'Credit Card';
       const isUPI = exp.paymentMethod === 'UPI';
 
-      return (isCC && exp.creditCardIssuer?.toLowerCase() === targetName) ||
-             (isUPI && (exp.upiLinkedAccount?.toLowerCase() === `${targetName} credit card` || exp.upiLinkedAccount?.toLowerCase() === targetName));
+      return (isCC && normalizeLinkedCard(exp.creditCardIssuer) === targetName) ||
+             (isUPI && normalizeLinkedCard(exp.upiLinkedAccount) === targetName);
     });
   }, []);
 
@@ -695,14 +696,6 @@ export default function CardsPage() {
           <div className={style.walletFigure}>
             <span className={style.metricLabel}><CreditCard size={16} /> Total outstanding</span>
             <strong className={style.walletTotal}>{formatRupee(totalOutstandingAllCards)}</strong>
-            <div className={style.cardPicker} aria-label="Choose a card">
-              {cards.map(card => (
-                <button key={card._id} aria-pressed={card._id === selectedCardId}
-                  onClick={() => { setSelectedCardId(card._id); setExpandedTxId(null); }}>
-                  {card.name}
-                </button>
-              ))}
-            </div>
           </div>
         {/* Vertical wallet card stack (swipe up/down) */}
         <div className="relative h-[290px] md:h-[330px] w-full max-w-[480px] mx-auto flex items-center justify-center overflow-visible">
@@ -811,6 +804,9 @@ export default function CardsPage() {
             })
           )}
         </div>
+        <p className="-mt-5 mb-5 text-center text-sm font-semibold tracking-wide text-gold-400" aria-live="polite">
+          {selectedCardName}
+        </p>
 
         </section>
 
@@ -877,7 +873,7 @@ export default function CardsPage() {
               </div>
 
               {/* Status Filter Tabs */}
-              <div className="flex bg-black p-1 rounded-xl border border-white/[0.08]">
+              <div className="flex justify-center self-center md:mx-auto bg-black p-1 rounded-xl border border-white/[0.08]">
                 {(['unpaid', 'paid', 'all'] as const).map(status => (
                   <button
                     key={status}

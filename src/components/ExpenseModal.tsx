@@ -70,14 +70,15 @@ export default function ExpenseModal({
 
   const lastPetrolTx = useMemo(() => {
     if (category !== 'Petrol' || !vehicle) return null;
+    const selectedDate = new Date(`${date}T23:59:59`).getTime();
     return expenses
-      .filter(e => e.category === 'Petrol' && e.vehicle === vehicle && e.km && (!expenseToEdit || e._id !== expenseToEdit._id))
+      .filter(e => e.category === 'Petrol' && e.vehicle === vehicle && Number(e.km) > 0 && Number(e.litres) > 0 && (!expenseToEdit || e._id !== expenseToEdit._id) && new Date(e.date).getTime() < selectedDate)
       .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())[0];
-  }, [expenses, category, vehicle, expenseToEdit]);
+  }, [expenses, category, vehicle, expenseToEdit, date]);
 
   const calculatedMileage = useMemo(() => {
-    if (!lastPetrolTx || !lastPetrolTx.litres || !currentKm || isNaN(Number(currentKm))) return null;
-    const diff = Number(currentKm) - lastPetrolTx.km!;
+    if (!lastPetrolTx || !lastPetrolTx.litres || !currentKm || !Number.isFinite(Number(currentKm))) return null;
+    const diff = Number(currentKm) - Number(lastPetrolTx.km);
     return diff > 0 ? diff / lastPetrolTx.litres : null;
   }, [lastPetrolTx, currentKm]);
 
@@ -347,7 +348,7 @@ export default function ExpenseModal({
         vehicle: category === 'Petrol' ? vehicle : undefined,
         sourceAccount,
         upiApp: paymentMethod === 'UPI' ? upiApp : undefined,
-        upiLinkedAccount: (paymentMethod === 'UPI' && upiApp && transactionType !== 'borrowed' && sourceAccount !== 'Salary Account') ? upiLinkedAccount : undefined,
+        upiLinkedAccount: ((paymentMethod === 'UPI' && upiApp) || paymentMethod === 'Debit Card') && transactionType !== 'borrowed' && sourceAccount !== 'Salary Account' ? upiLinkedAccount : undefined,
         creditCardIssuer: paymentMethod === 'Credit Card' ? creditCardIssuer : undefined,
         litres: category === 'Petrol' ? litres : undefined,
         petrolPrice: category === 'Petrol' ? petrolPrice : undefined,
@@ -419,7 +420,7 @@ export default function ExpenseModal({
             initial={{ y: '100%', opacity: 0.5 }}
             animate={{ y: 0, opacity: 1 }}
             exit={{ y: '100%', opacity: 0.5 }}
-            transition={{ type: 'spring', damping: 28, stiffness: 350 }}
+            transition={{ type: 'tween', duration: 0.2, ease: 'easeOut' }}
             role="dialog" aria-modal="true" aria-labelledby="expense-dialog-title"
             onKeyDown={event => { if (event.key === 'Escape') onClose(); }}
             className={`${style.sheet} relative w-full md:max-w-lg rounded-t-3xl md:rounded-3xl border-t md:border text-white z-10 max-h-[92dvh] md:max-h-[90dvh] overflow-y-auto`}
@@ -485,7 +486,10 @@ export default function ExpenseModal({
                       whileTap={{ scale: 0.95 }}
                       type="button"
                       aria-pressed={transactionType === type}
-                      onClick={() => setTransactionType(type)}
+                      onClick={() => {
+                        setTransactionType(type);
+                        if (type === 'lent') setCategory('Other');
+                      }}
                       className={`py-2 px-3 rounded-xl border text-xs font-medium capitalize transition-all ${
                         transactionType === type
                           ? 'bg-gold-400/10 border-gold-400/30 text-gold-400'
@@ -519,7 +523,7 @@ export default function ExpenseModal({
                     className={inputClass}
                   />
                 </div>
-                <div>
+                {transactionType !== 'lent' && <div>
                   <label className={labelClass}>
                     {transactionType === 'borrowed' ? 'Used For' : 'Category'}
                   </label>
@@ -529,11 +533,11 @@ export default function ExpenseModal({
                     onChange={(e) => setCategory(e.target.value)}
                     className={inputClass}
                   >
-                    {categories.map(cat => (
+                    {categories.filter(cat => !['entertainment', 'education', 'medical', 'tea/coffee'].includes(cat.trim().toLowerCase())).map(cat => (
                       <option key={cat} value={cat}>{cat}</option>
                     ))}
                   </select>
-                </div>
+                </div>}
               </div>
 
               {/* [Conditional Field] Petrol Vehicle Type */}
@@ -697,7 +701,10 @@ export default function ExpenseModal({
                         key={method}
                         whileTap={{ scale: 0.95 }}
                         type="button"
-                        onClick={() => setPaymentMethod(method)}
+                        onClick={() => {
+                          setPaymentMethod(method);
+                          if (method === 'Debit Card') setUpiLinkedAccount('Kotak Mahindra');
+                        }}
                         className={`py-2 px-3 rounded-xl border text-xs font-medium transition-all ${
                           paymentMethod === method
                             ? 'bg-gold-400/10 border-gold-400/30 text-gold-400'
@@ -709,6 +716,19 @@ export default function ExpenseModal({
                     ))}
                   </div>
                 </div>
+              )}
+
+              {paymentMethod === 'Debit Card' && sourceAccount !== 'Salary Account' && (
+                <motion.div initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }}
+                  className="bg-white/[0.03] border border-white/[0.06] p-4 rounded-xl space-y-2">
+                  <label className="block text-xs font-normal uppercase tracking-wider text-gold-400">Debit Card</label>
+                  <select aria-label="Debit card" value={upiLinkedAccount || 'Kotak Mahindra'}
+                    onChange={e => setUpiLinkedAccount(e.target.value)} className={inputClass}>
+                    {[...new Set(['Kotak Mahindra', ...dynamicUpiAccounts])].map(account => (
+                      <option key={account} value={account}>{account}</option>
+                    ))}
+                  </select>
+                </motion.div>
               )}
 
               {/* [Conditional Fields] UPI Details (Hidden for Salary Account since it's hardcoded to GPay/Cred UPI) */}

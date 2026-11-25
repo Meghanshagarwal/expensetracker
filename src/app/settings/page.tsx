@@ -38,7 +38,7 @@ export default function SettingsPage() {
         const local = localStorage.getItem('app_dropdown_settings');
         if (local) {
           const parsed = JSON.parse(local);
-          setCategories(parsed.categories || []);
+          setCategories((parsed.categories || []).filter((category: string) => !['entertainment', 'education', 'medical', 'tea/coffee'].includes(category.trim().toLowerCase())));
           setUpiApps(parsed.upiApps || []);
           setSourceAccounts(parsed.sourceAccounts || []);
           setUpiAccounts(parsed.upiAccounts || []);
@@ -49,7 +49,7 @@ export default function SettingsPage() {
         const res = await fetch('/api/settings');
         if (res.ok) {
           const data = await res.json();
-          setCategories(data.categories || []);
+          setCategories((data.categories || []).filter((category: string) => !['entertainment', 'education', 'medical', 'tea/coffee'].includes(category.trim().toLowerCase())));
           setUpiApps(data.upiApps || []);
           setSourceAccounts(data.sourceAccounts || []);
           setUpiAccounts(data.upiAccounts || []);

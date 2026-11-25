@@ -140,6 +140,9 @@ export default function ExpenseTable({
     if (exp.paymentMethod === 'Credit Card' && exp.creditCardIssuer) {
       return `CC (${exp.creditCardIssuer})`;
     }
+    if (exp.paymentMethod === 'Debit Card' && exp.upiLinkedAccount) {
+      return `Debit Card (${exp.upiLinkedAccount})`;
+    }
     return exp.paymentMethod;
   };
 

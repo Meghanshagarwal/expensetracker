@@ -10,8 +10,7 @@ const SettingsSchema = new Schema({
   categories: {
     type: [String],
     default: [
-      "Petrol", "Food", "Tea/Coffee", "Travel", "Shopping", 
-      "Bills", "Entertainment", "Education", "Medical", "Family", "Other"
+      "Petrol", "Food", "Travel", "Shopping", "Bills", "Family", "Other"
     ],
   },
   upiApps: {
