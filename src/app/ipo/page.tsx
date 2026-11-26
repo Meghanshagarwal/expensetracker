@@ -14,9 +14,7 @@ import {
   IPO_REFUND_ACCOUNTS, ipoProfit, ipoRefundBalances, ipoRepaymentFields, ipoRepaymentTotal,
   ipoRepayments, ipoReturnRemaining,
 } from '@/lib/ipoSettlement';
-import { ipoDemo } from './demo';
-
-// Open and upcoming IPOs from the live list, or a sample issue in demo mode.
+// Open and upcoming IPOs from the live list.
 type PresetIpo = IpoSchedule & {
   amount: number;
   priceBand?: string;
@@ -82,9 +80,9 @@ export default function IpoPage() {
   const [ipos, setIpos] = useState<Ipo[]>([]);
   const [presetIpos, setPresetIpos] = useState<PresetIpo[]>([]);
   const [schedules, setSchedules] = useState<IpoSchedule[]>([]);
-  const [isDemo, setIsDemo] = useState(false);
   const [presetSource, setPresetSource] = useState<'live' | 'empty' | 'unavailable' | 'loading'>('loading');
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [resultOnly, setResultOnly] = useState(false);
@@ -108,11 +106,14 @@ export default function IpoPage() {
 
   const loadData = useCallback(async () => {
     setLoading(true);
+    setLoadError(false);
     try {
-      const res = await fetch('/api/ipos');
-      if (res.ok) setIpos(await res.json());
+      const res = await fetch('/api/ipos', { cache: 'no-store' });
+      if (!res.ok) throw new Error(`IPO portfolio request failed (${res.status})`);
+      setIpos(await res.json());
     } catch (e) {
       console.error(e);
+      setLoadError(true);
     } finally {
       setLoading(false);
     }
@@ -137,15 +138,6 @@ export default function IpoPage() {
   }, []);
 
   useEffect(() => {
-    if (new URLSearchParams(window.location.search).get('demo') === '1') {
-      const { entries, preset } = ipoDemo();
-      setIsDemo(true);
-      setIpos(entries);
-      setPresetIpos([preset]);
-      setPresetSource('live');
-      setLoading(false);
-      return;
-    }
     loadData();
     loadPresets();
   }, [loadData, loadPresets]);
@@ -319,38 +311,17 @@ export default function IpoPage() {
           if (JSON.stringify(previousRepayments) === JSON.stringify(repayments)) return [];
           return [{ index, previousRepayments, repayments }];
         });
-        const outcome = {
-          ...details,
-          status: form.status,
-          withdrawnAmount: form.status === 'Allotted' ? withdrawnAmount : undefined,
-          profitAmount: form.status === 'Allotted' ? profitAmount : 0,
-          returnAmount: form.status === 'Not Allotted'
-            ? editingIpo.status === 'Not Allotted' ? editingIpo.returnAmount : editingIpo.amount
-            : 0,
-          returnDate: form.status === 'Not Allotted' ? editingIpo.returnDate : undefined,
-        };
-        if (isDemo) {
-          const contributions = [...originalContributions];
-          for (const change of contributionReturns) {
-            contributions[change.index] = {
-              ...contributions[change.index], ...ipoRepaymentFields(change.repayments),
-            };
-          }
-          setIpos(prev => prev.map(ipo => ipo._id === editingIpo._id ? { ...ipo, ...outcome, contributions } : ipo));
-          setIsModalOpen(false);
-          return;
-        }
         payload = {
           id: editingIpo._id,
           ...details,
-          status: outcome.status,
+          status: form.status,
           allotmentDate: details.allotmentDate ?? null,
           listingDate: details.listingDate ?? null,
-          withdrawnAmount: outcome.withdrawnAmount ?? null,
+          withdrawnAmount: form.status === 'Allotted' ? withdrawnAmount ?? null : null,
           contributionReturns,
         };
       } else {
-        const application = {
+        payload = {
           ...details,
           ipoName: form.ipoName.trim(),
           lots: form.lots,
@@ -364,16 +335,6 @@ export default function IpoPage() {
             ? [{ from: row.from, amount: Number(fundingAmounts[i]), date: new Date(row.date || form.applyDate).toISOString() }]
             : []),
         };
-        if (isDemo) {
-          const entry: Ipo = {
-            ...application, _id: crypto.randomUUID(), createdAt: new Date().toISOString(),
-            returnAmount: 0, profitAmount: 0,
-          };
-          setIpos(prev => [entry, ...prev]);
-          setIsModalOpen(false);
-          return;
-        }
-        payload = application;
       }
       const res = await fetch('/api/ipos', {
         method: editingId ? 'PUT' : 'POST',
@@ -381,7 +342,8 @@ export default function IpoPage() {
         body: JSON.stringify(payload),
       });
       if (res.ok) {
-        await loadData();
+        const saved: Ipo = await res.json();
+        setIpos(prev => editingId ? prev.map(ipo => ipo._id === saved._id ? saved : ipo) : [saved, ...prev]);
         setIsModalOpen(false);
       } else {
         const data = await res.json();
@@ -397,10 +359,6 @@ export default function IpoPage() {
 
   const handleDelete = async (ipo: Ipo) => {
     if (!window.confirm(`Delete IPO entry "${ipo.ipoName}"?`)) return;
-    if (isDemo) {
-      setIpos(prev => prev.filter(i => i._id !== ipo._id));
-      return;
-    }
     try {
       const res = await fetch(`/api/ipos?id=${ipo._id}`, { method: 'DELETE' });
       if (res.ok) {
@@ -434,24 +392,20 @@ export default function IpoPage() {
             <h1 className={style.title}>IPO portfolio</h1>
             <p className={style.sub}>Applications, allotments and returns.</p>
           </div>
-          <div className="flex flex-wrap items-center gap-2">
-            <a href={isDemo ? '/ipo' : '/ipo?demo=1'} className={style.tool}>
-              {isDemo ? 'Back to portfolio' : 'Try IPO demo'}
-            </a>
-            <button
-              onClick={openAdd}
-              className={`${style.action} flex items-center justify-center gap-1.5 text-sm font-semibold bg-gold-400 text-black hover:bg-gold-500`}
-            >
-              <Plus className="h-4 w-4" />
-              Add IPO
-            </button>
-          </div>
+          <button
+            onClick={openAdd}
+            className={`${style.action} flex items-center justify-center gap-1.5 text-sm font-semibold bg-gold-400 text-black hover:bg-gold-500`}
+          >
+            <Plus className="h-4 w-4" />
+            Add IPO
+          </button>
         </div>
 
-        {isDemo && (
-          <p className="mb-5 rounded-xl border border-gold-400/25 bg-gold-400/5 px-4 py-3 text-sm text-gold-400">
-            Demo portfolio. Try Aster Diagnostics for a new result or edit Juniper Energy and Harbor Robotics to try returns. Changes reset on reload.
-          </p>
+        {loadError && (
+          <div role="alert" className="mb-5 flex flex-wrap items-center justify-between gap-2 rounded-xl border border-red-400/25 px-4 py-3 text-sm">
+            <span>Couldn't load saved IPOs.</span>
+            <button type="button" className={style.tool} onClick={loadData}>Retry</button>
+          </div>
         )}
 
         {/* Summary cards */}
@@ -518,7 +472,7 @@ export default function IpoPage() {
           <div className="flex justify-center py-16 text-[#555555]">
             <Loader2 className="h-6 w-6 animate-spin" />
           </div>
-        ) : filteredIpos.length === 0 ? (
+        ) : loadError && filteredIpos.length === 0 ? null : filteredIpos.length === 0 ? (
           <div className="text-center py-16 bg-[#111111] border border-white/[0.06] rounded-2xl">
             <TrendingUp className="h-10 w-10 text-[#333333] mx-auto mb-3" />
             <p className="text-sm text-[#8A8A8A]">No IPO entries yet.</p>
@@ -804,7 +758,7 @@ export default function IpoPage() {
                         : presetSource === 'loading' ? 'bg-[#555555] animate-pulse'
                         : 'bg-gold-400'
                       }`} />
-                      {presetSource === 'live' ? (isDemo ? 'DEMO' : `LIVE · ${presetIpos.length}`)
+                      {presetSource === 'live' ? `LIVE · ${presetIpos.length}`
                         : presetSource === 'loading' ? 'LOADING…'
                         : presetSource === 'empty' ? 'NO OPEN IPO'
                         : 'LIVE UNAVAILABLE'}
