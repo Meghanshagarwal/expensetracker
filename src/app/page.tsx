@@ -14,6 +14,7 @@ import { Expense, Person, DashboardStats } from '@/types';
 import ExpenseModal from '@/components/ExpenseModal';
 import ExpenseTable from '@/components/ExpenseTable';
 import { isSelfPerson } from '@/utils/person';
+import { formatIndiaDate } from '@/lib/dateUtils';
 
 const CATEGORIES = [
   'Petrol', 'Food', 'Travel', 'Shopping', 'Bills', 'Family', 'Other'
@@ -347,7 +348,7 @@ export default function DashboardPage() {
     <div className="ft-dashboard">
       <header className="ft-intro">
         <div>
-          <p className="ft-date">{now?.toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }) || '\u00a0'}</p>
+          <p className="ft-date">{now ? formatIndiaDate(now, { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }) : '\u00a0'}</p>
           <h1>Overview<span>.</span></h1>
         </div>
         <div className="ft-intro-actions">

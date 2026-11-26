@@ -13,6 +13,7 @@ import { useOfflineSync } from '@/hooks/useOfflineSync';
 import { Person, Expense } from '@/types';
 import PersonModal from '@/components/PersonModal';
 import { isSelfPerson } from '@/utils/person';
+import { formatIndiaDate, indiaDateIso, todayInIndia } from '@/lib/dateUtils';
 
 export default function PeoplePage() {
   const [persons, setPersons] = useState<Person[]>([]);
@@ -29,7 +30,7 @@ export default function PeoplePage() {
   const [repaymentAmount, setRepaymentAmount] = useState('');
   const [repaymentMethod, setRepaymentMethod] = useState<'Cash' | 'UPI'>('UPI');
   const [repaymentUpiApp, setRepaymentUpiApp] = useState<'GPay' | 'Amazon Pay' | 'Cred UPI'>('GPay');
-  const [repaymentDate, setRepaymentDate] = useState(new Date().toISOString().split('T')[0]);
+  const [repaymentDate, setRepaymentDate] = useState(todayInIndia);
   const [repaymentNotes, setRepaymentNotes] = useState('');
   const [repaymentLoading, setRepaymentLoading] = useState(false);
   const [repaymentError, setRepaymentError] = useState<string | null>(null);
@@ -38,7 +39,7 @@ export default function PeoplePage() {
   const [ledgerType, setLedgerType] = useState<'lent' | 'received' | 'borrowed' | 'repaid'>('lent');
   const [ledgerTitle, setLedgerTitle] = useState('');
   const [ledgerAmount, setLedgerAmount] = useState('');
-  const [ledgerDate, setLedgerDate] = useState(new Date().toISOString().split('T')[0]);
+  const [ledgerDate, setLedgerDate] = useState(todayInIndia);
   const [ledgerPaymentMethod, setLedgerPaymentMethod] = useState<'Cash' | 'UPI'>('UPI');
   const [ledgerUpiApp, setLedgerUpiApp] = useState<'GPay' | 'Amazon Pay' | 'Cred UPI'>('GPay');
   const [ledgerNotes, setLedgerNotes] = useState('');
@@ -162,7 +163,7 @@ export default function PeoplePage() {
       transactionType: ledgerType,
       personId: currentPersonForLedger._id,
       paymentMethod: ledgerPaymentMethod,
-      date: new Date(ledgerDate).toISOString(),
+      date: indiaDateIso(ledgerDate),
       notes: ledgerNotes.trim(),
       sourceAccount: 'Self Account',
       upiApp: ledgerPaymentMethod === 'UPI' ? ledgerUpiApp : undefined,
@@ -202,7 +203,7 @@ export default function PeoplePage() {
     setLedgerType('lent');
     setLedgerTitle('');
     setLedgerAmount('');
-    setLedgerDate(new Date().toISOString().split('T')[0]);
+    setLedgerDate(todayInIndia());
     setLedgerPaymentMethod('UPI');
     setLedgerUpiApp('GPay');
     setLedgerNotes('');
@@ -225,7 +226,7 @@ export default function PeoplePage() {
       amount: parseFloat(repaymentAmount),
       paymentMethod: repaymentMethod,
       upiApp: repaymentMethod === 'UPI' ? repaymentUpiApp : undefined,
-      date: new Date(repaymentDate).toISOString(),
+      date: indiaDateIso(repaymentDate),
       notes: repaymentNotes.trim() || undefined,
     };
 
@@ -246,7 +247,7 @@ export default function PeoplePage() {
         // Clear form
         setRepaymentAmount('');
         setRepaymentNotes('');
-        setRepaymentDate(new Date().toISOString().split('T')[0]);
+        setRepaymentDate(todayInIndia());
       } else {
         const data = await res.json();
         setRepaymentError(data.error || 'Failed to save repayment');
@@ -442,7 +443,7 @@ export default function PeoplePage() {
 
                   {lastActive && (
                     <div className="text-xs text-[#a6b2a6] pt-1 border-t border-white/[0.03]">
-                      Last active: {new Date(lastActive).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}
+                      Last active: {formatIndiaDate(lastActive)}
                     </div>
                   )}
                   
@@ -775,7 +776,7 @@ export default function PeoplePage() {
                               <div className="flex items-center gap-2 text-[10px] text-[#555555]">
                                 <div className="flex items-center gap-1">
                                   <Calendar className="h-3 w-3" />
-                                  <span>{new Date(exp.date).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}</span>
+                                  <span>{formatIndiaDate(exp.date)}</span>
                                 </div>
                                 <span>·</span>
                                 <span>{exp.paymentMethod === 'UPI' && exp.upiApp ? `UPI (${exp.upiApp})` : exp.paymentMethod}</span>
@@ -833,7 +834,7 @@ export default function PeoplePage() {
                                         <div className="text-[11px]">
                                           <span className="text-white font-medium">₹{rep.amount}</span>
                                           <span className="text-[#8A8A8A] ml-2">via {rep.paymentMethod === 'UPI' && rep.upiApp ? `UPI (${rep.upiApp})` : rep.paymentMethod}</span>
-                                          <span className="text-[#555555] ml-2">({new Date(rep.date).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })})</span>
+                                          <span className="text-[#555555] ml-2">({formatIndiaDate(rep.date, { day: 'numeric', month: 'short' })})</span>
                                           {rep.notes && <p className="text-[10px] text-[#8A8A8A] italic mt-0.5">&ldquo;{rep.notes}&rdquo;</p>}
                                         </div>
                                         <button

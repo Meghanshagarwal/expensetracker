@@ -8,6 +8,7 @@ import {
   Edit2, Trash2, FileSpreadsheet, FileText, FileDown 
 } from 'lucide-react';
 import { Expense, Person } from '@/types';
+import { formatIndiaDate } from '@/lib/dateUtils';
 import { exportToCSV, exportToExcel, exportToPDF } from '@/utils/export';
 
 interface ExpenseTableProps {
@@ -123,11 +124,7 @@ export default function ExpenseTable({
   };
 
   const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString('en-IN', {
-      day: 'numeric',
-      month: 'short',
-      year: 'numeric',
-    });
+    return formatIndiaDate(dateString);
   };
 
   const renderPaymentMethodDetail = (exp: Expense) => {

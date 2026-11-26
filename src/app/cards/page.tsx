@@ -14,6 +14,7 @@ import { useOfflineSync } from '@/hooks/useOfflineSync';
 import { isPushSupported, getPushSubscribed, enablePush, disablePush } from '@/lib/push';
 import { Expense, Person, Card } from '@/types';
 import { isSelfPerson } from '@/utils/person';
+import { formatIndiaDate, indiaDateIso, todayInIndia } from '@/lib/dateUtils';
 
 type CardType = 'ICICI' | 'OneCard' | 'Yes Bank';
 
@@ -45,7 +46,7 @@ export default function CardsPage() {
 
   // Mark as Paid form inputs
   const [paidFrom, setPaidFrom] = useState<string>('Salary Account');
-  const [paidDate, setPaidDate] = useState(new Date().toISOString().split('T')[0]);
+  const [paidDate, setPaidDate] = useState(todayInIndia);
   const [settlementNotes, setSettlementNotes] = useState('');
   const [submitLoading, setSubmitLoading] = useState(false);
 
@@ -113,7 +114,7 @@ export default function CardsPage() {
   useEffect(() => {
     if (expandedTxId) {
       setPaidFrom('Salary Account');
-      setPaidDate(new Date().toISOString().split('T')[0]);
+      setPaidDate(todayInIndia());
       setSettlementNotes('');
     }
   }, [expandedTxId]);
@@ -200,7 +201,7 @@ export default function CardsPage() {
       updatedRepayments.push({
         amount: expense.amount,
         paymentMethod: paymentMethod,
-        date: new Date(paidDate).toISOString(),
+        date: indiaDateIso(paidDate),
         notes: settlementNotes.trim() || `Settled credit card statement charge for "${expense.title}"`
       });
     }
@@ -208,7 +209,7 @@ export default function CardsPage() {
     const updatedExpense: Expense = {
       ...expense,
       isCardPaid: true,
-      cardPaidDate: new Date(paidDate).toISOString(),
+      cardPaidDate: indiaDateIso(paidDate),
       cardPaidFrom: paidFrom,
       repayments: updatedRepayments
     };
@@ -230,7 +231,7 @@ export default function CardsPage() {
           body: JSON.stringify({
             id: expense._id,
             isCardPaid: true,
-            cardPaidDate: new Date(paidDate).toISOString(),
+            cardPaidDate: indiaDateIso(paidDate),
             cardPaidFrom: paidFrom,
             repayments: updatedRepayments
           })
@@ -643,10 +644,7 @@ export default function CardsPage() {
     }).format(num);
   };
 
-  const formatDate = (dateString: string) => {
-    const d = new Date(dateString);
-    return d.toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' });
-  };
+  const formatDate = (dateString: string) => formatIndiaDate(dateString);
 
   return (
     <>

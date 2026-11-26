@@ -6,6 +6,7 @@ import { useState, useEffect, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, Loader2, CreditCard } from 'lucide-react';
 import { Expense, Person, Card } from '@/types';
+import { dateInputInIndia, formatIndiaDate, indiaDateIso, todayInIndia } from '@/lib/dateUtils';
 import { getLocalCards, saveLocalCards } from '@/lib/offlineDb';
 
 interface ExpenseModalProps {
@@ -35,7 +36,7 @@ export default function ExpenseModal({
 }: ExpenseModalProps) {
   const [title, setTitle] = useState('');
   const [amount, setAmount] = useState('');
-  const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
+  const [date, setDate] = useState(todayInIndia);
   const [category, setCategory] = useState('Food');
   const [transactionType, setTransactionType] = useState<'expense' | 'lent' | 'borrowed'>('expense');
   const [personId, setPersonId] = useState('');
@@ -182,7 +183,7 @@ export default function ExpenseModal({
     if (expenseToEdit) {
       setTitle(expenseToEdit.title);
       setAmount(expenseToEdit.amount.toString());
-      setDate(new Date(expenseToEdit.date).toISOString().split('T')[0]);
+      setDate(dateInputInIndia(expenseToEdit.date));
       setCategory(expenseToEdit.category);
       setTransactionType((expenseToEdit.transactionType as 'expense' | 'lent' | 'borrowed') || 'expense');
       setPersonId(expenseToEdit.personId);
@@ -201,7 +202,7 @@ export default function ExpenseModal({
     } else {
       setTitle('');
       setAmount('');
-      setDate(new Date().toISOString().split('T')[0]);
+      setDate(todayInIndia());
       setCategory('Food');
       setTransactionType('expense');
       setPersonId(persons[0]?._id || '');
@@ -341,7 +342,7 @@ export default function ExpenseModal({
         transactionType,
         personId: resolvedPersonId,
         paymentMethod,
-        date: new Date(date).toISOString(),
+        date: indiaDateIso(date),
         notes: notes.trim(),
 
         // Conditional mappings
@@ -612,7 +613,7 @@ export default function ExpenseModal({
                     <div className="text-xs px-1 space-y-1">
                       {lastPetrolTx && (
                         <div className="text-[#8A8A8A] font-light text-[11px]">
-                          Prev Odo: {lastPetrolTx.km} km ({new Date(lastPetrolTx.date).toLocaleDateString()})
+                          Prev Odo: {lastPetrolTx.km} km ({formatIndiaDate(lastPetrolTx.date)})
                         </div>
                       )}
                       {calculatedMileage !== null && (

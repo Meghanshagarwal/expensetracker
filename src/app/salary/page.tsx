@@ -11,6 +11,7 @@ import {
 import { getLocalExpenses, getLocalPersons } from '@/lib/offlineDb';
 import { useOfflineSync } from '@/hooks/useOfflineSync';
 import { Expense, Person } from '@/types';
+import { formatIndiaDate } from '@/lib/dateUtils';
 
 interface SalaryTransaction {
   id: string;
@@ -158,8 +159,7 @@ export default function SalaryAccountPage() {
   };
 
   const formatDate = (dateString: string) => {
-    const d = new Date(dateString);
-    return d.toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' });
+    return formatIndiaDate(dateString);
   };
 
   return (

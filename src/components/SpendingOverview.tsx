@@ -3,6 +3,7 @@
 import { useId, useMemo, useState } from 'react';
 import { Activity } from 'lucide-react';
 import type { Expense } from '@/types';
+import { formatIndiaDate } from '@/lib/dateUtils';
 
 const periods = ['Week', 'Month', 'Year'] as const;
 type Period = typeof periods[number];
@@ -52,7 +53,7 @@ export default function SpendingOverview({ expenses, now }: { expenses: Expense[
   const pointX = (index: number) => series.length <= 1 ? 99 : 1 + (index * 98) / (series.length - 1);
   const pointY = (amount: number) => 94 - (amount / peak) * 81;
   const line = series.map((point, i) => `${pointX(i)},${pointY(point.total)}`).join(' ');
-  const labelDate = (date: Date) => date.toLocaleDateString('en-GB', period === 'Year'
+  const labelDate = (date: Date) => formatIndiaDate(date, period === 'Year'
     ? { month: 'short', year: 'numeric' }
     : { day: 'numeric', month: 'short' });
   const selectedIndex = Math.max(0, Math.min(hoverIndex ?? series.length - 1, series.length - 1));

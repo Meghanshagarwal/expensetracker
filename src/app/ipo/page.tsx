@@ -9,6 +9,7 @@ import {
   X, CheckCircle2, Clock, XCircle, Wallet, ArrowDownLeft, LockKeyhole
 } from 'lucide-react';
 import type { Ipo, IpoRepayment } from '@/types';
+import { formatIndiaDate, indiaDateIso } from '@/lib/dateUtils';
 import { findIpoSchedule, indiaDate, ipoDate, type IpoSchedule } from '@/lib/ipoDates';
 import {
   IPO_REFUND_ACCOUNTS, ipoProfit, ipoRefundBalances, ipoRepaymentFields, ipoRepaymentTotal,
@@ -152,8 +153,7 @@ export default function IpoPage() {
   const formatRupee = (num: number) =>
     new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', minimumFractionDigits: 0, maximumFractionDigits: 2 }).format(num || 0);
 
-  const formatDate = (d: string) =>
-    new Date(d).toLocaleDateString('en-IN', { timeZone: 'Asia/Kolkata', day: 'numeric', month: 'short', year: 'numeric' });
+  const formatDate = (d: string) => formatIndiaDate(d);
 
   const scheduleFor = (ipo: Ipo) => {
     const calendar = findIpoSchedule(schedules, ipo.ipoName, ipo.closeDate);
@@ -328,11 +328,11 @@ export default function IpoPage() {
           amount: Number(form.amount) || 0,
           appliedFrom: form.appliedFrom,
           status: 'Applied' as const,
-          applyDate: new Date(form.applyDate).toISOString(),
+          applyDate: indiaDateIso(form.applyDate),
           openDate: form.openDate || undefined,
           closeDate: form.closeDate || undefined,
           contributions: form.contributions.flatMap((row, i) => row.from && Number(fundingAmounts[i]) > 0
-            ? [{ from: row.from, amount: Number(fundingAmounts[i]), date: new Date(row.date || form.applyDate).toISOString() }]
+            ? [{ from: row.from, amount: Number(fundingAmounts[i]), date: indiaDateIso(row.date || form.applyDate) }]
             : []),
         };
       }
@@ -1076,7 +1076,7 @@ export default function IpoPage() {
                                   <button type="button" className={style.ipoOutcome} data-outcome="yes"
                                     aria-label={`Add repayment for ${person}`} disabled={!canAdd}
                                     onClick={() => updateRepayment(i, {
-                                      repayments: [...row.repayments, payment], paymentAmount: null, paymentDate: '',
+                                      repayments: [...row.repayments, { ...payment, date: indiaDateIso(date) }], paymentAmount: null, paymentDate: '',
                                     })}>
                                     Add repayment
                                   </button>

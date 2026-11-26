@@ -49,9 +49,20 @@
   input::-webkit-inner-spin-button, input::-webkit-outer-spin-button { -webkit-appearance: none; }
   select {
     appearance: none;
-    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' fill='none' stroke='%23aab8aa' viewBox='0 0 24 24'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
-    background-repeat: no-repeat; background-position: right .85rem center; padding-right: 2.25rem !important;
+    -webkit-appearance: none;
+    background-color: var(--input);
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' fill='none' stroke='%23b7c5b8' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round' viewBox='0 0 24 24'%3E%3Cpath d='m7 10 5 5 5-5'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right .85rem center;
+    background-size: 1rem;
+    padding-right: 2.75rem !important;
+    text-overflow: ellipsis;
   }
+  :where(select, input[type="date"], input[type="month"], input[type="datetime-local"]) { min-width: 0; max-width: 100%; }
+  :where(input[type="date"], input[type="month"], input[type="datetime-local"]) { color-scheme: dark; font-variant-numeric: tabular-nums; }
+  input[type="date"]::-webkit-calendar-picker-indicator,
+  input[type="month"]::-webkit-calendar-picker-indicator,
+  input[type="datetime-local"]::-webkit-calendar-picker-indicator { opacity: .78; cursor: pointer; }
 }
 .glass-card, .luxury-card { background: var(--panel); border: 1px solid var(--line); }
 .gold-glow { box-shadow: 0 3px 18px #9ee87711; }
