@@ -63,6 +63,7 @@
   input[type="date"]::-webkit-calendar-picker-indicator,
   input[type="month"]::-webkit-calendar-picker-indicator,
   input[type="datetime-local"]::-webkit-calendar-picker-indicator { opacity: .78; cursor: pointer; }
+  :where(input[type="date"], input[type="month"], input[type="datetime-local"])::-webkit-calendar-picker-indicator { margin-right: .45rem; }
 }
 .glass-card, .luxury-card { background: var(--panel); border: 1px solid var(--line); }
 .gold-glow { box-shadow: 0 3px 18px #9ee87711; }
